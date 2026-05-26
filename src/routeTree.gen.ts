@@ -15,6 +15,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedVendorsIndexRouteImport } from './routes/_authenticated.vendors.index'
 import { Route as AuthenticatedProductsIndexRouteImport } from './routes/_authenticated.products.index'
+import { Route as AuthenticatedMaterialsIndexRouteImport } from './routes/_authenticated.materials.index'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
@@ -52,6 +53,12 @@ const AuthenticatedProductsIndexRoute =
   AuthenticatedProductsIndexRouteImport.update({
     id: '/products/',
     path: '/products/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaterialsIndexRoute =
+  AuthenticatedMaterialsIndexRouteImport.update({
+    id: '/materials/',
+    path: '/materials/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInvoicesIndexRoute =
@@ -104,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
+  '/materials/': typeof AuthenticatedMaterialsIndexRoute
   '/products/': typeof AuthenticatedProductsIndexRoute
   '/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
@@ -118,6 +126,7 @@ export interface FileRoutesByTo {
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
+  '/materials': typeof AuthenticatedMaterialsIndexRoute
   '/products': typeof AuthenticatedProductsIndexRoute
   '/vendors': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
@@ -134,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
+  '/_authenticated/materials/': typeof AuthenticatedMaterialsIndexRoute
   '/_authenticated/products/': typeof AuthenticatedProductsIndexRoute
   '/_authenticated/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/_authenticated/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/vendors/$id'
     | '/clients/'
     | '/invoices/'
+    | '/materials/'
     | '/products/'
     | '/vendors/'
     | '/vendors/grn/new'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/vendors/$id'
     | '/clients'
     | '/invoices'
+    | '/materials'
     | '/products'
     | '/vendors'
     | '/vendors/grn/new'
@@ -179,6 +191,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vendors/$id'
     | '/_authenticated/clients/'
     | '/_authenticated/invoices/'
+    | '/_authenticated/materials/'
     | '/_authenticated/products/'
     | '/_authenticated/vendors/'
     | '/_authenticated/vendors/grn/new'
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/products/'
       preLoaderRoute: typeof AuthenticatedProductsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/materials/': {
+      id: '/_authenticated/materials/'
+      path: '/materials'
+      fullPath: '/materials/'
+      preLoaderRoute: typeof AuthenticatedMaterialsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/invoices/': {
@@ -294,6 +314,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedVendorsIdRoute: typeof AuthenticatedVendorsIdRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
+  AuthenticatedMaterialsIndexRoute: typeof AuthenticatedMaterialsIndexRoute
   AuthenticatedProductsIndexRoute: typeof AuthenticatedProductsIndexRoute
   AuthenticatedVendorsIndexRoute: typeof AuthenticatedVendorsIndexRoute
   AuthenticatedVendorsGrnNewRoute: typeof AuthenticatedVendorsGrnNewRoute
@@ -308,6 +329,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedVendorsIdRoute: AuthenticatedVendorsIdRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,
+  AuthenticatedMaterialsIndexRoute: AuthenticatedMaterialsIndexRoute,
   AuthenticatedProductsIndexRoute: AuthenticatedProductsIndexRoute,
   AuthenticatedVendorsIndexRoute: AuthenticatedVendorsIndexRoute,
   AuthenticatedVendorsGrnNewRoute: AuthenticatedVendorsGrnNewRoute,
@@ -324,3 +346,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -12,10 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
-import { Route as AuthenticatedVendorsRouteImport } from './routes/_authenticated.vendors'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
-import { Route as AuthenticatedInvoicesRouteImport } from './routes/_authenticated.invoices'
-import { Route as AuthenticatedClientsRouteImport } from './routes/_authenticated.clients'
+import { Route as AuthenticatedVendorsIndexRouteImport } from './routes/_authenticated.vendors.index'
+import { Route as AuthenticatedProductsIndexRouteImport } from './routes/_authenticated.products.index'
+import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
+import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated.invoices.new'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated.invoices.$id'
@@ -36,93 +37,105 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedVendorsRoute = AuthenticatedVendorsRouteImport.update({
-  id: '/vendors',
-  path: '/vendors',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedInvoicesRoute = AuthenticatedInvoicesRouteImport.update({
-  id: '/invoices',
-  path: '/invoices',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedClientsRoute = AuthenticatedClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
+const AuthenticatedVendorsIndexRoute =
+  AuthenticatedVendorsIndexRouteImport.update({
+    id: '/vendors/',
+    path: '/vendors/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedProductsIndexRoute =
+  AuthenticatedProductsIndexRouteImport.update({
+    id: '/products/',
+    path: '/products/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInvoicesIndexRoute =
+  AuthenticatedInvoicesIndexRouteImport.update({
+    id: '/invoices/',
+    path: '/invoices/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedClientsIndexRoute =
+  AuthenticatedClientsIndexRouteImport.update({
+    id: '/clients/',
+    path: '/clients/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedVendorsIdRoute = AuthenticatedVendorsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedVendorsRoute,
+  id: '/vendors/$id',
+  path: '/vendors/$id',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedInvoicesNewRoute =
   AuthenticatedInvoicesNewRouteImport.update({
-    id: '/new',
-    path: '/new',
-    getParentRoute: () => AuthenticatedInvoicesRoute,
+    id: '/invoices/new',
+    path: '/invoices/new',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInvoicesIdRoute = AuthenticatedInvoicesIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedInvoicesRoute,
+  id: '/invoices/$id',
+  path: '/invoices/$id',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedClientsIdRoute = AuthenticatedClientsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AuthenticatedClientsRoute,
+  id: '/clients/$id',
+  path: '/clients/$id',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedVendorsGrnNewRoute =
   AuthenticatedVendorsGrnNewRouteImport.update({
-    id: '/grn/new',
-    path: '/grn/new',
-    getParentRoute: () => AuthenticatedVendorsRoute,
+    id: '/vendors/grn/new',
+    path: '/vendors/grn/new',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
-  '/clients': typeof AuthenticatedClientsRouteWithChildren
-  '/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
-  '/vendors': typeof AuthenticatedVendorsRouteWithChildren
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/clients/': typeof AuthenticatedClientsIndexRoute
+  '/invoices/': typeof AuthenticatedInvoicesIndexRoute
+  '/products/': typeof AuthenticatedProductsIndexRoute
+  '/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
-  '/clients': typeof AuthenticatedClientsRouteWithChildren
-  '/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/settings': typeof AuthenticatedSettingsRoute
-  '/vendors': typeof AuthenticatedVendorsRouteWithChildren
   '/': typeof AuthenticatedIndexRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/clients': typeof AuthenticatedClientsIndexRoute
+  '/invoices': typeof AuthenticatedInvoicesIndexRoute
+  '/products': typeof AuthenticatedProductsIndexRoute
+  '/vendors': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
-  '/_authenticated/clients': typeof AuthenticatedClientsRouteWithChildren
-  '/_authenticated/invoices': typeof AuthenticatedInvoicesRouteWithChildren
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/_authenticated/vendors': typeof AuthenticatedVendorsRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
+  '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
+  '/_authenticated/products/': typeof AuthenticatedProductsIndexRoute
+  '/_authenticated/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/_authenticated/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
 export interface FileRouteTypes {
@@ -130,41 +143,44 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
-    | '/clients'
-    | '/invoices'
     | '/settings'
-    | '/vendors'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/vendors/$id'
+    | '/clients/'
+    | '/invoices/'
+    | '/products/'
+    | '/vendors/'
     | '/vendors/grn/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
-    | '/clients'
-    | '/invoices'
     | '/settings'
-    | '/vendors'
     | '/'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
     | '/vendors/$id'
+    | '/clients'
+    | '/invoices'
+    | '/products'
+    | '/vendors'
     | '/vendors/grn/new'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
-    | '/_authenticated/clients'
-    | '/_authenticated/invoices'
     | '/_authenticated/settings'
-    | '/_authenticated/vendors'
     | '/_authenticated/'
     | '/_authenticated/clients/$id'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/new'
     | '/_authenticated/vendors/$id'
+    | '/_authenticated/clients/'
+    | '/_authenticated/invoices/'
+    | '/_authenticated/products/'
+    | '/_authenticated/vendors/'
     | '/_authenticated/vendors/grn/new'
   fileRoutesById: FileRoutesById
 }
@@ -196,13 +212,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vendors': {
-      id: '/_authenticated/vendors'
-      path: '/vendors'
-      fullPath: '/vendors'
-      preLoaderRoute: typeof AuthenticatedVendorsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -210,111 +219,98 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/invoices': {
-      id: '/_authenticated/invoices'
-      path: '/invoices'
-      fullPath: '/invoices'
-      preLoaderRoute: typeof AuthenticatedInvoicesRouteImport
+    '/_authenticated/vendors/': {
+      id: '/_authenticated/vendors/'
+      path: '/vendors'
+      fullPath: '/vendors/'
+      preLoaderRoute: typeof AuthenticatedVendorsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/clients': {
-      id: '/_authenticated/clients'
+    '/_authenticated/products/': {
+      id: '/_authenticated/products/'
+      path: '/products'
+      fullPath: '/products/'
+      preLoaderRoute: typeof AuthenticatedProductsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/invoices/': {
+      id: '/_authenticated/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof AuthenticatedInvoicesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/clients/': {
+      id: '/_authenticated/clients/'
       path: '/clients'
-      fullPath: '/clients'
-      preLoaderRoute: typeof AuthenticatedClientsRouteImport
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/vendors/$id': {
       id: '/_authenticated/vendors/$id'
-      path: '/$id'
+      path: '/vendors/$id'
       fullPath: '/vendors/$id'
       preLoaderRoute: typeof AuthenticatedVendorsIdRouteImport
-      parentRoute: typeof AuthenticatedVendorsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/invoices/new': {
       id: '/_authenticated/invoices/new'
-      path: '/new'
+      path: '/invoices/new'
       fullPath: '/invoices/new'
       preLoaderRoute: typeof AuthenticatedInvoicesNewRouteImport
-      parentRoute: typeof AuthenticatedInvoicesRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/invoices/$id': {
       id: '/_authenticated/invoices/$id'
-      path: '/$id'
+      path: '/invoices/$id'
       fullPath: '/invoices/$id'
       preLoaderRoute: typeof AuthenticatedInvoicesIdRouteImport
-      parentRoute: typeof AuthenticatedInvoicesRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/clients/$id': {
       id: '/_authenticated/clients/$id'
-      path: '/$id'
+      path: '/clients/$id'
       fullPath: '/clients/$id'
       preLoaderRoute: typeof AuthenticatedClientsIdRouteImport
-      parentRoute: typeof AuthenticatedClientsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/vendors/grn/new': {
       id: '/_authenticated/vendors/grn/new'
-      path: '/grn/new'
+      path: '/vendors/grn/new'
       fullPath: '/vendors/grn/new'
       preLoaderRoute: typeof AuthenticatedVendorsGrnNewRouteImport
-      parentRoute: typeof AuthenticatedVendorsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
-interface AuthenticatedClientsRouteChildren {
+interface AuthenticatedRouteChildren {
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
-}
-
-const AuthenticatedClientsRouteChildren: AuthenticatedClientsRouteChildren = {
-  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
-}
-
-const AuthenticatedClientsRouteWithChildren =
-  AuthenticatedClientsRoute._addFileChildren(AuthenticatedClientsRouteChildren)
-
-interface AuthenticatedInvoicesRouteChildren {
   AuthenticatedInvoicesIdRoute: typeof AuthenticatedInvoicesIdRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
-}
-
-const AuthenticatedInvoicesRouteChildren: AuthenticatedInvoicesRouteChildren = {
-  AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
-  AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
-}
-
-const AuthenticatedInvoicesRouteWithChildren =
-  AuthenticatedInvoicesRoute._addFileChildren(
-    AuthenticatedInvoicesRouteChildren,
-  )
-
-interface AuthenticatedVendorsRouteChildren {
   AuthenticatedVendorsIdRoute: typeof AuthenticatedVendorsIdRoute
+  AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
+  AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
+  AuthenticatedProductsIndexRoute: typeof AuthenticatedProductsIndexRoute
+  AuthenticatedVendorsIndexRoute: typeof AuthenticatedVendorsIndexRoute
   AuthenticatedVendorsGrnNewRoute: typeof AuthenticatedVendorsGrnNewRoute
 }
 
-const AuthenticatedVendorsRouteChildren: AuthenticatedVendorsRouteChildren = {
-  AuthenticatedVendorsIdRoute: AuthenticatedVendorsIdRoute,
-  AuthenticatedVendorsGrnNewRoute: AuthenticatedVendorsGrnNewRoute,
-}
-
-const AuthenticatedVendorsRouteWithChildren =
-  AuthenticatedVendorsRoute._addFileChildren(AuthenticatedVendorsRouteChildren)
-
-interface AuthenticatedRouteChildren {
-  AuthenticatedClientsRoute: typeof AuthenticatedClientsRouteWithChildren
-  AuthenticatedInvoicesRoute: typeof AuthenticatedInvoicesRouteWithChildren
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
-  AuthenticatedVendorsRoute: typeof AuthenticatedVendorsRouteWithChildren
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-}
-
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedClientsRoute: AuthenticatedClientsRouteWithChildren,
-  AuthenticatedInvoicesRoute: AuthenticatedInvoicesRouteWithChildren,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
-  AuthenticatedVendorsRoute: AuthenticatedVendorsRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
+  AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
+  AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
+  AuthenticatedVendorsIdRoute: AuthenticatedVendorsIdRoute,
+  AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
+  AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,
+  AuthenticatedProductsIndexRoute: AuthenticatedProductsIndexRoute,
+  AuthenticatedVendorsIndexRoute: AuthenticatedVendorsIndexRoute,
+  AuthenticatedVendorsGrnNewRoute: AuthenticatedVendorsGrnNewRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

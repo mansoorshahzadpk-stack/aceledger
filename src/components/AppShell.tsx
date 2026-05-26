@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, MoreHorizontal, Package } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_SYMBOLS } from "@/lib/format";
@@ -14,6 +14,7 @@ const NAV: NavItem[] = [
   { to: "/vendors", label: "Vendors", icon: Truck },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/invoices", label: "Invoices", icon: FileText },
+  { to: "/products", label: "Products", icon: Package },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -36,9 +37,13 @@ export function AppShell() {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar">
         <div className="flex h-16 items-center gap-2 border-b px-5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">L</div>
-          <div>
-            <div className="text-sm font-semibold leading-tight">Ledger</div>
+          {settings.business_logo_url ? (
+            <img src={settings.business_logo_url} alt="logo" className="h-8 w-8 rounded object-contain" />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">L</div>
+          )}
+          <div className="min-w-0">
+            <div className="text-sm font-semibold leading-tight truncate">{settings.business_name || "Ledger"}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">B2B Accounts</div>
           </div>
         </div>
@@ -72,8 +77,12 @@ export function AppShell() {
         {/* Header */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
           <div className="md:hidden flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">L</div>
-            <span className="font-semibold">Ledger</span>
+            {settings.business_logo_url ? (
+              <img src={settings.business_logo_url} alt="logo" className="h-8 w-8 rounded object-contain" />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">L</div>
+            )}
+            <span className="font-semibold truncate">{settings.business_name || "Ledger"}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs font-medium">
@@ -127,6 +136,7 @@ export function AppShell() {
               More
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild><Link to="/products"><Package className="mr-2 h-4 w-4" />Products</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link></DropdownMenuItem>
               <DropdownMenuItem onClick={cycleTheme}><ThemeIcon className="mr-2 h-4 w-4" />Theme: {settings.theme}</DropdownMenuItem>
               <DropdownMenuItem onClick={signOut}><LogOut className="mr-2 h-4 w-4" />Sign out</DropdownMenuItem>

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { z } from "zod";
@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { formatMoney } from "@/lib/format";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 
 const search = z.object({ client: z.string().optional() });
@@ -22,6 +24,7 @@ export const Route = createFileRoute("/_authenticated/invoices/new")({
 });
 
 type Item = { description: string; quantity: string; unit_price: string };
+type Product = { id: string; name: string; sku: string | null; unit: string; default_price: number };
 
 function NewInvoice() {
   const navigate = useNavigate();
@@ -35,10 +38,20 @@ function NewInvoice() {
   const [tax, setTax] = useState("0");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
+  const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id],
     queryFn: async () => (await supabase.from("clients").select("id, name").order("name")).data ?? [],
+    enabled: !!user,
+  });
+
+  const { data: products } = useQuery({
+    queryKey: ["products-active", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).order("name");
+      return (data ?? []) as unknown as Product[];
+    },
     enabled: !!user,
   });
 
@@ -47,6 +60,15 @@ function NewInvoice() {
   const total = subtotal + taxNum;
 
   const setItem = (idx: number, patch: Partial<Item>) => setItems(items.map((it, i) => i === idx ? { ...it, ...patch } : it));
+
+  const pickProduct = (idx: number, p: Product) => {
+    setItems(items.map((it, i) => i === idx ? {
+      description: p.sku ? `${p.name} (${p.sku})` : p.name,
+      quantity: it.quantity && it.quantity !== "0" ? it.quantity : "1",
+      unit_price: String(p.default_price),
+    } : it));
+    setPickerOpen(null);
+  };
 
   const save = async (status: "draft" | "posted") => {
     if (!user || !clientId) { toast.error("Choose a client"); return; }
@@ -106,15 +128,55 @@ function NewInvoice() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Line items</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>Line items</CardTitle>
+          <Button asChild variant="ghost" size="sm"><Link to="/products"><Package className="mr-1 h-4 w-4" />Manage catalog</Link></Button>
+        </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it, idx) => (
-            <div key={idx} className="grid gap-2 rounded-md border p-3 md:grid-cols-[1fr_100px_140px_140px_40px] md:items-end">
-              <Field label="Description"><Input value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} placeholder="Material / service" /></Field>
-              <Field label="Qty"><Input type="number" step="0.001" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} /></Field>
-              <Field label="Unit price"><Input type="number" step="0.01" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} /></Field>
-              <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), settings.currency)}</div></Field>
-              <Button type="button" variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button>
+            <div key={idx} className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <Popover open={pickerOpen === idx} onOpenChange={(v) => setPickerOpen(v ? idx : null)}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm">
+                      <Package className="mr-1 h-4 w-4" />
+                      {(products?.length ?? 0) > 0 ? "Select from products" : "No products yet"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search products…" />
+                      <CommandList>
+                        <CommandEmpty>
+                          No products found. <Link to="/products" className="underline">Add one</Link>.
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {products?.map((p) => (
+                            <CommandItem key={p.id} value={`${p.name} ${p.sku ?? ""}`} onSelect={() => pickProduct(idx, p)}>
+                              <div className="flex w-full items-center justify-between">
+                                <div>
+                                  <div className="font-medium">{p.name}</div>
+                                  {p.sku && <div className="text-xs text-muted-foreground">{p.sku} · {p.unit}</div>}
+                                </div>
+                                <div className="figure text-sm">{formatMoney(p.default_price, settings.currency)}</div>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Button type="button" variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="grid gap-2 md:grid-cols-[1fr_100px_140px_140px] md:items-end">
+                <Field label="Description"><Input value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} placeholder="Material / service" /></Field>
+                <Field label="Qty"><Input type="number" step="0.001" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} /></Field>
+                <Field label="Unit price"><Input type="number" step="0.01" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} /></Field>
+                <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), settings.currency)}</div></Field>
+              </div>
             </div>
           ))}
           <Button type="button" variant="outline" onClick={() => setItems([...items, { description: "", quantity: "1", unit_price: "0" }])}>

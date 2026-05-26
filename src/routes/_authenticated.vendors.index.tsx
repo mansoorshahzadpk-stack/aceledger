@@ -9,12 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/format";
-import { Plus, Truck } from "lucide-react";
+import { Plus, Truck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/vendors")({
+export const Route = createFileRoute("/_authenticated/vendors/")({
   component: VendorsPage,
 });
 
@@ -22,6 +27,7 @@ function VendorsPage() {
   const { settings, user } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
 
   const { data: vendors, isLoading } = useQuery({
@@ -39,6 +45,17 @@ function VendorsPage() {
     },
     enabled: !!user,
   });
+
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+  const toggleAll = () => {
+    if (!vendors) return;
+    if (selected.size === vendors.length) setSelected(new Set());
+    else setSelected(new Set(vendors.map((v) => v.id)));
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +79,19 @@ function VendorsPage() {
     }
   };
 
+  const deleteSelected = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    const { error: e1 } = await supabase.from("vendor_payments").delete().in("vendor_id", ids);
+    const { error: e2 } = await supabase.from("vendor_grns").delete().in("vendor_id", ids);
+    const { error: e3 } = await supabase.from("vendors").delete().in("id", ids);
+    if (e1 || e2 || e3) { toast.error((e1 || e2 || e3)!.message); return; }
+    toast.success(`Deleted ${ids.length} vendor${ids.length === 1 ? "" : "s"}`);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["vendors"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -70,6 +100,25 @@ function VendorsPage() {
           <p className="text-sm text-muted-foreground">Raw material suppliers and amounts owed</p>
         </div>
         <div className="flex gap-2">
+          {selected.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selected.size} vendor{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes the selected vendors along with all their GRNs and payment history. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <Button asChild variant="outline"><Link to="/vendors/grn/new"><Truck className="mr-2 h-4 w-4" />Log GRN</Link></Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Vendor</Button></DialogTrigger>
@@ -97,15 +146,25 @@ function VendorsPage() {
           <div className="overflow-auto rounded-md border">
             <Table>
               <TableHeader><TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={!!vendors && vendors.length > 0 && selected.size === vendors.length}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead><TableHead>Phone</TableHead><TableHead className="text-right">We owe</TableHead><TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
                 {!isLoading && (vendors?.length ?? 0) === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No vendors yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No vendors yet</TableCell></TableRow>
                 )}
                 {vendors?.map((v) => (
-                  <TableRow key={v.id}>
+                  <TableRow key={v.id} data-state={selected.has(v.id) ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox checked={selected.has(v.id)} onCheckedChange={() => toggle(v.id)} aria-label={`Select ${v.name}`} />
+                    </TableCell>
                     <TableCell className="font-medium">{v.name}</TableCell>
                     <TableCell className="text-muted-foreground">{v.phone ?? "—"}</TableCell>
                     <TableCell className="text-right figure font-medium text-destructive">{formatMoney(v.owed, settings.currency)}</TableCell>

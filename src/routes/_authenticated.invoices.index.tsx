@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { Plus } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/invoices")({
+export const Route = createFileRoute("/_authenticated/invoices/")({
   component: InvoicesPage,
 });
 

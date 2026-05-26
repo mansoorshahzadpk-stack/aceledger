@@ -12,6 +12,7 @@ export interface AppSettings {
   business_name: string | null;
   business_address: string | null;
   business_phone: string | null;
+  business_logo_url: string | null;
 }
 
 interface AppContextValue {
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   business_name: null,
   business_address: null,
   business_phone: null,
+  business_logo_url: null,
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -71,6 +73,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         business_name: data.business_name,
         business_address: data.business_address,
         business_phone: data.business_phone,
+        business_logo_url: (data as any).business_logo_url ?? null,
       };
       setSettings(next);
       applyTheme(next.theme);

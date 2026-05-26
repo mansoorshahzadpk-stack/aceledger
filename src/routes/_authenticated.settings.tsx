@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { CURRENCY_LABELS, type CurrencyCode } from "@/lib/format";
 import { toast } from "sonner";
 import type { DocTemplate, UiTheme } from "@/lib/app-context";
+import { Upload, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -29,10 +30,38 @@ function SettingsPage() {
   const [bizAddr, setBizAddr] = useState(settings.business_address ?? "");
   const [bizPhone, setBizPhone] = useState(settings.business_phone ?? "");
   const [seeding, setSeeding] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const saveBiz = async () => {
     await updateSettings({ business_name: bizName || null, business_address: bizAddr || null, business_phone: bizPhone || null });
     toast.success("Business details saved");
+  };
+
+  const uploadLogo = async (file: File) => {
+    if (!user) return;
+    if (file.size > 2 * 1024 * 1024) { toast.error("Logo must be 2 MB or smaller"); return; }
+    if (!/^image\/(png|jpeg|jpg|webp|svg\+xml)$/.test(file.type)) { toast.error("Use PNG, JPG, WebP, or SVG"); return; }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${user.id}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("business-assets").upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("business-assets").getPublicUrl(path);
+      await updateSettings({ business_logo_url: pub.publicUrl });
+      toast.success("Logo uploaded");
+    } catch (e: any) {
+      toast.error(e.message ?? "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removeLogo = async () => {
+    await updateSettings({ business_logo_url: null });
+    toast.success("Logo removed");
   };
 
   const seedDemo = async () => {
@@ -60,6 +89,16 @@ function SettingsPage() {
       ].map((c) => ({ ...c, user_id: user.id }));
       const { data: cRows } = await supabase.from("clients").insert(clients).select();
 
+      const products = [
+        { name: "Cotton lint — Grade A", sku: "CL-A", unit: "kg", default_price: 450 },
+        { name: "Steel rod 12mm", sku: "SR-12", unit: "kg", default_price: 320 },
+        { name: "PE pellets — HDPE", sku: "PE-HD", unit: "kg", default_price: 280 },
+        { name: "Pigment red oxide", sku: "PG-RED", unit: "kg", default_price: 180 },
+        { name: "Packaging — woven sack", sku: "PK-50", unit: "pcs", default_price: 65 },
+        { name: "Delivery / freight", sku: "FRT", unit: "trip", default_price: 5000 },
+      ].map((p) => ({ ...p, user_id: user.id, active: true, default_tax_rate: 0 }));
+      await supabase.from("products" as any).insert(products);
+
       // GRNs
       const grns: any[] = [];
       vRows?.forEach((v, idx) => {
@@ -78,7 +117,6 @@ function SettingsPage() {
       });
       await supabase.from("vendor_grns").insert(grns);
 
-      // Vendor payments
       const vpays = vRows?.slice(0, 3).map((v, i) => ({
         user_id: user.id, vendor_id: v.id, amount: 20000 + i * 10000,
         payment_date: new Date(Date.now() - i * 5 * 86400000).toISOString().slice(0, 10),
@@ -86,7 +124,6 @@ function SettingsPage() {
       })) ?? [];
       await supabase.from("vendor_payments").insert(vpays);
 
-      // Invoices + items
       const invoices: any[] = [];
       cRows?.forEach((c, idx) => {
         for (let i = 0; i < 2; i++) {
@@ -113,7 +150,6 @@ function SettingsPage() {
       });
       await supabase.from("invoice_items").insert(items);
 
-      // Client payments — spread over last 6 weeks
       const cpays: any[] = [];
       cRows?.forEach((c, idx) => {
         for (let w = 0; w < 4; w++) {
@@ -196,7 +232,34 @@ function SettingsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="business">
+        <TabsContent value="business" className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle>Company logo</CardTitle><CardDescription>Shown on invoices, GRNs and in the app header. PNG / JPG / SVG, up to 2 MB.</CardDescription></CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-4">
+              <div className="flex h-24 w-24 items-center justify-center rounded-md border bg-muted/30">
+                {settings.business_logo_url ? (
+                  <img src={settings.business_logo_url} alt="Company logo" className="max-h-full max-w-full object-contain" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">No logo</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); }}
+                />
+                <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                  <Upload className="mr-2 h-4 w-4" />{uploading ? "Uploading…" : settings.business_logo_url ? "Replace logo" : "Upload logo"}
+                </Button>
+                {settings.business_logo_url && (
+                  <Button variant="outline" onClick={removeLogo}><Trash2 className="mr-2 h-4 w-4" />Remove</Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader><CardTitle>Business details</CardTitle><CardDescription>Shown on generated invoices and GRNs</CardDescription></CardHeader>
             <CardContent className="space-y-3 max-w-xl">
@@ -210,7 +273,7 @@ function SettingsPage() {
 
         <TabsContent value="demo">
           <Card>
-            <CardHeader><CardTitle>Load demo data</CardTitle><CardDescription>Adds 4 vendors, 6 clients, GRNs, invoices and weekly payments. Skipped if data exists.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Load demo data</CardTitle><CardDescription>Adds 4 vendors, 6 clients, products, GRNs, invoices and weekly payments. Skipped if data exists.</CardDescription></CardHeader>
             <CardContent>
               <Button onClick={seedDemo} disabled={seeding}>{seeding ? "Loading…" : "Load demo data"}</Button>
             </CardContent>

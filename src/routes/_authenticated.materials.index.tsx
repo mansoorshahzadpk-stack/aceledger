@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
@@ -22,10 +22,10 @@ import { Plus, Trash2, Pencil, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/materials/")({
-  component: ProductsPage,
+  component: MaterialsPage,
 });
 
-type ProductRow = {
+type MaterialRow = {
   id: string;
   name: string;
   sku: string | null;
@@ -36,26 +36,26 @@ type ProductRow = {
   active: boolean;
 };
 
-const emptyForm = { id: "", name: "", sku: "", description: "", unit: "pcs", default_price: "0", default_tax_rate: "0", active: true };
+const emptyForm = { id: "", name: "", sku: "", description: "", unit: "kg", default_price: "0", default_tax_rate: "0", active: true };
 
-function ProductsPage() {
+function MaterialsPage() {
   const { settings, user } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const { data: products, isLoading } = useQuery({
-    queryKey: ["products", user?.id],
+  const { data: materials, isLoading } = useQuery({
+    queryKey: ["materials", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("products" as any).select("*").order("created_at", { ascending: false });
-      return (data ?? []) as unknown as ProductRow[];
+      return (data ?? []) as unknown as MaterialRow[];
     },
     enabled: !!user,
   });
 
   const openNew = () => { setForm(emptyForm); setOpen(true); };
-  const openEdit = (p: ProductRow) => {
+  const openEdit = (p: MaterialRow) => {
     setForm({
       id: p.id, name: p.name, sku: p.sku ?? "", description: p.description ?? "",
       unit: p.unit, default_price: String(p.default_price), default_tax_rate: String(p.default_tax_rate),
@@ -71,7 +71,7 @@ function ProductsPage() {
       name: form.name,
       sku: form.sku || null,
       description: form.description || null,
-      unit: form.unit || "pcs",
+      unit: form.unit || "kg",
       default_price: parseFloat(form.default_price) || 0,
       default_tax_rate: parseFloat(form.default_tax_rate) || 0,
       active: form.active,
@@ -80,16 +80,16 @@ function ProductsPage() {
       ? await supabase.from("products" as any).update(payload).eq("id", form.id)
       : await supabase.from("products" as any).insert({ ...payload, user_id: user.id });
     if (res.error) { toast.error(res.error.message); return; }
-    toast.success(form.id ? "Product updated" : "Product added");
+    toast.success(form.id ? "Material updated" : "Material added");
     setOpen(false);
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["products-active"] });
+    qc.invalidateQueries({ queryKey: ["materials"] });
+    qc.invalidateQueries({ queryKey: ["materials-active"] });
   };
 
-  const toggleActive = async (p: ProductRow) => {
+  const toggleActive = async (p: MaterialRow) => {
     await supabase.from("products" as any).update({ active: !p.active }).eq("id", p.id);
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["products-active"] });
+    qc.invalidateQueries({ queryKey: ["materials"] });
+    qc.invalidateQueries({ queryKey: ["materials-active"] });
   };
 
   const toggle = (id: string) => {
@@ -98,9 +98,9 @@ function ProductsPage() {
     setSelected(next);
   };
   const toggleAll = () => {
-    if (!products) return;
-    if (selected.size === products.length) setSelected(new Set());
-    else setSelected(new Set(products.map((p) => p.id)));
+    if (!materials) return;
+    if (selected.size === materials.length) setSelected(new Set());
+    else setSelected(new Set(materials.map((p) => p.id)));
   };
 
   const deleteSelected = async () => {
@@ -108,18 +108,18 @@ function ProductsPage() {
     if (ids.length === 0) return;
     const { error } = await supabase.from("products" as any).delete().in("id", ids);
     if (error) { toast.error(error.message); return; }
-    toast.success(`Deleted ${ids.length} product${ids.length === 1 ? "" : "s"}`);
+    toast.success(`Deleted ${ids.length} material${ids.length === 1 ? "" : "s"}`);
     setSelected(new Set());
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["products-active"] });
+    qc.invalidateQueries({ queryKey: ["materials"] });
+    qc.invalidateQueries({ queryKey: ["materials-active"] });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
-          <p className="text-sm text-muted-foreground">Catalog of items that can be selected when creating invoices</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
+          <p className="text-sm text-muted-foreground">Catalog of raw materials and supplies — selectable when logging GRNs and creating invoices</p>
         </div>
         <div className="flex gap-2">
           {selected.size > 0 && (
@@ -129,9 +129,9 @@ function ProductsPage() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete {selected.size} product{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+                  <AlertDialogTitle>Delete {selected.size} material{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This removes the products from your catalog. Existing invoice line items already using them are not affected.
+                    This removes the materials from your catalog. Existing GRNs and invoice line items already using them are not affected.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -141,14 +141,14 @@ function ProductsPage() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" />New Product</Button>
+          <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" />New Material</Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><Package className="h-4 w-4" />Catalog</CardTitle>
-          <CardDescription>Active products appear in the invoice line-item picker</CardDescription>
+          <CardDescription>Active materials appear in the GRN material picker and invoice line-item picker</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto rounded-md border">
@@ -156,7 +156,7 @@ function ProductsPage() {
               <TableHeader><TableRow>
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={!!products && products.length > 0 && selected.size === products.length}
+                    checked={!!materials && materials.length > 0 && selected.size === materials.length}
                     onCheckedChange={toggleAll}
                     aria-label="Select all"
                   />
@@ -170,10 +170,10 @@ function ProductsPage() {
               </TableRow></TableHeader>
               <TableBody>
                 {isLoading && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
-                {!isLoading && (products?.length ?? 0) === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No products yet — add your first one</TableCell></TableRow>
+                {!isLoading && (materials?.length ?? 0) === 0 && (
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No materials yet — add your first one</TableCell></TableRow>
                 )}
-                {products?.map((p) => (
+                {materials?.map((p) => (
                   <TableRow key={p.id} data-state={selected.has(p.id) ? "selected" : undefined}>
                     <TableCell>
                       <Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
@@ -201,12 +201,12 @@ function ProductsPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{form.id ? "Edit Product" : "Add Product"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{form.id ? "Edit Material" : "Add Material"}</DialogTitle></DialogHeader>
           <form onSubmit={save} className="space-y-3">
-            <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Cotton lint — Grade A" /></Field>
+            <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Maize Red" /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="SKU"><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="optional" /></Field>
-              <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg / pcs / box" /></Field>
+              <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg / pcs / bag" /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Default price"><Input type="number" step="0.01" required value={form.default_price} onChange={(e) => setForm({ ...form, default_price: e.target.value })} /></Field>
@@ -216,11 +216,11 @@ function ProductsPage() {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <div className="text-sm font-medium">Active</div>
-                <div className="text-xs text-muted-foreground">Only active products appear in the invoice picker</div>
+                <div className="text-xs text-muted-foreground">Only active materials appear in pickers</div>
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
             </div>
-            <DialogFooter><Button type="submit">{form.id ? "Save changes" : "Add product"}</Button></DialogFooter>
+            <DialogFooter><Button type="submit">{form.id ? "Save changes" : "Add material"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

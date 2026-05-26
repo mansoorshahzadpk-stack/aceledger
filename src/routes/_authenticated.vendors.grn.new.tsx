@@ -9,20 +9,26 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { formatMoney } from "@/lib/format";
+import { Package, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
   component: NewGrnPage,
 });
 
+type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
+
 function NewGrnPage() {
   const { settings, user } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     vendor_id: "",
-    grn_number: `GRN-${Date.now().toString().slice(-6)}`,
+    grn_number: "",
     material: "",
+    product_id: "" as string,
     quantity: "0",
     unit: "kg",
     unit_price: "0",
@@ -30,8 +36,18 @@ function NewGrnPage() {
     doc_template: settings.default_doc_template,
     notes: "",
   });
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
+
+  // Auto-suggest next 4-digit GRN number
+  useEffect(() => {
+    if (!user || form.grn_number) return;
+    supabase.rpc("next_doc_number" as any, { _kind: "grn" }).then(({ data }) => {
+      if (typeof data === "string") setForm((f) => f.grn_number ? f : { ...f, grn_number: data });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const { data: vendors } = useQuery({
     queryKey: ["vendors-list", user?.id],
@@ -39,16 +55,38 @@ function NewGrnPage() {
     enabled: !!user,
   });
 
+  const { data: materials } = useQuery({
+    queryKey: ["materials-active", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).order("name");
+      return (data ?? []) as unknown as Material[];
+    },
+    enabled: !!user,
+  });
+
+  const pickMaterial = (m: Material) => {
+    setForm((f) => ({
+      ...f,
+      product_id: m.id,
+      material: m.name,
+      unit: m.unit || f.unit,
+      unit_price: f.unit_price && f.unit_price !== "0" ? f.unit_price : String(m.default_price),
+    }));
+    setPickerOpen(false);
+  };
+
   const total = useMemo(() => (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0), [form.quantity, form.unit_price]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !form.vendor_id) { toast.error("Choose a vendor"); return; }
+    if (!form.material) { toast.error("Choose or enter a material"); return; }
     const { error } = await supabase.from("vendor_grns").insert({
       user_id: user.id,
       vendor_id: form.vendor_id,
       grn_number: form.grn_number,
       material: form.material,
+      product_id: form.product_id || null,
       quantity: parseFloat(form.quantity) || 0,
       unit: form.unit,
       unit_price: parseFloat(form.unit_price) || 0,
@@ -56,7 +94,7 @@ function NewGrnPage() {
       grn_date: form.grn_date,
       doc_template: form.doc_template,
       notes: form.notes || null,
-    });
+    } as any);
     if (error) toast.error(error.message);
     else { toast.success("GRN logged"); navigate({ to: "/vendors/$id", params: { id: form.vendor_id } }); }
   };
@@ -78,9 +116,49 @@ function NewGrnPage() {
                   <SelectContent>{vendors?.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <Field label="GRN number"><Input required value={form.grn_number} onChange={(e) => setForm({ ...form, grn_number: e.target.value })} /></Field>
+              <Field label="GRN number"><Input required value={form.grn_number} onChange={(e) => setForm({ ...form, grn_number: e.target.value })} placeholder="GRN-0001" /></Field>
               <Field label="Date"><Input type="date" required value={form.grn_date} onChange={(e) => setForm({ ...form, grn_date: e.target.value })} /></Field>
-              <Field label="Material"><Input required value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} placeholder="e.g. Cotton lint" /></Field>
+
+              <Field label="Material">
+                <div className="flex gap-2">
+                  <Input
+                    value={form.material}
+                    onChange={(e) => setForm({ ...form, material: e.target.value, product_id: "" })}
+                    placeholder="Type or pick"
+                    className="flex-1"
+                  />
+                  <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="icon" title="Pick from catalog">
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0" align="end">
+                      <Command>
+                        <CommandInput placeholder="Search materials…" />
+                        <CommandList>
+                          <CommandEmpty>No materials found. Add some in <a className="underline" href="/materials">Materials</a>.</CommandEmpty>
+                          <CommandGroup>
+                            {materials?.map((m) => (
+                              <CommandItem key={m.id} value={`${m.name} ${m.sku ?? ""}`} onSelect={() => pickMaterial(m)}>
+                                <Package className="mr-2 h-4 w-4 text-muted-foreground" />
+                                <div className="flex w-full items-center justify-between">
+                                  <div>
+                                    <div className="font-medium">{m.name}</div>
+                                    {m.sku && <div className="text-xs text-muted-foreground">{m.sku} · {m.unit}</div>}
+                                  </div>
+                                  <div className="figure text-xs">{formatMoney(m.default_price, settings.currency)}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </Field>
+
               <Field label="Quantity"><Input type="number" step="0.001" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></Field>
               <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
               <Field label="Unit price"><Input type="number" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></Field>
@@ -88,6 +166,7 @@ function NewGrnPage() {
                 <Select value={form.doc_template} onValueChange={(v) => setForm({ ...form, doc_template: v as any })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="acelog">Acelog (Recommended)</SelectItem>
                     <SelectItem value="classic">Classic Professional</SelectItem>
                     <SelectItem value="modern">Modern Minimalist</SelectItem>
                     <SelectItem value="compact">Compact / High-Density</SelectItem>

@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, MoreHorizontal, Package } from "lucide-react";
+import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, MoreHorizontal, Package, Warehouse, LineChart } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_SYMBOLS } from "@/lib/format";
@@ -14,7 +14,9 @@ const NAV: NavItem[] = [
   { to: "/vendors", label: "Vendors", icon: Truck },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/invoices", label: "Invoices", icon: FileText },
-  { to: "/products", label: "Products", icon: Package },
+  { to: "/materials", label: "Materials", icon: Package },
+  { to: "/inventory", label: "Inventory", icon: Warehouse },
+  { to: "/reports/pl", label: "P&L", icon: LineChart },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -136,7 +138,9 @@ export function AppShell() {
               More
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild><Link to="/products"><Package className="mr-2 h-4 w-4" />Products</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/materials"><Package className="mr-2 h-4 w-4" />Materials</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/inventory"><Warehouse className="mr-2 h-4 w-4" />Inventory</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/reports/pl"><LineChart className="mr-2 h-4 w-4" />P&L</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link></DropdownMenuItem>
               <DropdownMenuItem onClick={cycleTheme}><ThemeIcon className="mr-2 h-4 w-4" />Theme: {settings.theme}</DropdownMenuItem>
               <DropdownMenuItem onClick={signOut}><LogOut className="mr-2 h-4 w-4" />Sign out</DropdownMenuItem>

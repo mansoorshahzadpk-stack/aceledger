@@ -14,7 +14,6 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedVendorsIndexRouteImport } from './routes/_authenticated.vendors.index'
-import { Route as AuthenticatedProductsIndexRouteImport } from './routes/_authenticated.products.index'
 import { Route as AuthenticatedMaterialsIndexRouteImport } from './routes/_authenticated.materials.index'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
@@ -47,12 +46,6 @@ const AuthenticatedVendorsIndexRoute =
   AuthenticatedVendorsIndexRouteImport.update({
     id: '/vendors/',
     path: '/vendors/',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedProductsIndexRoute =
-  AuthenticatedProductsIndexRouteImport.update({
-    id: '/products/',
-    path: '/products/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedMaterialsIndexRoute =
@@ -112,7 +105,6 @@ export interface FileRoutesByFullPath {
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/materials/': typeof AuthenticatedMaterialsIndexRoute
-  '/products/': typeof AuthenticatedProductsIndexRoute
   '/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
@@ -127,7 +119,6 @@ export interface FileRoutesByTo {
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
   '/materials': typeof AuthenticatedMaterialsIndexRoute
-  '/products': typeof AuthenticatedProductsIndexRoute
   '/vendors': typeof AuthenticatedVendorsIndexRoute
   '/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
@@ -144,7 +135,6 @@ export interface FileRoutesById {
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/_authenticated/materials/': typeof AuthenticatedMaterialsIndexRoute
-  '/_authenticated/products/': typeof AuthenticatedProductsIndexRoute
   '/_authenticated/vendors/': typeof AuthenticatedVendorsIndexRoute
   '/_authenticated/vendors/grn/new': typeof AuthenticatedVendorsGrnNewRoute
 }
@@ -161,7 +151,6 @@ export interface FileRouteTypes {
     | '/clients/'
     | '/invoices/'
     | '/materials/'
-    | '/products/'
     | '/vendors/'
     | '/vendors/grn/new'
   fileRoutesByTo: FileRoutesByTo
@@ -176,7 +165,6 @@ export interface FileRouteTypes {
     | '/clients'
     | '/invoices'
     | '/materials'
-    | '/products'
     | '/vendors'
     | '/vendors/grn/new'
   id:
@@ -192,7 +180,6 @@ export interface FileRouteTypes {
     | '/_authenticated/clients/'
     | '/_authenticated/invoices/'
     | '/_authenticated/materials/'
-    | '/_authenticated/products/'
     | '/_authenticated/vendors/'
     | '/_authenticated/vendors/grn/new'
   fileRoutesById: FileRoutesById
@@ -237,13 +224,6 @@ declare module '@tanstack/react-router' {
       path: '/vendors'
       fullPath: '/vendors/'
       preLoaderRoute: typeof AuthenticatedVendorsIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/products/': {
-      id: '/_authenticated/products/'
-      path: '/products'
-      fullPath: '/products/'
-      preLoaderRoute: typeof AuthenticatedProductsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/materials/': {
@@ -315,7 +295,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
   AuthenticatedMaterialsIndexRoute: typeof AuthenticatedMaterialsIndexRoute
-  AuthenticatedProductsIndexRoute: typeof AuthenticatedProductsIndexRoute
   AuthenticatedVendorsIndexRoute: typeof AuthenticatedVendorsIndexRoute
   AuthenticatedVendorsGrnNewRoute: typeof AuthenticatedVendorsGrnNewRoute
 }
@@ -330,7 +309,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,
   AuthenticatedMaterialsIndexRoute: AuthenticatedMaterialsIndexRoute,
-  AuthenticatedProductsIndexRoute: AuthenticatedProductsIndexRoute,
   AuthenticatedVendorsIndexRoute: AuthenticatedVendorsIndexRoute,
   AuthenticatedVendorsGrnNewRoute: AuthenticatedVendorsGrnNewRoute,
 }

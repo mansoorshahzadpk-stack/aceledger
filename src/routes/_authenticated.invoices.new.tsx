@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
@@ -23,22 +23,31 @@ export const Route = createFileRoute("/_authenticated/invoices/new")({
   component: NewInvoice,
 });
 
-type Item = { description: string; quantity: string; unit_price: string };
-type Product = { id: string; name: string; sku: string | null; unit: string; default_price: number };
+type Item = { description: string; quantity: string; unit_price: string; product_id?: string; unit?: string; grn_ref?: string; vehicle_ref?: string };
+type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
 
 function NewInvoice() {
   const navigate = useNavigate();
   const { settings, user } = useApp();
   const sp = Route.useSearch();
   const [clientId, setClientId] = useState<string>(sp.client ?? "");
-  const [invNum, setInvNum] = useState(`INV-${Date.now().toString().slice(-6)}`);
+  const [invNum, setInvNum] = useState("");
   const [issue, setIssue] = useState(new Date().toISOString().slice(0, 10));
   const [due, setDue] = useState("");
   const [template, setTemplate] = useState(settings.default_doc_template);
   const [tax, setTax] = useState("0");
+  const [shipping, setShipping] = useState("0");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user || invNum) return;
+    supabase.rpc("next_doc_number" as any, { _kind: "invoice" }).then(({ data }) => {
+      if (typeof data === "string") setInvNum((v) => v || data);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id],
@@ -46,26 +55,30 @@ function NewInvoice() {
     enabled: !!user,
   });
 
-  const { data: products } = useQuery({
-    queryKey: ["products-active", user?.id],
+  const { data: materials } = useQuery({
+    queryKey: ["materials-active", user?.id],
     queryFn: async () => {
       const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).order("name");
-      return (data ?? []) as unknown as Product[];
+      return (data ?? []) as unknown as Material[];
     },
     enabled: !!user,
   });
 
   const subtotal = useMemo(() => items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), [items]);
   const taxNum = parseFloat(tax) || 0;
-  const total = subtotal + taxNum;
+  const shipNum = parseFloat(shipping) || 0;
+  const total = subtotal + taxNum + shipNum;
 
   const setItem = (idx: number, patch: Partial<Item>) => setItems(items.map((it, i) => i === idx ? { ...it, ...patch } : it));
 
-  const pickProduct = (idx: number, p: Product) => {
+  const pickMaterial = (idx: number, m: Material) => {
     setItems(items.map((it, i) => i === idx ? {
-      description: p.sku ? `${p.name} (${p.sku})` : p.name,
+      ...it,
+      description: m.sku ? `${m.name} (${m.sku})` : m.name,
       quantity: it.quantity && it.quantity !== "0" ? it.quantity : "1",
-      unit_price: String(p.default_price),
+      unit_price: String(m.default_price),
+      product_id: m.id,
+      unit: m.unit,
     } : it));
     setPickerOpen(null);
   };
@@ -76,10 +89,10 @@ function NewInvoice() {
     const { data: inv, error } = await supabase.from("invoices").insert({
       user_id: user.id, client_id: clientId, invoice_number: invNum,
       status, issue_date: issue, due_date: due || null,
-      subtotal, tax: taxNum, total,
+      subtotal, tax: taxNum, shipping: shipNum, total,
       doc_template: template, notes: notes || null,
       posted_at: status === "posted" ? new Date().toISOString() : null,
-    }).select().single();
+    } as any).select().single();
     if (error) { toast.error(error.message); return; }
     const itemRows = items.filter((it) => it.description).map((it, idx) => ({
       invoice_id: inv.id, description: it.description,
@@ -87,8 +100,11 @@ function NewInvoice() {
       unit_price: parseFloat(it.unit_price) || 0,
       line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
       sort_order: idx,
+      product_id: it.product_id || null,
+      grn_ref: it.grn_ref || null,
+      vehicle_ref: it.vehicle_ref || null,
     }));
-    await supabase.from("invoice_items").insert(itemRows);
+    await supabase.from("invoice_items").insert(itemRows as any);
     toast.success(status === "draft" ? "Draft saved" : "Invoice posted");
     navigate({ to: "/invoices/$id", params: { id: inv.id } });
   };
@@ -110,13 +126,14 @@ function NewInvoice() {
                 <SelectContent>{clients?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
-            <Field label="Invoice #"><Input value={invNum} onChange={(e) => setInvNum(e.target.value)} /></Field>
+            <Field label="Invoice #"><Input value={invNum} onChange={(e) => setInvNum(e.target.value)} placeholder="INV-0001" /></Field>
             <Field label="Issue date"><Input type="date" value={issue} onChange={(e) => setIssue(e.target.value)} /></Field>
             <Field label="Due date"><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
             <Field label="Document template">
               <Select value={template} onValueChange={(v) => setTemplate(v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="acelog">Acelog (Recommended)</SelectItem>
                   <SelectItem value="classic">Classic Professional</SelectItem>
                   <SelectItem value="modern">Modern Minimalist</SelectItem>
                   <SelectItem value="compact">Compact / High-Density</SelectItem>
@@ -130,7 +147,7 @@ function NewInvoice() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Line items</CardTitle>
-          <Button asChild variant="ghost" size="sm"><Link to="/products"><Package className="mr-1 h-4 w-4" />Manage catalog</Link></Button>
+          <Button asChild variant="ghost" size="sm"><Link to="/materials"><Package className="mr-1 h-4 w-4" />Manage materials</Link></Button>
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it, idx) => (
@@ -140,25 +157,25 @@ function NewInvoice() {
                   <PopoverTrigger asChild>
                     <Button type="button" variant="outline" size="sm">
                       <Package className="mr-1 h-4 w-4" />
-                      {(products?.length ?? 0) > 0 ? "Select from products" : "No products yet"}
+                      {(materials?.length ?? 0) > 0 ? "Select from materials" : "No materials yet"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Search products…" />
+                      <CommandInput placeholder="Search materials…" />
                       <CommandList>
                         <CommandEmpty>
-                          No products found. <Link to="/products" className="underline">Add one</Link>.
+                          No materials found. <Link to="/materials" className="underline">Add one</Link>.
                         </CommandEmpty>
                         <CommandGroup>
-                          {products?.map((p) => (
-                            <CommandItem key={p.id} value={`${p.name} ${p.sku ?? ""}`} onSelect={() => pickProduct(idx, p)}>
+                          {materials?.map((m) => (
+                            <CommandItem key={m.id} value={`${m.name} ${m.sku ?? ""}`} onSelect={() => pickMaterial(idx, m)}>
                               <div className="flex w-full items-center justify-between">
                                 <div>
-                                  <div className="font-medium">{p.name}</div>
-                                  {p.sku && <div className="text-xs text-muted-foreground">{p.sku} · {p.unit}</div>}
+                                  <div className="font-medium">{m.name}</div>
+                                  {m.sku && <div className="text-xs text-muted-foreground">{m.sku} · {m.unit}</div>}
                                 </div>
-                                <div className="figure text-sm">{formatMoney(p.default_price, settings.currency)}</div>
+                                <div className="figure text-sm">{formatMoney(m.default_price, settings.currency)}</div>
                               </div>
                             </CommandItem>
                           ))}
@@ -177,6 +194,10 @@ function NewInvoice() {
                 <Field label="Unit price"><Input type="number" step="0.01" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} /></Field>
                 <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), settings.currency)}</div></Field>
               </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <Field label="GRN reference (optional)"><Input value={it.grn_ref ?? ""} onChange={(e) => setItem(idx, { grn_ref: e.target.value })} placeholder="e.g. 03345" /></Field>
+                <Field label="Vehicle (optional)"><Input value={it.vehicle_ref ?? ""} onChange={(e) => setItem(idx, { vehicle_ref: e.target.value })} placeholder="e.g. XA 319" /></Field>
+              </div>
             </div>
           ))}
           <Button type="button" variant="outline" onClick={() => setItems([...items, { description: "", quantity: "1", unit_price: "0" }])}>
@@ -193,6 +214,10 @@ function NewInvoice() {
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Tax</span>
               <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} className="h-8 w-32 text-right" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">Shipping / Freight</span>
+              <Input type="number" step="0.01" value={shipping} onChange={(e) => setShipping(e.target.value)} className="h-8 w-32 text-right" placeholder="0 or negative" />
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>

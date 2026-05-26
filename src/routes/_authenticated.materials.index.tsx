@@ -23,6 +23,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/materials/")({
   component: MaterialsPage,
+  head: () => ({
+    meta: [
+      { title: "Materials — Ace Ledger" },
+      { name: "description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
+      { property: "og:title", content: "Materials — Ace Ledger" },
+      { property: "og:description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
+      { property: "og:url", content: "https://aceledger.lovable.app/materials" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/materials" }],
+  }),
 });
 
 type MaterialRow = {

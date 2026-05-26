@@ -11,6 +11,16 @@ import { Package, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
   component: InventoryPage,
+  head: () => ({
+    meta: [
+      { title: "Inventory — Ace Ledger" },
+      { name: "description", content: "Live stock-on-hand by material, computed from GRNs and invoice usage." },
+      { property: "og:title", content: "Inventory — Ace Ledger" },
+      { property: "og:description", content: "Live stock-on-hand by material, computed from GRNs and invoice usage." },
+      { property: "og:url", content: "https://aceledger.lovable.app/inventory" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/inventory" }],
+  }),
 });
 
 type Material = { id: string; name: string; sku: string | null; unit: string };

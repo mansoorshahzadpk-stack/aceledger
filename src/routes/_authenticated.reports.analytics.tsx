@@ -14,6 +14,16 @@ import {
 
 export const Route = createFileRoute("/_authenticated/reports/analytics")({
   component: AnalyticsPage,
+  head: () => ({
+    meta: [
+      { title: "Analytics — Ace Ledger" },
+      { name: "description", content: "Breakdowns of clients, vendors, materials, and collection trends across selected periods." },
+      { property: "og:title", content: "Analytics — Ace Ledger" },
+      { property: "og:description", content: "Breakdowns of clients, vendors, materials, and collection trends across selected periods." },
+      { property: "og:url", content: "https://aceledger.lovable.app/reports/analytics" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/reports/analytics" }],
+  }),
 });
 
 const COLORS = ["#6366f1", "#06b6d4", "#f97316", "#ec4899", "#10b981", "#eab308", "#8b5cf6", "#ef4444"];

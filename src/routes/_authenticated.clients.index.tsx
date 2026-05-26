@@ -22,6 +22,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
+  head: () => ({
+    meta: [
+      { title: "Industry Clients — Ace Ledger" },
+      { name: "description", content: "Manage industry clients, opening balances, invoices, and weekly installment collections." },
+      { property: "og:title", content: "Industry Clients — Ace Ledger" },
+      { property: "og:description", content: "Manage industry clients, opening balances, invoices, and weekly installment collections." },
+      { property: "og:url", content: "https://aceledger.lovable.app/clients" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/clients" }],
+  }),
 });
 
 function ClientsPage() {

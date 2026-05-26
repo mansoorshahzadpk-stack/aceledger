@@ -16,6 +16,16 @@ import { Upload, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
+  head: () => ({
+    meta: [
+      { title: "Settings — Ace Ledger" },
+      { name: "description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
+      { property: "og:title", content: "Settings — Ace Ledger" },
+      { property: "og:description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
+      { property: "og:url", content: "https://aceledger.lovable.app/settings" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/settings" }],
+  }),
 });
 
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [

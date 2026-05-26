@@ -21,6 +21,16 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/vendors/")({
   component: VendorsPage,
+  head: () => ({
+    meta: [
+      { title: "Vendors — Ace Ledger" },
+      { name: "description", content: "Track raw material vendors, GRNs, opening balances, and outstanding payables." },
+      { property: "og:title", content: "Vendors — Ace Ledger" },
+      { property: "og:description", content: "Track raw material vendors, GRNs, opening balances, and outstanding payables." },
+      { property: "og:url", content: "https://aceledger.lovable.app/vendors" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/vendors" }],
+  }),
 });
 
 function VendorsPage() {

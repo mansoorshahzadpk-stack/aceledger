@@ -635,7 +635,17 @@ export type Database = {
     Enums: {
       amend_action: "edit" | "delete"
       app_role: "admin" | "user"
-      currency_code: "PKR" | "USD" | "EUR"
+      currency_code:
+        | "PKR"
+        | "USD"
+        | "EUR"
+        | "INR"
+        | "BDT"
+        | "AED"
+        | "LKR"
+        | "GBP"
+        | "SAR"
+        | "CNY"
       doc_template: "classic" | "modern" | "compact" | "acelog"
       invoice_status: "draft" | "posted"
       payment_method: "cash" | "bank" | "cheque" | "mobile" | "other"
@@ -769,7 +779,18 @@ export const Constants = {
     Enums: {
       amend_action: ["edit", "delete"],
       app_role: ["admin", "user"],
-      currency_code: ["PKR", "USD", "EUR"],
+      currency_code: [
+        "PKR",
+        "USD",
+        "EUR",
+        "INR",
+        "BDT",
+        "AED",
+        "LKR",
+        "GBP",
+        "SAR",
+        "CNY",
+      ],
       doc_template: ["classic", "modern", "compact", "acelog"],
       invoice_status: ["draft", "posted"],
       payment_method: ["cash", "bank", "cheque", "mobile", "other"],

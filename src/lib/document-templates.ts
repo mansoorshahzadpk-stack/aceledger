@@ -10,7 +10,7 @@ interface DocInput {
   date: string;
   due_date?: string | null;
   currency: CurrencyCode;
-  business: { name?: string | null; address?: string | null; phone?: string | null };
+  business: { name?: string | null; address?: string | null; phone?: string | null; logo_url?: string | null };
   counterparty: { label: string; name?: string | null; address?: string | null; phone?: string | null };
   items: Array<{ description: string; quantity: number | string; unit_price: number | string; line_total: number | string }>;
   subtotal: number | string;
@@ -38,11 +38,15 @@ export function buildDocumentHtml(d: DocInput): string {
       <td style="text-align:right">${money(it.line_total, d.currency)}</td>
     </tr>`).join("");
 
+  const logo = d.business.logo_url
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:64px; max-width:180px; object-fit:contain; display:block; margin-bottom:8px;" />`
+    : "";
+
   const styles = {
     classic: `
       body { font-family: Georgia, 'Times New Roman', serif; color:#1a1a1a; padding:48px; }
       h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: 1px; text-transform: uppercase; }
-      .top { display:flex; justify-content:space-between; border-bottom: 3px double #1a1a1a; padding-bottom:16px; margin-bottom:24px; }
+      .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom: 3px double #1a1a1a; padding-bottom:16px; margin-bottom:24px; gap:24px; }
       .biz { text-align:right; font-size:13px; }
       .parties { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px; font-size:13px; }
       .label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#555; margin-bottom:4px; }
@@ -56,7 +60,7 @@ export function buildDocumentHtml(d: DocInput): string {
     modern: `
       body { font-family: -apple-system, 'Segoe UI', sans-serif; color:#0f172a; padding:56px; }
       h1 { font-size:40px; font-weight:200; margin:0; letter-spacing:-1px; }
-      .top { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:48px; }
+      .top { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:48px; gap:24px; }
       .num { color:#64748b; font-size:13px; margin-top:8px; }
       .biz { text-align:right; font-size:12px; color:#475569; }
       .parties { display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-bottom:32px; font-size:13px; }
@@ -71,7 +75,7 @@ export function buildDocumentHtml(d: DocInput): string {
     compact: `
       body { font-family: 'Helvetica Neue', Arial, sans-serif; color:#111; padding:24px; font-size:11px; }
       h1 { font-size:18px; margin:0; }
-      .top { display:flex; justify-content:space-between; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:12px; }
+      .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:8px; margin-bottom:12px; gap:16px; }
       .biz { text-align:right; font-size:10px; }
       .parties { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; font-size:10px; }
       .label { font-size:9px; text-transform:uppercase; color:#666; }
@@ -88,6 +92,7 @@ export function buildDocumentHtml(d: DocInput): string {
   <style>${styles} @media print { @page { margin: 12mm; } }</style></head><body>
   <div class="top">
     <div>
+      ${logo}
       <h1>${escapeHtml(d.title)}</h1>
       <div class="num">No. ${escapeHtml(d.number)} · ${escapeHtml(d.date)}${d.status ? ` · ${escapeHtml(d.status.toUpperCase())}` : ""}</div>
     </div>
@@ -129,5 +134,5 @@ export function renderDocument(d: DocInput) {
   w.document.open();
   w.document.write(html);
   w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 300);
+  setTimeout(() => { w.focus(); w.print(); }, 400);
 }

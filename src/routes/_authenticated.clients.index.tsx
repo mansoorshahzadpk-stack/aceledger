@@ -10,12 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { formatMoney } from "@/lib/format";
-import { Plus, Banknote } from "lucide-react";
+import { Plus, Banknote, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/clients")({
+export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
 });
 
@@ -23,6 +28,7 @@ function ClientsPage() {
   const { settings, user } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
   const [payOpen, setPayOpen] = useState<string | null>(null);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "" });
@@ -45,6 +51,17 @@ function ClientsPage() {
     },
     enabled: !!user,
   });
+
+  const toggle = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+  const toggleAll = () => {
+    if (!clients) return;
+    if (selected.size === clients.length) setSelected(new Set());
+    else setSelected(new Set(clients.map((c) => c.id)));
+  };
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +99,27 @@ function ClientsPage() {
     }
   };
 
+  const deleteSelected = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    // payments → amendments → items → invoices → clients
+    const { data: invs } = await supabase.from("invoices").select("id").in("client_id", ids);
+    const invIds = (invs ?? []).map((i) => i.id);
+    await supabase.from("client_payments").delete().in("client_id", ids);
+    if (invIds.length) {
+      await supabase.from("invoice_amendments").delete().in("invoice_id", invIds);
+      await supabase.from("invoice_items").delete().in("invoice_id", invIds);
+      await supabase.from("invoices").delete().in("id", invIds);
+    }
+    const { error } = await supabase.from("clients").delete().in("id", ids);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Deleted ${ids.length} client${ids.length === 1 ? "" : "s"}`);
+    setSelected(new Set());
+    qc.invalidateQueries({ queryKey: ["clients"] });
+    qc.invalidateQueries({ queryKey: ["invoices"] });
+    qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -89,23 +127,44 @@ function ClientsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Industry Clients</h1>
           <p className="text-sm text-muted-foreground">Outstanding balances and weekly installments</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Client</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
-            <form onSubmit={addClient} className="space-y-3">
-              <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Contact person"><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></Field>
-                <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-              </div>
-              <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-              <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-              <Field label="Opening balance (owes us)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
-              <DialogFooter><Button type="submit">Save client</Button></DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <div className="flex gap-2">
+          {selected.size > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {selected.size} client{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes the selected clients along with all their invoices, line items, amendments and payment history. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Client</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
+              <form onSubmit={addClient} className="space-y-3">
+                <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Contact person"><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></Field>
+                  <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
+                </div>
+                <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
+                <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
+                <Field label="Opening balance (owes us)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
+                <DialogFooter><Button type="submit">Save client</Button></DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
@@ -114,14 +173,24 @@ function ClientsPage() {
           <div className="overflow-auto rounded-md border">
             <Table>
               <TableHeader><TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={!!clients && clients.length > 0 && selected.size === clients.length}
+                    onCheckedChange={toggleAll}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Client</TableHead><TableHead>Phone</TableHead>
                 <TableHead className="text-right">Outstanding</TableHead><TableHead></TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
-                {!isLoading && (clients?.length ?? 0) === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No clients yet</TableCell></TableRow>}
+                {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
+                {!isLoading && (clients?.length ?? 0) === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No clients yet</TableCell></TableRow>}
                 {clients?.map((c) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} data-state={selected.has(c.id) ? "selected" : undefined}>
+                    <TableCell>
+                      <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} />
+                    </TableCell>
                     <TableCell className="font-medium"><Link to="/clients/$id" params={{ id: c.id }} className="hover:underline">{c.name}</Link></TableCell>
                     <TableCell className="text-muted-foreground">{c.phone ?? "—"}</TableCell>
                     <TableCell className="text-right figure font-medium text-warning">{formatMoney(c.outstanding, settings.currency)}</TableCell>

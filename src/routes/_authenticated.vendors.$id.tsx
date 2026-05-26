@@ -66,7 +66,7 @@ function VendorDetail() {
       number: grn.grn_number,
       date: grn.grn_date,
       currency: settings.currency,
-      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone },
+      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
       counterparty: { label: "Vendor", name: data?.v?.name, address: data?.v?.address, phone: data?.v?.phone },
       items: [{ description: `${grn.material} (${grn.quantity} ${grn.unit} @ ${grn.unit_price})`, quantity: grn.quantity, unit_price: grn.unit_price, line_total: grn.total_amount }],
       subtotal: grn.total_amount, tax: 0, total: grn.total_amount, notes: grn.notes,

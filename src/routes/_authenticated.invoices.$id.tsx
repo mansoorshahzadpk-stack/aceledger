@@ -130,7 +130,7 @@ function InvoiceDetail() {
       template: form.doc_template, title: "Invoice", number: form.invoice_number,
       date: form.issue_date, due_date: form.due_date,
       currency: settings.currency,
-      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone },
+      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
       counterparty: { label: "Bill To", name: inv.clients?.name, address: inv.clients?.address, phone: inv.clients?.phone },
       items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit_price: it.unit_price, line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0) })),
       subtotal, tax: taxNum, total, notes: form.notes, status: inv.status,

@@ -62,6 +62,18 @@ function LoginPage() {
     else toast.success("Check your email to confirm your account");
   };
 
+  const signInWithGoogle = async () => {
+    setLoading(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setLoading(false);
+      toast.error(result.error.message || "Google sign-in failed");
+    }
+    // If redirected, browser navigates away; if tokens returned, onAuthStateChange handles redirect.
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-lg">

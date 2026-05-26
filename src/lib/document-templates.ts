@@ -41,10 +41,8 @@ function money(n: number | string | null | undefined, c: CurrencyCode) {
   const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = v < 0 ? "-" : "";
   const color = v < 0 ? ' style="color:#c0392b"' : "";
-  // Sign sits with the amount, not the currency symbol (e.g. Rs  -5,500.00)
   return `<span${color}>${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${sign}${abs}</span>`;
 }
-/** dd/mm/yyyy formatting for printed documents */
 function fmtDate(d: string | null | undefined) {
   if (!d) return "";
   const date = new Date(d);
@@ -57,17 +55,31 @@ function fmtDate(d: string | null | undefined) {
 function escapeHtml(s?: string | null) {
   return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
+function qtyStr(it: DocItem) {
+  const q = num(it.quantity).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return it.unit ? `${q} ${escapeHtml(it.unit)}` : q;
+}
+function rateStr(it: DocItem) {
+  return num(it.unit_price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function amtStr(it: DocItem) {
+  return num(it.line_total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function itemMeta(it: DocItem) {
+  const meta: string[] = [];
+  if (it.grn_ref) meta.push(`GRN : ${escapeHtml(it.grn_ref)}`);
+  if (it.vehicle_ref) meta.push(`Veh : ${escapeHtml(it.vehicle_ref)}`);
+  return meta;
+}
 
+/* =====================================================================
+   ACE DESIGN — original clean layout, balance-due card, blue accent
+   ===================================================================== */
 function acelogTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
   const items = d.items.map((it, idx) => {
-    const meta: string[] = [];
-    if (it.grn_ref) meta.push(`GRN : ${escapeHtml(it.grn_ref)}`);
-    if (it.vehicle_ref) meta.push(`Veh : ${escapeHtml(it.vehicle_ref)}`);
-    const qtyStr = it.unit
-      ? `${num(it.quantity).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${escapeHtml(it.unit)}`
-      : `${num(it.quantity).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const meta = itemMeta(it);
     return `
       <tr>
         <td class="num">${idx + 1}</td>
@@ -75,16 +87,15 @@ function acelogTemplate(d: DocInput): string {
           <div class="item-name">${escapeHtml(it.description)}</div>
           ${meta.length ? `<div class="item-meta">${meta.join("<br/>")}</div>` : ""}
         </td>
-        <td class="qty">${qtyStr}</td>
-        <td class="rate">${num(it.unit_price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-        <td class="amt">${num(it.line_total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        <td class="qty">${qtyStr(it)}</td>
+        <td class="rate">${rateStr(it)}</td>
+        <td class="amt">${amtStr(it)}</td>
       </tr>`;
   }).join("");
 
   const logo = d.business.logo_url
     ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:108px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" />`
     : "";
-
   const balanceDue = d.showBalanceDue !== false && d.title.toLowerCase().includes("invoice");
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
@@ -102,11 +113,9 @@ function acelogTemplate(d: DocInput): string {
   .biz { font-size: 12px; color: #444; line-height: 1.5; }
   .biz .name { font-weight: 600; color: #1a1a1a; font-size: 26px; margin-bottom: 4px; }
   .meta { display: flex; justify-content: space-between; gap: 24px; margin: 8px 0 24px; }
-  .bill-to { font-size: 12px; }
   .bill-to .label { color: #6b7b8c; font-size: 11px; margin-bottom: 4px; }
   .bill-to .name { font-weight: 600; color: #1a1a1a; font-size: 13px; }
   .meta-right { text-align: right; font-size: 12px; color: #444; }
-  .meta-right .row { margin-bottom: 2px; }
   .meta-right .lbl { color: #6b7b8c; margin-right: 8px; }
   table.items { width: 100%; border-collapse: collapse; margin-top: 8px; }
   table.items thead th { background: #2c3e50; color: #fff; text-align: left; padding: 10px 12px; font-weight: 500; font-size: 11px; letter-spacing: 0.5px; }
@@ -115,20 +124,16 @@ function acelogTemplate(d: DocInput): string {
   table.items tbody td { padding: 12px; border-bottom: 1px solid #e8ecf0; vertical-align: top; }
   table.items tbody td.num { text-align: center; color: #6b7b8c; }
   table.items tbody td.qty, table.items tbody td.rate, table.items tbody td.amt { text-align: right; font-variant-numeric: tabular-nums; }
-  table.items tbody td.amt { font-weight: 500; }
   .item-name { font-weight: 500; color: #1a1a1a; }
   .item-meta { color: #6b7b8c; font-size: 11px; margin-top: 4px; line-height: 1.5; }
   .totals { margin-left: auto; margin-top: 14px; width: 320px; font-size: 12px; }
   .totals .row { display: flex; justify-content: space-between; padding: 6px 12px; }
-  .totals .row .lbl { color: #4a4a4a; }
-  .totals .row .val { font-variant-numeric: tabular-nums; }
   .totals .grand { background: #f3f6f9; padding: 12px; border-radius: 4px; margin-top: 6px; }
   .totals .grand .lbl { font-weight: 600; color: #1a1a1a; font-size: 13px; }
   .totals .grand .val { font-weight: 700; color: #1a1a1a; font-size: 15px; }
   .notes { margin-top: 32px; padding-top: 14px; border-top: 1px solid #e8ecf0; }
   .notes .label { color: #6b7b8c; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-  .notes .content { font-size: 12px; color: #444; white-space: pre-wrap; }
-  .status-chip { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; background: #e8ecf0; color: #4a4a4a; }
+  .status-chip { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 10px; font-size: 10px; text-transform: uppercase; background: #e8ecf0; color: #4a4a4a; }
   @media print { @page { margin: 12mm; } body { padding: 0; } }
 </style></head>
 <body>
@@ -147,7 +152,6 @@ function acelogTemplate(d: DocInput): string {
       ${balanceDue ? `<div class="balance-box"><div class="label">Balance Due</div><div class="amt">${money(d.total, d.currency)}</div></div>` : ""}
     </div>
   </div>
-
   <div class="meta">
     <div class="bill-to">
       <div class="label">${escapeHtml(d.counterparty.label)}</div>
@@ -156,53 +160,324 @@ function acelogTemplate(d: DocInput): string {
       <div style="color:#444">${escapeHtml(d.counterparty.phone || "")}</div>
     </div>
     <div class="meta-right">
-      <div class="row"><span class="lbl">${escapeHtml(d.title)} Date :</span>${escapeHtml(fmtDate(d.date))}</div>
-      ${d.due_date ? `<div class="row"><span class="lbl">Due Date :</span>${escapeHtml(fmtDate(d.due_date))}</div>` : ""}
+      <div><span class="lbl">${escapeHtml(d.title)} Date :</span>${escapeHtml(fmtDate(d.date))}</div>
+      ${d.due_date ? `<div><span class="lbl">Due Date :</span>${escapeHtml(fmtDate(d.due_date))}</div>` : ""}
     </div>
   </div>
-
   <table class="items">
-    <thead>
-      <tr>
-        <th class="num">#</th>
-        <th>Item &amp; Description</th>
-        <th class="qty">Qty</th>
-        <th class="rate">Rate</th>
-        <th class="amt">Amount</th>
-      </tr>
-    </thead>
+    <thead><tr><th class="num">#</th><th>Item &amp; Description</th><th class="qty">Qty</th><th class="rate">Rate</th><th class="amt">Amount</th></tr></thead>
     <tbody>${items}</tbody>
   </table>
-
   <div class="totals">
-    <div class="row"><span class="lbl">Sub Total</span><span class="val">${money(d.subtotal, d.currency)}</span></div>
-    ${tax !== 0 ? `<div class="row"><span class="lbl">Tax</span><span class="val">${money(tax, d.currency)}</span></div>` : ""}
-    ${ship !== 0 ? `<div class="row"><span class="lbl">Shipping / Freight</span><span class="val">${money(ship, d.currency)}</span></div>` : ""}
+    <div class="row"><span>Sub Total</span><span>${money(d.subtotal, d.currency)}</span></div>
+    ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
+    ${ship !== 0 ? `<div class="row"><span>Shipping / Freight</span><span>${money(ship, d.currency)}</span></div>` : ""}
     <div class="row grand"><span class="lbl">Total</span><span class="val">${money(d.total, d.currency)}</span></div>
   </div>
-
-  ${d.notes ? `<div class="notes"><div class="label">Notes</div><div class="content">${escapeHtml(d.notes)}</div></div>` : ""}
+  ${d.notes ? `<div class="notes"><div class="label">Notes</div><div>${escapeHtml(d.notes)}</div></div>` : ""}
 </body></html>`;
 }
 
-// Variant style overrides — all templates share the Ace Design layout,
-// differing only in font family, padding, and accent color.
-const VARIANT_OVERRIDES: Record<DocTemplate, { font: string; pad: string; accent: string }> = {
-  acelog:  { font: "'Helvetica Neue', Helvetica, Arial, sans-serif", pad: "40px", accent: "#4a90c2" },
-  classic: { font: "Georgia, 'Times New Roman', serif",              pad: "48px", accent: "#1a1a1a" },
-  modern:  { font: "-apple-system, 'Segoe UI', sans-serif",          pad: "56px", accent: "#2c8a6b" },
-  compact: { font: "'Helvetica Neue', Arial, sans-serif",            pad: "24px", accent: "#6b4a90" },
-};
+/* =====================================================================
+   CLASSIC — formal serif letterhead, centered masthead, ruled tables
+   ===================================================================== */
+function classicTemplate(d: DocInput): string {
+  const ship = num(d.shipping);
+  const tax = num(d.tax);
+  const items = d.items.map((it, idx) => {
+    const meta = itemMeta(it);
+    return `<tr>
+      <td class="num">${idx + 1}.</td>
+      <td><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" &nbsp;·&nbsp; ")}</div>` : ""}</td>
+      <td class="qty">${qtyStr(it)}</td>
+      <td class="rate">${rateStr(it)}</td>
+      <td class="amt">${amtStr(it)}</td>
+    </tr>`;
+  }).join("");
+  const logo = d.business.logo_url
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:80px;margin:0 auto 10px;display:block;" />`
+    : "";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Garamond', 'Hoefler Text', Georgia, 'Times New Roman', serif; color: #1a1a1a; background: #fafaf7; padding: 56px 64px; font-size: 12.5px; line-height: 1.55; }
+  .masthead { text-align: center; padding-bottom: 18px; border-bottom: 3px double #1a1a1a; margin-bottom: 28px; }
+  .biz .name { font-size: 26px; font-weight: 700; letter-spacing: 6px; text-transform: uppercase; margin-bottom: 6px; }
+  .biz .sub { font-size: 11px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+  .title-row { text-align: center; margin-bottom: 24px; }
+  .title-row h1 { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: 8px; text-transform: uppercase; color: #1a1a1a; }
+  .title-row .sub { font-size: 11px; color: #555; margin-top: 4px; font-style: italic; letter-spacing: 2px; }
+  .meta { display: flex; justify-content: space-between; gap: 32px; margin-bottom: 24px; }
+  .meta .box { flex: 1; border: 1px solid #cfc9bd; padding: 14px 18px; }
+  .meta .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #7a7468; margin-bottom: 6px; }
+  .meta .name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .meta .dates { font-size: 12px; }
+  .meta .dates div { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dotted #cfc9bd; }
+  .meta .dates div:last-child { border: 0; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 8px; border-top: 2px solid #1a1a1a; border-bottom: 2px solid #1a1a1a; }
+  table.items thead th { padding: 10px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; border-bottom: 1px solid #1a1a1a; text-align: left; }
+  table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
+  table.items thead th.num { width: 30px; text-align: left; }
+  table.items tbody td { padding: 12px 8px; border-bottom: 1px solid #e6e1d4; vertical-align: top; }
+  table.items tbody td.qty, table.items tbody td.rate, table.items tbody td.amt { text-align: right; font-variant-numeric: tabular-nums; }
+  table.items tbody td.num { color: #7a7468; }
+  .iname { font-style: italic; font-size: 13px; }
+  .imeta { color: #7a7468; font-size: 10.5px; margin-top: 3px; font-style: normal; }
+  .totals { margin-left: auto; width: 320px; margin-top: 18px; font-size: 12.5px; }
+  .totals .row { display: flex; justify-content: space-between; padding: 5px 0; }
+  .totals .grand { border-top: 1px solid #1a1a1a; border-bottom: 3px double #1a1a1a; padding: 10px 0; margin-top: 8px; font-weight: 700; font-size: 15px; text-transform: uppercase; letter-spacing: 2px; }
+  .notes { margin-top: 36px; padding-top: 16px; border-top: 1px solid #cfc9bd; font-style: italic; font-size: 12px; color: #4a4a4a; }
+  .notes .lbl { font-style: normal; text-transform: uppercase; letter-spacing: 2px; font-size: 10px; color: #7a7468; margin-bottom: 4px; }
+  .foot { text-align: center; margin-top: 40px; font-size: 10px; color: #7a7468; letter-spacing: 3px; text-transform: uppercase; }
+  @media print { @page { margin: 14mm; } body { padding: 0; } }
+</style></head>
+<body>
+  <div class="masthead">
+    ${logo}
+    <div class="biz"><div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
+      <div class="sub">${escapeHtml(d.business.address || "").replace(/\n/g, " &nbsp;·&nbsp; ")}${d.business.phone ? ` &nbsp;·&nbsp; ${escapeHtml(d.business.phone)}` : ""}</div>
+    </div>
+  </div>
+  <div class="title-row">
+    <h1>${escapeHtml(d.title)}</h1>
+    <div class="sub">№ ${escapeHtml(d.number)}${d.status ? ` — ${escapeHtml(d.status)}` : ""}</div>
+  </div>
+  <div class="meta">
+    <div class="box">
+      <div class="lbl">${escapeHtml(d.counterparty.label)}</div>
+      <div class="name">${escapeHtml(d.counterparty.name || "")}</div>
+      <div>${escapeHtml(d.counterparty.address || "").replace(/\n/g, "<br/>")}</div>
+      <div>${escapeHtml(d.counterparty.phone || "")}</div>
+    </div>
+    <div class="box dates">
+      <div class="lbl">Particulars</div>
+      <div><span>${escapeHtml(d.title)} Date</span><span>${escapeHtml(fmtDate(d.date))}</span></div>
+      ${d.due_date ? `<div><span>Due Date</span><span>${escapeHtml(fmtDate(d.due_date))}</span></div>` : ""}
+      <div><span>Currency</span><span>${escapeHtml(d.currency)}</span></div>
+    </div>
+  </div>
+  <table class="items">
+    <thead><tr><th class="num">#</th><th>Description</th><th class="qty">Quantity</th><th class="rate">Rate</th><th class="amt">Amount</th></tr></thead>
+    <tbody>${items}</tbody>
+  </table>
+  <div class="totals">
+    <div class="row"><span>Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
+    ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
+    ${ship !== 0 ? `<div class="row"><span>Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
+    <div class="row grand"><span>Total</span><span>${money(d.total, d.currency)}</span></div>
+  </div>
+  ${d.notes ? `<div class="notes"><div class="lbl">Remarks</div>${escapeHtml(d.notes)}</div>` : ""}
+  <div class="foot">— Thank you for your business —</div>
+</body></html>`;
+}
+
+/* =====================================================================
+   MODERN — editorial, full-bleed emerald header, oversized typography
+   ===================================================================== */
+function modernTemplate(d: DocInput): string {
+  const ship = num(d.shipping);
+  const tax = num(d.tax);
+  const items = d.items.map((it, idx) => {
+    const meta = itemMeta(it);
+    return `<tr>
+      <td class="num">${String(idx + 1).padStart(2, "0")}</td>
+      <td><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" · ")}</div>` : ""}</td>
+      <td class="qty">${qtyStr(it)}</td>
+      <td class="rate">${rateStr(it)}</td>
+      <td class="amt">${amtStr(it)}</td>
+    </tr>`;
+  }).join("");
+  const logo = d.business.logo_url
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:60px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);" />`
+    : `<div style="font-size:13px;letter-spacing:6px;text-transform:uppercase;color:#f7f4ed;opacity:.85;">${escapeHtml(d.business.name || "")}</div>`;
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; background: #f7f4ed; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.5; }
+  .hero { background: #0d4f3c; color: #f7f4ed; padding: 56px 64px 48px; display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; }
+  .hero .left .eyebrow { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; opacity: .7; margin-bottom: 14px; }
+  .hero .left h1 { margin: 0; font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: .95; }
+  .hero .right { text-align: right; }
+  .hero .right .num { font-size: 20px; font-weight: 300; letter-spacing: 1px; opacity: .9; }
+  .hero .right .logo-wrap { margin-bottom: 16px; }
+  .body { padding: 48px 64px 64px; }
+  .biz-row { display: flex; justify-content: space-between; gap: 48px; padding-bottom: 28px; margin-bottom: 32px; border-bottom: 2px solid #1a1a1a; }
+  .biz .name { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .biz .sub { color: #7a7468; font-size: 12px; line-height: 1.6; }
+  .meta-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 48px; margin-bottom: 40px; }
+  .meta-strip .cell .lbl { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #7a7468; margin-bottom: 8px; }
+  .meta-strip .cell .val { font-size: 15px; font-weight: 600; }
+  .meta-strip .cell .sub { font-size: 12px; color: #4a4a4a; margin-top: 2px; }
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items thead th { text-align: left; padding: 14px 0; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #7a7468; font-weight: 600; border-bottom: 2px solid #1a1a1a; }
+  table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
+  table.items thead th.num { width: 50px; }
+  table.items tbody td { padding: 22px 0; border-bottom: 1px solid #d6d0c4; vertical-align: top; }
+  table.items tbody td.num { font-size: 14px; font-weight: 300; color: #7a7468; font-variant-numeric: tabular-nums; }
+  table.items tbody td.qty, table.items tbody td.rate { text-align: right; font-variant-numeric: tabular-nums; color: #4a4a4a; }
+  table.items tbody td.amt { text-align: right; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .iname { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .imeta { color: #7a7468; font-size: 11px; }
+  .totals { margin-left: auto; margin-top: 32px; width: 380px; }
+  .totals .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; }
+  .totals .row .lbl { color: #7a7468; }
+  .totals .grand { margin-top: 16px; background: #0d4f3c; color: #f7f4ed; padding: 22px 28px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
+  .totals .grand .lbl { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: .8; color: #f7f4ed; }
+  .totals .grand .val { font-size: 24px; font-weight: 800; }
+  .notes { margin-top: 48px; padding: 24px 28px; background: #ece7da; border-left: 4px solid #0d4f3c; }
+  .notes .lbl { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #0d4f3c; font-weight: 700; margin-bottom: 6px; }
+  @media print { @page { margin: 0; } }
+</style></head>
+<body>
+  <div class="hero">
+    <div class="left">
+      <div class="eyebrow">${d.status ? escapeHtml(d.status) : "Document"}</div>
+      <h1>${escapeHtml(d.title)}</h1>
+    </div>
+    <div class="right">
+      <div class="logo-wrap">${logo}</div>
+      <div class="num">${escapeHtml(d.number)}</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="biz-row">
+      <div class="biz">
+        <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
+        <div class="sub">${escapeHtml(d.business.address || "").replace(/\n/g, "<br/>")}${d.business.phone ? `<br/>${escapeHtml(d.business.phone)}` : ""}</div>
+      </div>
+    </div>
+    <div class="meta-strip">
+      <div class="cell">
+        <div class="lbl">${escapeHtml(d.counterparty.label)}</div>
+        <div class="val">${escapeHtml(d.counterparty.name || "")}</div>
+        <div class="sub">${escapeHtml(d.counterparty.address || "").replace(/\n/g, "<br/>")}</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Issue Date</div>
+        <div class="val">${escapeHtml(fmtDate(d.date))}</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">${d.due_date ? "Due Date" : "Currency"}</div>
+        <div class="val">${d.due_date ? escapeHtml(fmtDate(d.due_date)) : escapeHtml(d.currency)}</div>
+      </div>
+    </div>
+    <table class="items">
+      <thead><tr><th class="num">№</th><th>Item</th><th class="qty">Qty</th><th class="rate">Rate</th><th class="amt">Amount</th></tr></thead>
+      <tbody>${items}</tbody>
+    </table>
+    <div class="totals">
+      <div class="row"><span class="lbl">Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
+      ${tax !== 0 ? `<div class="row"><span class="lbl">Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
+      ${ship !== 0 ? `<div class="row"><span class="lbl">Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
+      <div class="grand"><span class="lbl">Total Due</span><span class="val">${money(d.total, d.currency)}</span></div>
+    </div>
+    ${d.notes ? `<div class="notes"><div class="lbl">Notes</div>${escapeHtml(d.notes)}</div>` : ""}
+  </div>
+</body></html>`;
+}
+
+/* =====================================================================
+   COMPACT — dense receipt, zebra rows, tight typography
+   ===================================================================== */
+function compactTemplate(d: DocInput): string {
+  const ship = num(d.shipping);
+  const tax = num(d.tax);
+  const items = d.items.map((it, idx) => {
+    const meta = itemMeta(it);
+    return `<tr>
+      <td class="num">${idx + 1}</td>
+      <td><span class="iname">${escapeHtml(it.description)}</span>${meta.length ? ` <span class="imeta">(${meta.join(" · ")})</span>` : ""}</td>
+      <td class="qty">${qtyStr(it)}</td>
+      <td class="rate">${rateStr(it)}</td>
+      <td class="amt">${amtStr(it)}</td>
+    </tr>`;
+  }).join("");
+  const logo = d.business.logo_url
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:36px;max-width:120px;object-fit:contain;vertical-align:middle;margin-right:8px;" />`
+    : "";
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: ui-sans-serif, system-ui, 'Segoe UI', Arial, sans-serif; color: #111; padding: 20px 24px; font-size: 10.5px; line-height: 1.35; }
+  .mono, .qty, .rate, .amt, .num, .totals .val { font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 8px; border-bottom: 2px solid #111; margin-bottom: 10px; gap: 16px; }
+  .top .left { display: flex; align-items: center; }
+  .biz .name { font-size: 26px; font-weight: 700; line-height: 1; }
+  .biz .sub { font-size: 9.5px; color: #475569; margin-top: 2px; }
+  .top .right { text-align: right; font-size: 10px; }
+  .top .right .title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+  .top .right .num { font-size: 11px; color: #475569; }
+  .top .right .meta { font-size: 9.5px; color: #475569; margin-top: 2px; }
+  .inline-bill { background: #f6f6f6; padding: 6px 10px; margin-bottom: 8px; font-size: 10px; border-left: 3px solid #475569; }
+  .inline-bill .lbl { color: #475569; text-transform: uppercase; font-size: 9px; letter-spacing: 1px; margin-right: 6px; }
+  .inline-bill .name { font-weight: 700; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  table.items thead th { background: #111; color: #fff; text-align: left; padding: 4px 8px; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
+  table.items thead th.num { width: 24px; text-align: center; }
+  table.items tbody td { padding: 4px 8px; vertical-align: top; }
+  table.items tbody tr:nth-child(even) td { background: #f6f6f6; }
+  table.items tbody td.num { text-align: center; color: #475569; }
+  table.items tbody td.qty, table.items tbody td.rate, table.items tbody td.amt { text-align: right; }
+  .iname { font-weight: 600; }
+  .imeta { color: #475569; font-size: 9.5px; }
+  .totals-wrap { display: flex; justify-content: flex-end; margin-top: 8px; }
+  .totals { display: grid; grid-template-columns: auto auto; column-gap: 24px; row-gap: 2px; font-size: 10.5px; }
+  .totals .lbl { color: #475569; text-align: right; }
+  .totals .val { text-align: right; }
+  .totals .grand-lbl { font-weight: 700; color: #111; border-top: 1px solid #111; padding-top: 4px; margin-top: 2px; text-align: right; }
+  .totals .grand-val { font-weight: 700; color: #111; border-top: 1px solid #111; padding-top: 4px; margin-top: 2px; font-size: 12px; text-align: right; }
+  .notes { margin-top: 10px; padding: 6px 8px; background: #f6f6f6; font-size: 9.5px; border-left: 3px solid #475569; }
+  .notes .lbl { color: #475569; text-transform: uppercase; letter-spacing: 1px; font-size: 9px; margin-right: 6px; }
+  @media print { @page { margin: 8mm; } body { padding: 0; } }
+</style></head>
+<body>
+  <div class="top">
+    <div class="left">
+      ${logo}
+      <div class="biz">
+        <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
+        <div class="sub">${escapeHtml((d.business.address || "").replace(/\n/g, ", "))}${d.business.phone ? ` · ${escapeHtml(d.business.phone)}` : ""}</div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="title">${escapeHtml(d.title)}${d.status ? ` · ${escapeHtml(d.status)}` : ""}</div>
+      <div class="num">${escapeHtml(d.number)}</div>
+      <div class="meta">${escapeHtml(fmtDate(d.date))}${d.due_date ? ` · due ${escapeHtml(fmtDate(d.due_date))}` : ""}</div>
+    </div>
+  </div>
+  <div class="inline-bill">
+    <span class="lbl">${escapeHtml(d.counterparty.label)}</span>
+    <span class="name">${escapeHtml(d.counterparty.name || "")}</span>
+    ${d.counterparty.address ? ` · ${escapeHtml((d.counterparty.address || "").replace(/\n/g, ", "))}` : ""}
+    ${d.counterparty.phone ? ` · ${escapeHtml(d.counterparty.phone)}` : ""}
+  </div>
+  <table class="items">
+    <thead><tr><th class="num">#</th><th>Description</th><th class="qty">Qty</th><th class="rate">Rate</th><th class="amt">Amount</th></tr></thead>
+    <tbody>${items}</tbody>
+  </table>
+  <div class="totals-wrap">
+    <div class="totals">
+      <div class="lbl">Subtotal</div><div class="val">${money(d.subtotal, d.currency)}</div>
+      ${tax !== 0 ? `<div class="lbl">Tax</div><div class="val">${money(tax, d.currency)}</div>` : ""}
+      ${ship !== 0 ? `<div class="lbl">Shipping</div><div class="val">${money(ship, d.currency)}</div>` : ""}
+      <div class="grand-lbl">TOTAL</div><div class="grand-val">${money(d.total, d.currency)}</div>
+    </div>
+  </div>
+  ${d.notes ? `<div class="notes"><span class="lbl">Notes</span>${escapeHtml(d.notes)}</div>` : ""}
+</body></html>`;
+}
 
 export function buildDocumentHtml(d: DocInput): string {
-  const base = acelogTemplate(d);
-  const variant = VARIANT_OVERRIDES[d.template] ?? VARIANT_OVERRIDES.acelog;
-  const overrideCss = `
-    body { font-family: ${variant.font} !important; padding: ${variant.pad} !important; }
-    .doc-number { color: ${variant.accent} !important; }
-    table.items thead th { background: ${variant.accent} !important; }
-  `;
-  return base.replace("</style>", `${overrideCss}</style>`);
+  switch (d.template) {
+    case "classic": return classicTemplate(d);
+    case "modern":  return modernTemplate(d);
+    case "compact": return compactTemplate(d);
+    default:        return acelogTemplate(d);
+  }
 }
 
 export function renderDocument(d: DocInput) {

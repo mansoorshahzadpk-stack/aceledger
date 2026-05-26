@@ -146,6 +146,60 @@ export type Database = {
         }
         Relationships: []
       }
+      doc_counters: {
+        Row: {
+          kind: string
+          last_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          last_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          last_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      grn_amendments: {
+        Row: {
+          action: Database["public"]["Enums"]["amend_action"]
+          created_at: string
+          grn_id: string
+          id: string
+          new_total: number
+          previous_total: number
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          created_at?: string
+          grn_id: string
+          id?: string
+          new_total: number
+          previous_total: number
+          reason: string
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          created_at?: string
+          grn_id?: string
+          id?: string
+          new_total?: number
+          previous_total?: number
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoice_amendments: {
         Row: {
           created_at: string
@@ -187,30 +241,39 @@ export type Database = {
       invoice_items: {
         Row: {
           description: string
+          grn_ref: string | null
           id: string
           invoice_id: string
           line_total: number
+          product_id: string | null
           quantity: number
           sort_order: number
           unit_price: number
+          vehicle_ref: string | null
         }
         Insert: {
           description: string
+          grn_ref?: string | null
           id?: string
           invoice_id: string
           line_total?: number
+          product_id?: string | null
           quantity?: number
           sort_order?: number
           unit_price?: number
+          vehicle_ref?: string | null
         }
         Update: {
           description?: string
+          grn_ref?: string | null
           id?: string
           invoice_id?: string
           line_total?: number
+          product_id?: string | null
           quantity?: number
           sort_order?: number
           unit_price?: number
+          vehicle_ref?: string | null
         }
         Relationships: [
           {
@@ -234,6 +297,7 @@ export type Database = {
           issue_date: string
           notes: string | null
           posted_at: string | null
+          shipping: number
           status: Database["public"]["Enums"]["invoice_status"]
           subtotal: number
           tax: number
@@ -252,6 +316,7 @@ export type Database = {
           issue_date?: string
           notes?: string | null
           posted_at?: string | null
+          shipping?: number
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tax?: number
@@ -270,6 +335,7 @@ export type Database = {
           issue_date?: string
           notes?: string | null
           posted_at?: string | null
+          shipping?: number
           status?: Database["public"]["Enums"]["invoice_status"]
           subtotal?: number
           tax?: number
@@ -380,6 +446,7 @@ export type Database = {
           id: string
           material: string
           notes: string | null
+          product_id: string | null
           quantity: number
           total_amount: number
           unit: string
@@ -395,6 +462,7 @@ export type Database = {
           id?: string
           material: string
           notes?: string | null
+          product_id?: string | null
           quantity?: number
           total_amount?: number
           unit?: string
@@ -410,6 +478,7 @@ export type Database = {
           id?: string
           material?: string
           notes?: string | null
+          product_id?: string | null
           quantity?: number
           total_amount?: number
           unit?: string
@@ -525,8 +594,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_doc_number: { Args: { _kind: string }; Returns: string }
     }
     Enums: {
+      amend_action: "edit" | "delete"
       app_role: "admin" | "user"
       currency_code: "PKR" | "USD" | "EUR"
       doc_template: "classic" | "modern" | "compact"
@@ -660,6 +731,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      amend_action: ["edit", "delete"],
       app_role: ["admin", "user"],
       currency_code: ["PKR", "USD", "EUR"],
       doc_template: ["classic", "modern", "compact"],

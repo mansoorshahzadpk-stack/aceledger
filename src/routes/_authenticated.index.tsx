@@ -11,6 +11,16 @@ import { TrendingDown, TrendingUp, Wallet, ArrowUpRight, ArrowDownRight } from "
 
 export const Route = createFileRoute("/_authenticated/")({
   component: Dashboard,
+  head: () => ({
+    meta: [
+      { title: "Dashboard — Ace Ledger" },
+      { name: "description", content: "Executive dashboard for outstanding receivables, vendor payables, and weekly collections in your B2B ledger." },
+      { property: "og:title", content: "Dashboard — Ace Ledger" },
+      { property: "og:description", content: "Executive dashboard for outstanding receivables, vendor payables, and weekly collections in your B2B ledger." },
+      { property: "og:url", content: "https://aceledger.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/" }],
+  }),
 });
 
 function Dashboard() {

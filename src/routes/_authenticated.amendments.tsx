@@ -9,6 +9,16 @@ import { formatMoney, formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/amendments")({
   component: AuditLog,
+  head: () => ({
+    meta: [
+      { title: "Audit Log — Ace Ledger" },
+      { name: "description", content: "Chronological audit trail of amendments to invoices, payments, and master records." },
+      { property: "og:title", content: "Audit Log — Ace Ledger" },
+      { property: "og:description", content: "Chronological audit trail of amendments to invoices, payments, and master records." },
+      { property: "og:url", content: "https://aceledger.lovable.app/amendments" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/amendments" }],
+  }),
 });
 
 function AuditLog() {

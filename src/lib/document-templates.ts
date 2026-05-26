@@ -322,7 +322,7 @@ function modernTemplate(d: DocInput): string {
   .totals-wrap { display: flex; justify-content: flex-end; padding: 28px 64px 56px; }
   .totals { width: 340px; }
   .totals .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #4a4a4a; }
-  .totals .grand { margin-top: 12px; background: #0d4f3c; color: #fff; padding: 18px 22px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
+  .totals .grand { margin-top: 12px; background: #2b8acb; color: #fff; padding: 18px 22px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
   .totals .grand .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.85; }
   .totals .grand .val { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
   .notes { padding: 0 64px 56px; }

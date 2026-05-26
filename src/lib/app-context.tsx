@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CurrencyCode } from "@/lib/format";
 
 export type UiTheme = "light" | "dark" | "contrast";
-export type DocTemplate = "classic" | "modern" | "compact";
+export type DocTemplate = "acelog" | "classic" | "modern" | "compact";
 
 export interface AppSettings {
   currency: CurrencyCode;
@@ -27,7 +27,7 @@ interface AppContextValue {
 const DEFAULT_SETTINGS: AppSettings = {
   currency: "PKR",
   theme: "light",
-  default_doc_template: "classic",
+  default_doc_template: "acelog",
   business_name: null,
   business_address: null,
   business_phone: null,

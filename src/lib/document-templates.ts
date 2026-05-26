@@ -299,14 +299,14 @@ function modernTemplate(d: DocInput): string {
 <style>
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { font-family: -apple-system, 'Segoe UI', Inter, Arial, sans-serif; color: #1a1a1a; background: #ffffff; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.55; }
-  .hero { background: #0d4f3c; color: #fff; padding: 56px 64px 48px; }
+  .hero { background: #bcdcee; color: #1a2330; padding: 56px 64px 48px; }
   .hero .row { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
   .hero .biz .name { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
-  .hero .biz .sub { font-size: 12px; opacity: 0.85; margin-top: 8px; line-height: 1.7; max-width: 340px; }
+  .hero .biz .sub { font-size: 12px; opacity: 0.8; margin-top: 8px; line-height: 1.7; max-width: 340px; }
   .hero .doc { text-align: right; }
   .hero .doc .title { font-size: 56px; font-weight: 800; letter-spacing: -2px; line-height: 1; text-transform: lowercase; }
-  .hero .doc .num { font-size: 13px; opacity: 0.85; margin-top: 10px; letter-spacing: 1px; }
-  .hero .doc .status { display: inline-block; margin-left: 8px; padding: 2px 10px; border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .hero .doc .num { font-size: 13px; opacity: 0.8; margin-top: 10px; letter-spacing: 1px; }
+  .hero .doc .status { display: inline-block; margin-left: 8px; padding: 2px 10px; border: 1px solid rgba(26,35,48,0.35); border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
   .meta { padding: 36px 64px 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
   .meta .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; margin-bottom: 8px; }
   .meta .name { font-weight: 700; font-size: 15px; color: #1a1a1a; margin-bottom: 4px; }

@@ -19,10 +19,10 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [
-  { id: "acelog", name: "Acelog (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
-  { id: "classic", name: "Classic Professional", desc: "Serif typography, double-rule headers, traditional invoice feel" },
-  { id: "modern", name: "Modern Minimalist", desc: "Clean sans-serif, generous whitespace, contemporary look" },
-  { id: "compact", name: "Compact / High-Density", desc: "Maximum info per page, ideal for itemised bills" },
+  { id: "acelog", name: "Ace Design (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
+  { id: "classic", name: "Ace Design — Classic", desc: "Ace Design layout with serif typography for a traditional invoice feel" },
+  { id: "modern", name: "Ace Design — Modern", desc: "Ace Design layout with airy sans-serif and a fresh green accent" },
+  { id: "compact", name: "Ace Design — Compact", desc: "Ace Design layout with tighter padding and a violet accent" },
 ];
 
 function SettingsPage() {

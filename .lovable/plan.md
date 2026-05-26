@@ -1,57 +1,42 @@
-## Goal
+## Replace "Modern Minimalist" template
 
-Make Classic, Modern, and Compact document templates visually distinct from Ace Design (and from each other) — different layouts, typographic systems, and color palettes — rather than the current shared Ace Design layout with only font/padding/accent overrides. Rename labels to drop the "Ace Design —" prefix.
+Rewrite `modernTemplate(d)` in `src/lib/document-templates.ts` to match the attached reference. Ace Design, Classic, and Compact stay untouched.
 
-## 1. Refactor `src/lib/document-templates.ts`
+### Visual spec (from the reference image)
 
-Replace the single `acelog` base + `VARIANT_OVERRIDES` injection model with four self-contained template functions, each returning its own full HTML/CSS:
+- Background: soft warm light-grey (`#eef0f1`) with subtle gradient.
+- Header row: logo + business name on the left (existing 26px name), business address/phone/email right-aligned in the top-right as small grey text.
+- Big serif "Invoice" wordmark (~64px, bold serif like Playfair Display / Georgia) on the left below the header.
+- Under the wordmark: "Invoice to:" label + bold counterparty name in uppercase + address/phone/email lines.
+- Right side: light-blue (`#bcdcee`) callout card with a small left-pointing tail, containing:
+  - "Date:" + formatted issue date (bold)
+  - "Invoice No:" + invoice number (bold)
+  - Small blue tick/slash glyphs as bullets (use a CSS `::before` with a rotated rule, no external assets).
+- Items table: borderless, with a single dark hairline under the header row and a thin light divider between rows. Columns: **Item Description** (left, bold title + small grey subtext if `grn_ref`/`vehicle_ref` present), **Unit Price** (centred), **Quantity** (centred), **Price** (right, bold). Currency rendered through existing `money()` helper (negative-sign-with-amount preserved).
+- Bottom band: full-bleed light-blue (`#bcdcee`) strip starting after the items.
+  - Inside the band, a row with: **Basic Information** (account/transaction lines from business settings if available, else notes), **Due Date** (bold, formatted), **VAT/Tax** (label uses "Tax" — value = tax amount), **Due Amount** (large bold total in deep blue `#1f6fa8`).
+  - Thin dark hairline above this row, matching the reference.
+- Typography: Playfair Display (or Georgia fallback) for "Invoice" wordmark and totals; Inter/system sans for everything else. Keep `.biz .name { font-size: 26px }`.
+- Print-safe: use `@page` margins already used by other templates; ensure background colour bands print via `-webkit-print-color-adjust: exact`.
 
-- `acelogTemplate(d)` — unchanged (current Ace Design layout).
-- `classicTemplate(d)` — formal traditional invoice
-  - Serif typography (Georgia / Playfair-style fallback stack)
-  - Centered masthead: company name (large, all-caps, letter-spaced) above a thin double-rule divider
-  - Document title centered under the rule; number + dates in a small right-aligned block
-  - Bill-to in a bordered box, left-aligned
-  - Items table with classic ruled borders (top + bottom rules, no header fill), all-caps small header labels
-  - Totals right-aligned with a double underline on grand total
-  - Palette: deep ink `#1a1a1a` on `#fafaf7` cream, hairline rules `#cfc9bd`, no accent color
-- `modernTemplate(d)` — bold editorial / Awwwards feel
-  - Sans display (Inter / Söhne-style stack) with heavy weight contrast
-  - Full-bleed colored header band (deep emerald `#0d4f3c` on cream) containing logo + huge doc title set in 64px, doc number right-aligned in light weight
-  - Two-column meta strip below header: Bill To (left) / Date + Due (right), separated by generous whitespace, no boxes
-  - Items rendered as borderless rows with thick bottom dividers, line-total in oversized tabular numerals
-  - Totals: right-aligned, grand total in a dark pill (`#0d4f3c` bg, cream text) sized large
-  - Generous 64px padding, lots of negative space
-  - Palette: emerald `#0d4f3c`, cream `#f7f4ed`, charcoal `#1a1a1a`, muted `#7a7468`
-- `compactTemplate(d)` — dense single-page receipt style
-  - Mono-leaning sans (system-ui + JetBrains-Mono-ish stack for numbers)
-  - 20px page padding, 10px base font, tight 1.2 line-height
-  - Single-row header: logo (small) + company block (left), doc title + number + date inline (right) — all in one band
-  - Bill-to as a one-line inline block
-  - Items table with zebra striping (`#f6f6f6`), no outer border, minimal cell padding (4px 8px)
-  - Totals inline at bottom-right in a tight 2-col grid (no card)
-  - Palette: near-black `#111` on white, slate accent `#475569`, zebra `#f6f6f6`
+### Data mapping
 
-Shared helpers (`money`, `fmtDate`, `escapeHtml`, `num`) remain at module scope and are reused by all four templates. Negative-sign-with-amount logic and `.biz .name { font-size: 26px }` for the company name carry into every template's CSS.
+- Header business block ← `d.business` (name, address, phone, email if present).
+- "Invoice to" block ← `d.counterparty` (name uppercased via CSS, then address / phone / email).
+- Date card ← `d.date` via `fmtDate`, `d.number`.
+- Items table ← `d.items` (description + optional `grn_ref`/`vehicle_ref` as muted subtext under description, `unit_price`, `quantity`, `line_total`). Use `money()` for currency.
+- Bottom band:
+  - Basic Information: show `d.business.account_no` / `d.business.transaction_no` if present, otherwise fall back to `d.notes` (truncated).
+  - Due Date: `fmtDate(d.due_date)` or "—".
+  - Tax: `money(d.tax)` (label kept as "Tax (VAT)" so it stays accurate regardless of jurisdiction).
+  - Due Amount: `money(d.total)` rendered large in accent blue.
 
-`buildDocumentHtml` becomes a simple dispatch:
+### Out of scope
 
-```ts
-switch (d.template) {
-  case "classic": return classicTemplate(d);
-  case "modern":  return modernTemplate(d);
-  case "compact": return compactTemplate(d);
-  default:        return acelogTemplate(d);
-}
-```
+- No changes to Ace Design, Classic, or Compact templates.
+- No changes to `money()`, `fmtDate`, settings UI labels, themes, or DB.
+- No new asset files — the blue callout tail and tick glyphs are pure CSS.
 
-Remove `VARIANT_OVERRIDES` and the `base.replace("</style>", ...)` injection.
+### Files touched
 
-## 2. Rename labels in `src/routes/_authenticated.settings.tsx`
-
-Template picker options become: `Ace Design`, `Classic`, `Modern`, `Compact` (no "Ace Design —" prefix on the three variants). Underlying enum values (`acelog`, `classic`, `modern`, `compact`) unchanged, so no DB migration is required.
-
-## Out of scope
-
-- No changes to invoice data, totals math, currency formatting rules, themes, sidebar, or auth.
-- No new template values added to the enum.
+- `src/lib/document-templates.ts` — rewrite `modernTemplate(d)` only.

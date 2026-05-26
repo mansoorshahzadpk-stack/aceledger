@@ -41,8 +41,8 @@ function money(n: number | string | null | undefined, c: CurrencyCode) {
   const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = v < 0 ? "-" : "";
   const color = v < 0 ? ' style="color:#c0392b"' : "";
-  // &nbsp;&nbsp; — explicit gap between currency symbol and amount
-  return `<span${color}>${sign}${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${abs}</span>`;
+  // Sign sits with the amount, not the currency symbol (e.g. Rs  -5,500.00)
+  return `<span${color}>${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${sign}${abs}</span>`;
 }
 /** dd/mm/yyyy formatting for printed documents */
 function fmtDate(d: string | null | undefined) {

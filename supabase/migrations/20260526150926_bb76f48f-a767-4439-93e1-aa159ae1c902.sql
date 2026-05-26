@@ -1,0 +1,3 @@
+ALTER TYPE ui_theme ADD VALUE IF NOT EXISTS 'lavender';
+ALTER TYPE ui_theme ADD VALUE IF NOT EXISTS 'maroon';
+ALTER TYPE ui_theme ADD VALUE IF NOT EXISTS 'green';

@@ -8,13 +8,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/vendors", label: "Vendors", icon: Truck },
   { to: "/clients", label: "Clients", icon: Users },
   { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 export function AppShell() {
   const { settings, updateSettings, signOut, user } = useApp();

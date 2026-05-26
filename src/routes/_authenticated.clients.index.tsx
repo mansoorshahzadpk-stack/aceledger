@@ -91,7 +91,7 @@ function ClientsPage() {
     });
     if (error) toast.error(error.message);
     else {
-      toast.success("Installment recorded — balance updated");
+      toast.success("Payment Received recorded — balance updated");
       setPayOpen(null);
       setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "" });
       qc.invalidateQueries({ queryKey: ["clients"] });
@@ -125,7 +125,7 @@ function ClientsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Industry Clients</h1>
-          <p className="text-sm text-muted-foreground">Outstanding balances and weekly installments</p>
+          <p className="text-sm text-muted-foreground">Outstanding balances and payments received</p>
         </div>
         <div className="flex gap-2">
           {selected.size > 0 && (
@@ -168,7 +168,7 @@ function ClientsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Outstanding balances</CardTitle><CardDescription>Tap "Log Installment" to record a weekly payment</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Outstanding balances</CardTitle><CardDescription>Tap "Log Payment Received" to record a payment</CardDescription></CardHeader>
         <CardContent>
           <div className="overflow-auto rounded-md border">
             <Table>
@@ -196,7 +196,7 @@ function ClientsPage() {
                     <TableCell className="text-right figure font-medium text-warning">{formatMoney(c.outstanding, settings.currency)}</TableCell>
                     <TableCell className="text-right">
                       <Button size="sm" variant="default" disabled={!c.hasPosted} onClick={() => setPayOpen(c.id)} title={!c.hasPosted ? "No posted invoices" : ""}>
-                        <Banknote className="mr-1 h-4 w-4" />Log Installment
+                        <Banknote className="mr-1 h-4 w-4" />Log Payment Received
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -209,7 +209,7 @@ function ClientsPage() {
 
       <Dialog open={!!payOpen} onOpenChange={(v) => !v && setPayOpen(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Log Weekly Installment</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Log Payment Received</DialogTitle></DialogHeader>
           <form onSubmit={logInstallment} className="space-y-3">
             <Field label="Amount"><Input type="number" step="0.01" required value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} autoFocus /></Field>
             <div className="grid grid-cols-2 gap-3">

@@ -600,7 +600,7 @@ export type Database = {
       amend_action: "edit" | "delete"
       app_role: "admin" | "user"
       currency_code: "PKR" | "USD" | "EUR"
-      doc_template: "classic" | "modern" | "compact"
+      doc_template: "classic" | "modern" | "compact" | "acelog"
       invoice_status: "draft" | "posted"
       payment_method: "cash" | "bank" | "cheque" | "mobile" | "other"
       ui_theme: "light" | "dark" | "contrast"
@@ -734,7 +734,7 @@ export const Constants = {
       amend_action: ["edit", "delete"],
       app_role: ["admin", "user"],
       currency_code: ["PKR", "USD", "EUR"],
-      doc_template: ["classic", "modern", "compact"],
+      doc_template: ["classic", "modern", "compact", "acelog"],
       invoice_status: ["draft", "posted"],
       payment_method: ["cash", "bank", "cheque", "mobile", "other"],
       ui_theme: ["light", "dark", "contrast"],

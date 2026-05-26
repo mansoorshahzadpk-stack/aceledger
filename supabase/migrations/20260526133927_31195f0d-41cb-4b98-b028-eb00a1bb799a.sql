@@ -1,0 +1,1 @@
+ALTER TYPE public.doc_template ADD VALUE IF NOT EXISTS 'acelog';

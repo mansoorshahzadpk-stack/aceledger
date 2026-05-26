@@ -1,15 +1,39 @@
-export type CurrencyCode = "PKR" | "USD" | "EUR";
+export type CurrencyCode =
+  | "PKR"
+  | "INR"
+  | "BDT"
+  | "AED"
+  | "LKR"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "SAR"
+  | "CNY";
 
 export const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
   PKR: "₨",
+  INR: "₹",
+  BDT: "৳",
+  AED: "د.إ",
+  LKR: "Rs",
   USD: "$",
   EUR: "€",
+  GBP: "£",
+  SAR: "﷼",
+  CNY: "¥",
 };
 
 export const CURRENCY_LABELS: Record<CurrencyCode, string> = {
-  PKR: "Pakistani Rupee (₨)",
-  USD: "US Dollar ($)",
-  EUR: "Euro (€)",
+  PKR: "Pakistan – Rupee (₨)",
+  INR: "India – Rupee (₹)",
+  BDT: "Bangladesh – Taka (৳)",
+  AED: "UAE – Dirham (د.إ)",
+  LKR: "Sri Lanka – Rupee (Rs)",
+  USD: "United States – Dollar ($)",
+  EUR: "Eurozone – Euro (€)",
+  GBP: "United Kingdom – Pound (£)",
+  SAR: "Saudi Arabia – Riyal (﷼)",
+  CNY: "China – Yuan (¥)",
 };
 
 export function formatMoney(value: number | string | null | undefined, currency: CurrencyCode = "PKR") {

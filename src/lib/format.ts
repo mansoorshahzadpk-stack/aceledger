@@ -42,12 +42,27 @@ export function formatMoney(value: number | string | null | undefined, currency:
   const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(safe);
-  return `${CURRENCY_SYMBOLS[currency]} ${formatted}`;
+  }).format(Math.abs(safe));
+  const sign = safe < 0 ? "-" : "";
+  // wide gap between currency symbol and amount for legibility
+  return `${sign}${CURRENCY_SYMBOLS[currency]}\u00A0\u00A0${formatted}`;
 }
 
+/** dd/mm/yyyy — primary date format across the app */
 export function formatDate(d: string | Date | null | undefined) {
   if (!d) return "—";
   const date = typeof d === "string" ? new Date(d) : d;
-  return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  if (isNaN(date.getTime())) return "—";
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+/** ISO yyyy-mm-dd — for <input type="date"> values */
+export function toInputDate(d: string | Date | null | undefined) {
+  if (!d) return "";
+  const date = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
 }

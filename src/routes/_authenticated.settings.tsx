@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [
   { id: "acelog", name: "Ace Design (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
-  { id: "classic", name: "Ace Design — Classic", desc: "Ace Design layout with serif typography for a traditional invoice feel" },
-  { id: "modern", name: "Ace Design — Modern", desc: "Ace Design layout with airy sans-serif and a fresh green accent" },
-  { id: "compact", name: "Ace Design — Compact", desc: "Ace Design layout with tighter padding and a violet accent" },
+  { id: "classic", name: "Classic", desc: "Formal serif masthead, centered title, ruled tables — traditional letterhead feel" },
+  { id: "modern", name: "Modern", desc: "Bold editorial layout with a full-bleed emerald header band and generous whitespace" },
+  { id: "compact", name: "Compact", desc: "Dense single-page receipt with zebra rows and tight typography" },
 ];
 
 function SettingsPage() {

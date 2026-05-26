@@ -353,6 +353,42 @@ export type Database = {
           },
         ]
       }
+      payment_amendments: {
+        Row: {
+          action: Database["public"]["Enums"]["amend_action"]
+          client_id: string
+          created_at: string
+          id: string
+          new_amount: number
+          payment_id: string | null
+          previous_amount: number
+          reason: string
+          user_id: string
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          client_id: string
+          created_at?: string
+          id?: string
+          new_amount: number
+          payment_id?: string | null
+          previous_amount: number
+          reason: string
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          client_id?: string
+          created_at?: string
+          id?: string
+          new_amount?: number
+          payment_id?: string | null
+          previous_amount?: number
+          reason?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           active: boolean
@@ -599,11 +635,21 @@ export type Database = {
     Enums: {
       amend_action: "edit" | "delete"
       app_role: "admin" | "user"
-      currency_code: "PKR" | "USD" | "EUR"
+      currency_code:
+        | "PKR"
+        | "USD"
+        | "EUR"
+        | "INR"
+        | "BDT"
+        | "AED"
+        | "LKR"
+        | "GBP"
+        | "SAR"
+        | "CNY"
       doc_template: "classic" | "modern" | "compact" | "acelog"
       invoice_status: "draft" | "posted"
       payment_method: "cash" | "bank" | "cheque" | "mobile" | "other"
-      ui_theme: "light" | "dark" | "contrast"
+      ui_theme: "light" | "dark" | "contrast" | "coloured"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -733,11 +779,22 @@ export const Constants = {
     Enums: {
       amend_action: ["edit", "delete"],
       app_role: ["admin", "user"],
-      currency_code: ["PKR", "USD", "EUR"],
+      currency_code: [
+        "PKR",
+        "USD",
+        "EUR",
+        "INR",
+        "BDT",
+        "AED",
+        "LKR",
+        "GBP",
+        "SAR",
+        "CNY",
+      ],
       doc_template: ["classic", "modern", "compact", "acelog"],
       invoice_status: ["draft", "posted"],
       payment_method: ["cash", "bank", "cheque", "mobile", "other"],
-      ui_theme: ["light", "dark", "contrast"],
+      ui_theme: ["light", "dark", "contrast", "coloured"],
     },
   },
 } as const

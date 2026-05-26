@@ -37,7 +37,22 @@ function num(n: number | string | null | undefined) {
   return Number.isFinite(v as number) ? (v as number) : 0;
 }
 function money(n: number | string | null | undefined, c: CurrencyCode) {
-  return `${CURRENCY_SYMBOLS[c]}${num(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const v = num(n);
+  const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = v < 0 ? "-" : "";
+  const color = v < 0 ? ' style="color:#c0392b"' : "";
+  // &nbsp;&nbsp; — explicit gap between currency symbol and amount
+  return `<span${color}>${sign}${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${abs}</span>`;
+}
+/** dd/mm/yyyy formatting for printed documents */
+function fmtDate(d: string | null | undefined) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 function escapeHtml(s?: string | null) {
   return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -67,7 +82,7 @@ function acelogTemplate(d: DocInput): string {
   }).join("");
 
   const logo = d.business.logo_url
-    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:72px;max-width:200px;object-fit:contain;display:block;margin-bottom:10px;" />`
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:108px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" />`
     : "";
 
   const balanceDue = d.showBalanceDue !== false && d.title.toLowerCase().includes("invoice");
@@ -141,8 +156,8 @@ function acelogTemplate(d: DocInput): string {
       <div style="color:#444">${escapeHtml(d.counterparty.phone || "")}</div>
     </div>
     <div class="meta-right">
-      <div class="row"><span class="lbl">${escapeHtml(d.title)} Date :</span>${escapeHtml(d.date)}</div>
-      ${d.due_date ? `<div class="row"><span class="lbl">Due Date :</span>${escapeHtml(d.due_date)}</div>` : ""}
+      <div class="row"><span class="lbl">${escapeHtml(d.title)} Date :</span>${escapeHtml(fmtDate(d.date))}</div>
+      ${d.due_date ? `<div class="row"><span class="lbl">Due Date :</span>${escapeHtml(fmtDate(d.due_date))}</div>` : ""}
     </div>
   </div>
 
@@ -186,7 +201,7 @@ export function buildDocumentHtml(d: DocInput): string {
       <td style="text-align:right">${money(it.unit_price, d.currency)}</td>
       <td style="text-align:right">${money(it.line_total, d.currency)}</td>
     </tr>`).join("");
-  const logo = d.business.logo_url ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:64px;max-width:180px;object-fit:contain;margin-bottom:8px" />` : "";
+  const logo = d.business.logo_url ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:96px;max-width:270px;object-fit:contain;margin-bottom:8px" />` : "";
 
   const fontMap = {
     classic: "Georgia, 'Times New Roman', serif",
@@ -213,12 +228,12 @@ export function buildDocumentHtml(d: DocInput): string {
     @media print { @page { margin: 12mm; } }
   </style></head><body>
   <div class="top">
-    <div>${logo}<h1>${escapeHtml(d.title)}</h1><div style="color:#666">No. ${escapeHtml(d.number)} · ${escapeHtml(d.date)}${d.status ? ` · ${escapeHtml(d.status.toUpperCase())}` : ""}</div></div>
+    <div>${logo}<h1>${escapeHtml(d.title)}</h1><div style="color:#666">No. ${escapeHtml(d.number)} · ${escapeHtml(fmtDate(d.date))}${d.status ? ` · ${escapeHtml(d.status.toUpperCase())}` : ""}</div></div>
     <div class="biz"><div style="font-weight:600">${escapeHtml(d.business.name || "Your Business")}</div><div>${escapeHtml(d.business.address || "")}</div><div>${escapeHtml(d.business.phone || "")}</div></div>
   </div>
   <div class="parties">
     <div><div class="label">${escapeHtml(d.counterparty.label)}</div><div style="font-weight:600">${escapeHtml(d.counterparty.name || "")}</div><div>${escapeHtml(d.counterparty.address || "")}</div><div>${escapeHtml(d.counterparty.phone || "")}</div></div>
-    <div style="text-align:right"><div class="label">Date</div><div>${escapeHtml(d.date)}</div>${d.due_date ? `<div class="label" style="margin-top:8px">Due</div><div>${escapeHtml(d.due_date)}</div>` : ""}</div>
+    <div style="text-align:right"><div class="label">Date</div><div>${escapeHtml(fmtDate(d.date))}</div>${d.due_date ? `<div class="label" style="margin-top:8px">Due</div><div>${escapeHtml(fmtDate(d.due_date))}</div>` : ""}</div>
   </div>
   <table>
     <thead><tr><th style="width:30px;text-align:center">#</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>

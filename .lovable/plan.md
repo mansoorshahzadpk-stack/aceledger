@@ -1,91 +1,60 @@
+# Implementation Plan
 
-## Scope
+## 1. Rename "Weekly Installment" → "Payment Received"
+- Update labels, buttons, dialog titles, toasts, and table headers in:
+  - `src/routes/_authenticated.clients.index.tsx`
+  - `src/routes/_authenticated.clients.$id.tsx`
+- Keep underlying `client_payments` table name (internal only).
 
-Eight related changes across data model, document templates, and UI.
+## 2. Amend invoice from Client page
+- On client detail page, link each invoice row to the existing invoice detail page (amend/delete-after-post with reason already works there).
+- Add inline "Amend" / "Delete" buttons on the invoice row for parity with the Invoices list.
 
----
+## 3. Amend / Delete Payment Received (with reason)
+- New table `payment_amendments` (user_id, payment_id, client_id, action [edit|delete], previous_amount, new_amount, reason) with RLS.
+- Add Edit and Delete buttons on each payment row.
+- Both open a dialog requiring a **Reason**; on submit, write an amendment row and update/delete the payment.
 
-### 1. Freight / Shipping line (like tax)
+## 4. Audit / Amendments overview page
+- New route `src/routes/_authenticated.amendments.tsx` showing a unified, filterable list across:
+  - Posted GRNs (`grn_amendments`)
+  - Invoices (`invoice_amendments`)
+  - Payments Received (new `payment_amendments`)
+- Columns: Date, Type, Document #, Action, Previous → New, Reason, link to source doc.
+- Nav entry "Audit log" in `AppShell.tsx`.
 
-- Add `shipping` numeric column to `invoices` (default 0). Total = subtotal + tax + shipping.
-- New Invoice form: add a "Shipping / Freight" input next to Tax (supports negative values for freight deductions, matching the sample PDF).
-- Invoice detail + PDF templates render the Shipping row in the totals block.
-- Backward compatible: existing rows default to 0.
+## 5. Analytics page (graphs & charts) — date-range driven
+- New route `src/routes/_authenticated.reports.analytics.tsx` using Recharts.
+- **Top of page: two date pickers (From / To)** that drive every chart. Sensible default (e.g. last 90 days); quick-pick chips for "This month", "Last 30 days", "This year".
+- All queries filter by the selected range. Charts:
+  - Supplies received (GRN qty + value) over time
+  - Invoiced revenue vs Payments received over time
+  - Top vendors (payables) & top clients (receivables) within range
+  - Inventory on hand by material (current snapshot)
+  - Profit margin trend over the range
+- Granularity (day / week / month) auto-picked from range length.
+- Nav entry under Reports.
 
-### 2. Rename "Products" → "Materials"
+## 6. "Coloured" theme
+- Extend theme options in settings and `app-context.tsx` to include `coloured` alongside `light` / `dark`.
+- In `src/styles.css`, add `[data-theme="coloured"]` token set: tasteful multi-hue palette (deep indigo primary, teal accent, warm coral highlight, gradient surfaces). Uses oklch tokens + `--gradient-*` vars — no per-component color changes.
+- Migration: add `coloured` value to `ui_theme` enum.
 
-- Sidebar / bottom-nav label and icon stay; only the visible name and route path change to `/materials` (file: `_authenticated.materials.index.tsx`).
-- Page title, dialog copy, empty states say "Material" / "Materials".
-- Invoice picker label becomes "Select from materials". DB table `products` is left as-is internally (no risky data rename); only the UI is rebranded.
+## 7. Date format dd/mm/yyyy on invoice
+- Add `formatDateDMY` to `src/lib/format.ts`; use it in invoice screens and PDF/print template (`document-templates.ts`).
 
-### 3. Redesign Invoice & GRN to match the uploaded sample
-
-Rebuild `src/lib/document-templates.ts` with a new template `acelog` (set as default) that mirrors the sample:
-
-- Top-right large "INVOICE" / "GRN" title, number under it
-- Right-side "Balance Due" card with big amount (invoices only)
-- Left-side company logo + business block
-- "Bill To" block with client name + address
-- Items table with columns: `#`, `Item & Description` (multi-line: material name, GRN ref, Vehicle ref), `Qty` (with unit), `Rate`, `Amount`
-- Totals block: Sub Total, Tax, Shipping, Total
-- Notes section at bottom
-- Keep `classic` / `modern` / `compact` available; new one is default and matches the screenshot.
-
-Add optional per-line fields `grn_ref` and `vehicle_ref` on `invoice_items` so a line can display "GRN: 03345 / Veh: XA 319" like the sample. Editable in the line-item card.
-
-### 4. Fix GRN material dropdown
-
-`_authenticated.vendors.grn.new.tsx` currently uses a plain `<Input>` for Material. Replace with the same Popover+Command picker used in invoices, sourced from the active Materials catalog. Also allow free-text entry for ad-hoc materials. Store `product_id` (nullable) on `vendor_grns` so we can link inventory.
-
-### 5. Edit / Delete / Amend GRN and Invoices (with reasons)
-
-- **Before posting (draft):** full edit + delete, no reason required.
-- **After posting:** edit and delete both open a "Reason for change" dialog; reason is required.
-- Reuse existing `invoice_amendments`; add a sibling `grn_amendments` table (`grn_id`, `reason`, `previous_total`, `new_total`, `action` enum: `edit` | `delete`).
-- Add `Edit` and `Delete` actions on `/invoices/$id` and on the vendor GRN row in `/vendors/$id`. Deletes cascade payment/line cleanup as today.
-
-### 6. Profit / Loss overview page
-
-New route `/_authenticated.reports.pl.tsx` (sidebar entry "P&L").
-
-- Filters: From date, To date, Group by: Day / Week / Month / Quarter / Year. Quick presets: This month, This quarter, This year.
-- Revenue = sum of posted invoice totals in range (minus shipping if negative, per as-billed).
-- Cost = sum of GRN `total_amount` in range.
-- Gross profit = Revenue − Cost; margin %.
-- Top KPI cards + a grouped table (period | revenue | cost | profit | margin) and a simple bar chart (Recharts).
-
-### 7. 4-digit sequential numbering
-
-- Add per-user sequences `invoice_seq` and `grn_seq` (a `doc_counters` table: `user_id`, `kind`, `last_value`).
-- Postgres function `next_doc_number(kind text)` increments atomically and returns `INV-0001` / `GRN-0001` (zero-padded to 4, grows past 4 if exceeded).
-- New Invoice + New GRN forms call the function on mount to suggest the next number; user can still override. Posting fills in the number if blank.
-- Existing records keep their current numbers; new ones start at the next available 4-digit value.
-
-### 8. Inventory page
-
-New route `/_authenticated.inventory.tsx`.
-
-- For each Material: `Received (GRN qty)`, `Delivered (invoiced qty)`, `On-hand`, `Avg cost`, `Inventory value`.
-- Requires linking invoice lines to materials: add `product_id` (nullable) to `invoice_items`; the invoice line picker already pulls from materials — store the chosen `product_id`.
-- GRN already gets `product_id` from change #4.
-- On-hand = sum(GRN.qty for material) − sum(invoice_items.qty for material, posted only).
-- Avg cost = weighted average from GRN lines for that material.
-- Table sortable by on-hand; row click → drill-down listing source GRNs and consuming invoices.
-
----
+## 8. Invoice / GRN printout fixes (`src/lib/document-templates.ts`)
+- Add explicit gap between currency code and amount (`Rs&nbsp;&nbsp;1,234.00`).
+- Negative amounts rendered in red.
+- Logo size 1.5× (≈ 64px → 96px height).
 
 ## Technical notes
+- Migration creates `payment_amendments` (+ RLS + grants) and extends `ui_theme` enum.
+- All CRUD via Supabase client; RLS pattern `auth.uid() = user_id`.
+- Reuse existing Dialog/AlertDialog primitives.
+- Date pickers use shadcn Calendar inside Popover.
+- Routes added via file-based router; `routeTree.gen.ts` regenerates automatically.
 
-**Migrations (single batch):**
-- `ALTER TABLE invoices ADD COLUMN shipping numeric NOT NULL DEFAULT 0;`
-- `ALTER TABLE invoice_items ADD COLUMN product_id uuid, ADD COLUMN grn_ref text, ADD COLUMN vehicle_ref text;`
-- `ALTER TABLE vendor_grns ADD COLUMN product_id uuid;`
-- New `grn_amendments` table + RLS + GRANTs (mirrors `invoice_amendments`, adds `action` enum).
-- New `doc_counters(user_id, kind, last_value)` + `next_doc_number(kind)` SECURITY DEFINER function + RLS + GRANTs.
-
-**Files touched:**
-- New: `_authenticated.materials.index.tsx` (rename of products), `_authenticated.reports.pl.tsx`, `_authenticated.inventory.tsx`
-- Edited: `document-templates.ts`, `_authenticated.invoices.new.tsx`, `_authenticated.invoices.$id.tsx`, `_authenticated.vendors.grn.new.tsx`, `_authenticated.vendors.$id.tsx`, `AppShell.tsx`, `app-context.tsx`
-- Deleted: `_authenticated.products.index.tsx`
-
-**Out of scope:** currency/theme system, auth, existing balance math beyond adding `shipping` to total.
+## Out of scope
+- No vendor-flow changes beyond surfacing existing GRN amendments in the audit page.
+- No redesign of existing pages beyond the rename and new action buttons.

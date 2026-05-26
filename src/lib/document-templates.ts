@@ -41,8 +41,8 @@ function money(n: number | string | null | undefined, c: CurrencyCode) {
   const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sign = v < 0 ? "-" : "";
   const color = v < 0 ? ' style="color:#c0392b"' : "";
-  // &nbsp;&nbsp; — explicit gap between currency symbol and amount
-  return `<span${color}>${sign}${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${abs}</span>`;
+  // Sign sits with the amount, not the currency symbol (e.g. Rs  -5,500.00)
+  return `<span${color}>${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${sign}${abs}</span>`;
 }
 /** dd/mm/yyyy formatting for printed documents */
 function fmtDate(d: string | null | undefined) {
@@ -100,7 +100,7 @@ function acelogTemplate(d: DocInput): string {
   .balance-box .label { font-size: 10px; color: #6b7b8c; text-transform: uppercase; letter-spacing: 1px; }
   .balance-box .amt { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
   .biz { font-size: 12px; color: #444; line-height: 1.5; }
-  .biz .name { font-weight: 600; color: #1a1a1a; font-size: 13px; margin-bottom: 2px; }
+  .biz .name { font-weight: 600; color: #1a1a1a; font-size: 26px; margin-bottom: 4px; }
   .meta { display: flex; justify-content: space-between; gap: 24px; margin: 8px 0 24px; }
   .bill-to { font-size: 12px; }
   .bill-to .label { color: #6b7b8c; font-size: 11px; margin-bottom: 4px; }
@@ -185,68 +185,24 @@ function acelogTemplate(d: DocInput): string {
 </body></html>`;
 }
 
+// Variant style overrides — all templates share the Ace Design layout,
+// differing only in font family, padding, and accent color.
+const VARIANT_OVERRIDES: Record<DocTemplate, { font: string; pad: string; accent: string }> = {
+  acelog:  { font: "'Helvetica Neue', Helvetica, Arial, sans-serif", pad: "40px", accent: "#4a90c2" },
+  classic: { font: "Georgia, 'Times New Roman', serif",              pad: "48px", accent: "#1a1a1a" },
+  modern:  { font: "-apple-system, 'Segoe UI', sans-serif",          pad: "56px", accent: "#2c8a6b" },
+  compact: { font: "'Helvetica Neue', Arial, sans-serif",            pad: "24px", accent: "#6b4a90" },
+};
+
 export function buildDocumentHtml(d: DocInput): string {
-  // Default to the acelog template for any unknown / legacy value
-  if (d.template !== "classic" && d.template !== "modern" && d.template !== "compact") {
-    return acelogTemplate(d);
-  }
-  // Legacy templates: simplified fallback that still includes shipping
-  const ship = num(d.shipping);
-  const tax = num(d.tax);
-  const items = d.items.map((it, idx) => `
-    <tr>
-      <td style="text-align:center">${idx + 1}</td>
-      <td>${escapeHtml(it.description)}${it.grn_ref ? `<br/><span style="color:#666;font-size:11px">GRN : ${escapeHtml(it.grn_ref)}</span>` : ""}${it.vehicle_ref ? `<br/><span style="color:#666;font-size:11px">Veh : ${escapeHtml(it.vehicle_ref)}</span>` : ""}</td>
-      <td style="text-align:right">${num(it.quantity).toLocaleString("en-US", { minimumFractionDigits: 2 })}${it.unit ? ` ${escapeHtml(it.unit)}` : ""}</td>
-      <td style="text-align:right">${money(it.unit_price, d.currency)}</td>
-      <td style="text-align:right">${money(it.line_total, d.currency)}</td>
-    </tr>`).join("");
-  const logo = d.business.logo_url ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:96px;max-width:270px;object-fit:contain;margin-bottom:8px" />` : "";
-
-  const fontMap = {
-    classic: "Georgia, 'Times New Roman', serif",
-    modern: "-apple-system, 'Segoe UI', sans-serif",
-    compact: "'Helvetica Neue', Arial, sans-serif",
-  } as const;
-  const pad = d.template === "compact" ? "24px" : d.template === "modern" ? "56px" : "48px";
-  const fs = d.template === "compact" ? "11px" : "13px";
-
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
-  <style>
-    body { font-family: ${fontMap[d.template]}; color:#1a1a1a; padding:${pad}; font-size:${fs}; }
-    h1 { font-size:28px; margin:0 0 4px; }
-    .top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #1a1a1a; padding-bottom:12px; margin-bottom:20px; gap:24px; }
-    .biz { text-align:right; font-size:12px; }
-    .parties { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:20px; }
-    .label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#666; }
-    table { width:100%; border-collapse:collapse; }
-    th { text-align:left; background:#f0f0f0; padding:8px; border-bottom:1px solid #ccc; }
-    td { padding:8px; border-bottom:1px solid #eee; vertical-align:top; }
-    .totals { margin-top:16px; margin-left:auto; width:280px; }
-    .totals .row { display:flex; justify-content:space-between; padding:4px 0; }
-    .totals .grand { border-top:2px solid #1a1a1a; padding-top:8px; font-weight:bold; font-size:15px; }
-    @media print { @page { margin: 12mm; } }
-  </style></head><body>
-  <div class="top">
-    <div>${logo}<h1>${escapeHtml(d.title)}</h1><div style="color:#666">No. ${escapeHtml(d.number)} · ${escapeHtml(fmtDate(d.date))}${d.status ? ` · ${escapeHtml(d.status.toUpperCase())}` : ""}</div></div>
-    <div class="biz"><div style="font-weight:600">${escapeHtml(d.business.name || "Your Business")}</div><div>${escapeHtml(d.business.address || "")}</div><div>${escapeHtml(d.business.phone || "")}</div></div>
-  </div>
-  <div class="parties">
-    <div><div class="label">${escapeHtml(d.counterparty.label)}</div><div style="font-weight:600">${escapeHtml(d.counterparty.name || "")}</div><div>${escapeHtml(d.counterparty.address || "")}</div><div>${escapeHtml(d.counterparty.phone || "")}</div></div>
-    <div style="text-align:right"><div class="label">Date</div><div>${escapeHtml(fmtDate(d.date))}</div>${d.due_date ? `<div class="label" style="margin-top:8px">Due</div><div>${escapeHtml(fmtDate(d.due_date))}</div>` : ""}</div>
-  </div>
-  <table>
-    <thead><tr><th style="width:30px;text-align:center">#</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
-    <tbody>${items}</tbody>
-  </table>
-  <div class="totals">
-    <div class="row"><span>Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
-    ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
-    ${ship !== 0 ? `<div class="row"><span>Shipping / Freight</span><span>${money(ship, d.currency)}</span></div>` : ""}
-    <div class="row grand"><span>Total</span><span>${money(d.total, d.currency)}</span></div>
-  </div>
-  ${d.notes ? `<div style="margin-top:24px;font-size:11px;color:#666;border-top:1px solid #eee;padding-top:12px"><div class="label">Notes</div>${escapeHtml(d.notes)}</div>` : ""}
-  </body></html>`;
+  const base = acelogTemplate(d);
+  const variant = VARIANT_OVERRIDES[d.template] ?? VARIANT_OVERRIDES.acelog;
+  const overrideCss = `
+    body { font-family: ${variant.font} !important; padding: ${variant.pad} !important; }
+    .doc-number { color: ${variant.accent} !important; }
+    table.items thead th { background: ${variant.accent} !important; }
+  `;
+  return base.replace("</style>", `${overrideCss}</style>`);
 }
 
 export function renderDocument(d: DocInput) {

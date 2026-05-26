@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import type { CurrencyCode } from "@/lib/format";
 
-export type UiTheme = "light" | "dark" | "contrast" | "coloured";
+export type UiTheme = "light" | "dark" | "contrast" | "lavender" | "maroon" | "green";
 export type DocTemplate = "acelog" | "classic" | "modern" | "compact";
 
 export interface AppSettings {
@@ -43,7 +43,9 @@ function applyTheme(theme: UiTheme) {
   html.removeAttribute("data-theme");
   if (theme === "dark") html.classList.add("dark");
   else if (theme === "contrast") html.setAttribute("data-theme", "contrast");
-  else if (theme === "coloured") html.setAttribute("data-theme", "coloured");
+  else if (theme === "lavender") html.setAttribute("data-theme", "lavender");
+  else if (theme === "maroon") html.setAttribute("data-theme", "maroon");
+  else if (theme === "green") html.setAttribute("data-theme", "green");
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {

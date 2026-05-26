@@ -29,12 +29,12 @@ export function AppShell() {
   const isActive = (to: string, exact?: boolean) => exact ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
   const cycleTheme = () => {
-    const order: Array<"light" | "dark" | "contrast" | "coloured"> = ["light", "dark", "contrast", "coloured"];
+    const order: Array<"light" | "dark" | "contrast" | "lavender" | "maroon" | "green"> = ["light", "dark", "contrast", "lavender", "maroon", "green"];
     const next = order[(order.indexOf(settings.theme) + 1) % order.length];
     updateSettings({ theme: next });
   };
 
-  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : settings.theme === "coloured" ? Palette : Sun;
+  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : (settings.theme === "lavender" || settings.theme === "maroon" || settings.theme === "green") ? Palette : Sun;
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -47,8 +47,8 @@ export function AppShell() {
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">L</div>
           )}
           <div className="min-w-0">
-            <div className="text-sm font-semibold leading-tight truncate">{settings.business_name || "Ledger"}</div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">B2B Accounts</div>
+            <div className="text-sm font-semibold leading-tight truncate text-sidebar-foreground">{settings.business_name || "Ledger"}</div>
+            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/80">B2B Accounts</div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">

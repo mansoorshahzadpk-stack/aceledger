@@ -649,7 +649,14 @@ export type Database = {
       doc_template: "classic" | "modern" | "compact" | "acelog"
       invoice_status: "draft" | "posted"
       payment_method: "cash" | "bank" | "cheque" | "mobile" | "other"
-      ui_theme: "light" | "dark" | "contrast" | "coloured"
+      ui_theme:
+        | "light"
+        | "dark"
+        | "contrast"
+        | "coloured"
+        | "lavender"
+        | "maroon"
+        | "green"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -794,7 +801,15 @@ export const Constants = {
       doc_template: ["classic", "modern", "compact", "acelog"],
       invoice_status: ["draft", "posted"],
       payment_method: ["cash", "bank", "cheque", "mobile", "other"],
-      ui_theme: ["light", "dark", "contrast", "coloured"],
+      ui_theme: [
+        "light",
+        "dark",
+        "contrast",
+        "coloured",
+        "lavender",
+        "maroon",
+        "green",
+      ],
     },
   },
 } as const

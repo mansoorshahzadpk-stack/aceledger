@@ -1,0 +1,1 @@
+UPDATE public.app_settings SET theme='lavender' WHERE theme='coloured';

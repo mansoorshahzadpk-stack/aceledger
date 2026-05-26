@@ -200,12 +200,17 @@ function SettingsPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Theme</CardTitle><CardDescription>High-contrast is optimised for bright sunlight</CardDescription></CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-3">
-              {(["light", "dark", "contrast"] as UiTheme[]).map((t) => (
+            <CardHeader><CardTitle>Theme</CardTitle><CardDescription>High-contrast is optimised for bright sunlight. Coloured uses elegant gradients.</CardDescription></CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(["light", "dark", "contrast", "coloured"] as UiTheme[]).map((t) => (
                 <button key={t} onClick={() => updateSettings({ theme: t })} className={`rounded-md border p-4 text-left transition-colors ${settings.theme === t ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
-                  <div className="font-medium capitalize">{t === "contrast" ? "High Contrast" : t}</div>
-                  <div className="text-xs text-muted-foreground mt-1">{t === "light" ? "Clean & bright" : t === "dark" ? "Easy on eyes" : "Outdoor / sunlight"}</div>
+                  <div className="font-medium capitalize">{t === "contrast" ? "High Contrast" : t === "coloured" ? "Coloured" : t}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {t === "light" ? "Clean & bright" : t === "dark" ? "Easy on eyes" : t === "contrast" ? "Outdoor / sunlight" : "Elegant gradients"}
+                  </div>
+                  {t === "coloured" && (
+                    <div className="mt-2 h-6 rounded" style={{ background: "linear-gradient(90deg, #6366f1, #06b6d4, #f97316, #ec4899)" }} />
+                  )}
                 </button>
               ))}
             </CardContent>

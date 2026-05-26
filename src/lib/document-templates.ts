@@ -100,7 +100,7 @@ function acelogTemplate(d: DocInput): string {
   .balance-box .label { font-size: 10px; color: #6b7b8c; text-transform: uppercase; letter-spacing: 1px; }
   .balance-box .amt { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-top: 2px; }
   .biz { font-size: 12px; color: #444; line-height: 1.5; }
-  .biz .name { font-weight: 600; color: #1a1a1a; font-size: 13px; margin-bottom: 2px; }
+  .biz .name { font-weight: 600; color: #1a1a1a; font-size: 26px; margin-bottom: 4px; }
   .meta { display: flex; justify-content: space-between; gap: 24px; margin: 8px 0 24px; }
   .bill-to { font-size: 12px; }
   .bill-to .label { color: #6b7b8c; font-size: 11px; margin-bottom: 4px; }

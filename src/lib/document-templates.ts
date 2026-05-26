@@ -37,7 +37,22 @@ function num(n: number | string | null | undefined) {
   return Number.isFinite(v as number) ? (v as number) : 0;
 }
 function money(n: number | string | null | undefined, c: CurrencyCode) {
-  return `${CURRENCY_SYMBOLS[c]}${num(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const v = num(n);
+  const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = v < 0 ? "-" : "";
+  const color = v < 0 ? ' style="color:#c0392b"' : "";
+  // &nbsp;&nbsp; — explicit gap between currency symbol and amount
+  return `<span${color}>${sign}${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${abs}</span>`;
+}
+/** dd/mm/yyyy formatting for printed documents */
+function fmtDate(d: string | null | undefined) {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 function escapeHtml(s?: string | null) {
   return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));

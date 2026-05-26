@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, MoreHorizontal, Package, Warehouse, LineChart } from "lucide-react";
+import { LayoutDashboard, Truck, Users, FileText, Settings, LogOut, Sun, Moon, Eye, Palette, MoreHorizontal, Package, Warehouse, LineChart, BarChart3, ShieldAlert } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_SYMBOLS } from "@/lib/format";
@@ -17,6 +17,8 @@ const NAV: NavItem[] = [
   { to: "/materials", label: "Materials", icon: Package },
   { to: "/inventory", label: "Inventory", icon: Warehouse },
   { to: "/reports/pl", label: "P&L", icon: LineChart },
+  { to: "/reports/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/amendments", label: "Audit Log", icon: ShieldAlert },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -27,12 +29,12 @@ export function AppShell() {
   const isActive = (to: string, exact?: boolean) => exact ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
   const cycleTheme = () => {
-    const order: Array<"light" | "dark" | "contrast"> = ["light", "dark", "contrast"];
+    const order: Array<"light" | "dark" | "contrast" | "coloured"> = ["light", "dark", "contrast", "coloured"];
     const next = order[(order.indexOf(settings.theme) + 1) % order.length];
     updateSettings({ theme: next });
   };
 
-  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : Sun;
+  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : settings.theme === "coloured" ? Palette : Sun;
 
   return (
     <div className="flex min-h-screen w-full bg-background">
@@ -141,6 +143,8 @@ export function AppShell() {
               <DropdownMenuItem asChild><Link to="/materials"><Package className="mr-2 h-4 w-4" />Materials</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/inventory"><Warehouse className="mr-2 h-4 w-4" />Inventory</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/reports/pl"><LineChart className="mr-2 h-4 w-4" />P&L</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/reports/analytics"><BarChart3 className="mr-2 h-4 w-4" />Analytics</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link to="/amendments"><ShieldAlert className="mr-2 h-4 w-4" />Audit Log</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link to="/settings"><Settings className="mr-2 h-4 w-4" />Settings</Link></DropdownMenuItem>
               <DropdownMenuItem onClick={cycleTheme}><ThemeIcon className="mr-2 h-4 w-4" />Theme: {settings.theme}</DropdownMenuItem>
               <DropdownMenuItem onClick={signOut}><LogOut className="mr-2 h-4 w-4" />Sign out</DropdownMenuItem>

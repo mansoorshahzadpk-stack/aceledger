@@ -14,12 +14,14 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated.inventory'
+import { Route as AuthenticatedAmendmentsRouteImport } from './routes/_authenticated.amendments'
 import { Route as AuthenticatedVendorsIndexRouteImport } from './routes/_authenticated.vendors.index'
 import { Route as AuthenticatedMaterialsIndexRouteImport } from './routes/_authenticated.materials.index'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
 import { Route as AuthenticatedReportsPlRouteImport } from './routes/_authenticated.reports.pl'
+import { Route as AuthenticatedReportsAnalyticsRouteImport } from './routes/_authenticated.reports.analytics'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated.invoices.new'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated.invoices.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated.clients.$id'
@@ -47,6 +49,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAmendmentsRoute = AuthenticatedAmendmentsRouteImport.update({
+  id: '/amendments',
+  path: '/amendments',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedVendorsIndexRoute =
@@ -83,6 +90,12 @@ const AuthenticatedReportsPlRoute = AuthenticatedReportsPlRouteImport.update({
   path: '/reports/pl',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedReportsAnalyticsRoute =
+  AuthenticatedReportsAnalyticsRouteImport.update({
+    id: '/reports/analytics',
+    path: '/reports/analytics',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInvoicesNewRoute =
   AuthenticatedInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -109,11 +122,13 @@ const AuthenticatedVendorsGrnNewRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
+  '/amendments': typeof AuthenticatedAmendmentsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
   '/reports/pl': typeof AuthenticatedReportsPlRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
@@ -124,12 +139,14 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/amendments': typeof AuthenticatedAmendmentsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
   '/reports/pl': typeof AuthenticatedReportsPlRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
@@ -142,12 +159,14 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/amendments': typeof AuthenticatedAmendmentsRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
+  '/_authenticated/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
   '/_authenticated/reports/pl': typeof AuthenticatedReportsPlRoute
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
@@ -161,11 +180,13 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/amendments'
     | '/inventory'
     | '/settings'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
+    | '/reports/analytics'
     | '/reports/pl'
     | '/vendors/$id'
     | '/clients/'
@@ -176,12 +197,14 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/amendments'
     | '/inventory'
     | '/settings'
     | '/'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
+    | '/reports/analytics'
     | '/reports/pl'
     | '/vendors/$id'
     | '/clients'
@@ -193,12 +216,14 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/amendments'
     | '/_authenticated/inventory'
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/clients/$id'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/new'
+    | '/_authenticated/reports/analytics'
     | '/_authenticated/reports/pl'
     | '/_authenticated/vendors/$id'
     | '/_authenticated/clients/'
@@ -250,6 +275,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/amendments': {
+      id: '/_authenticated/amendments'
+      path: '/amendments'
+      fullPath: '/amendments'
+      preLoaderRoute: typeof AuthenticatedAmendmentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/vendors/': {
       id: '/_authenticated/vendors/'
       path: '/vendors'
@@ -292,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportsPlRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/reports/analytics': {
+      id: '/_authenticated/reports/analytics'
+      path: '/reports/analytics'
+      fullPath: '/reports/analytics'
+      preLoaderRoute: typeof AuthenticatedReportsAnalyticsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/invoices/new': {
       id: '/_authenticated/invoices/new'
       path: '/invoices/new'
@@ -324,12 +363,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAmendmentsRoute: typeof AuthenticatedAmendmentsRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
   AuthenticatedInvoicesIdRoute: typeof AuthenticatedInvoicesIdRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
+  AuthenticatedReportsAnalyticsRoute: typeof AuthenticatedReportsAnalyticsRoute
   AuthenticatedReportsPlRoute: typeof AuthenticatedReportsPlRoute
   AuthenticatedVendorsIdRoute: typeof AuthenticatedVendorsIdRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
@@ -340,12 +381,14 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAmendmentsRoute: AuthenticatedAmendmentsRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
   AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
+  AuthenticatedReportsAnalyticsRoute: AuthenticatedReportsAnalyticsRoute,
   AuthenticatedReportsPlRoute: AuthenticatedReportsPlRoute,
   AuthenticatedVendorsIdRoute: AuthenticatedVendorsIdRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,

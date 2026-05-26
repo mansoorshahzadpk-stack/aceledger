@@ -1,118 +1,65 @@
+# Plan: Delete actions, company logo, fix nav bugs, products catalog
 
-# B2B Ledger & Accounts Management App — Build Plan
+## 1. Fix broken buttons (Log GRN, New Invoice, Open, etc.)
 
-A responsive desktop + mobile web app for a raw material supply business: vendor inflow, client outflow with draft/posted invoice workflow, weekly installment tracking, multi-currency, theming, and customizable document templates.
+**Root cause:** `_authenticated.vendors.tsx` / `_authenticated.clients.tsx` / `_authenticated.invoices.tsx` each have child routes (`$id`, `new`, `grn.new`), which makes TanStack Router treat them as **layout routes**. Layout routes must render `<Outlet />` for children to appear. Since they render list UI instead, navigating to `/vendors/grn/new` re-renders the vendors list and nothing changes — looks like the button is dead.
 
-## Tech & Backend
-- TanStack Start + React + Tailwind + shadcn/ui (already scaffolded)
-- Enable **Lovable Cloud** for database, auth, and storage (vendor/client/invoice data, audit logs, PDFs)
-- Auth: email/password; all data scoped per user via RLS
-- PDF generation client-side via `jspdf` + `jspdf-autotable`
-- State for global UI (currency, theme, doc template) in a settings table + React context
+**Fix:** Rename each list file to its `.index.tsx` counterpart so it becomes a pure leaf route:
 
-## Database Schema (Lovable Cloud)
+- `_authenticated.vendors.tsx` → `_authenticated.vendors.index.tsx`
+- `_authenticated.clients.tsx` → `_authenticated.clients.index.tsx`
+- `_authenticated.invoices.tsx` → `_authenticated.invoices.index.tsx`
 
-```text
-profiles(id, user_id, display_name)
-user_roles(id, user_id, role)                    -- admin/user
-app_settings(user_id PK, currency, theme, default_doc_template)
+Update each `createFileRoute("/_authenticated/vendors")` → `("/_authenticated/vendors/")`. The router tree regenerates automatically.
 
-vendors(id, user_id, name, contact, phone, email, address, opening_balance, created_at)
-vendor_grns(id, user_id, vendor_id, grn_number, material, quantity, unit, unit_price,
-            total_amount, grn_date, doc_template, notes)
-vendor_payments(id, user_id, vendor_id, amount, payment_date, method, reference, notes)
+## 2. Delete selected vendors and clients
 
-clients(id, user_id, name, contact, phone, email, address, opening_balance, created_at)
-invoices(id, user_id, client_id, invoice_number, status [draft|posted],
-         issue_date, due_date, subtotal, tax, total, doc_template, notes,
-         posted_at, current_version)
-invoice_items(id, invoice_id, description, quantity, unit_price, line_total)
-invoice_amendments(id, invoice_id, user_id, reason, previous_total, new_total, created_at)
-client_payments(id, user_id, client_id, invoice_id NULL, amount, payment_date,
-                method [cash|bank|cheque|mobile], reference, notes)
-```
+On the Vendors list and Clients list:
+- Add a leading checkbox column + a "Select all" checkbox in the header.
+- When ≥1 row is selected, show a destructive "Delete selected (N)" button above the table.
+- Confirmation via `AlertDialog`: "This will permanently delete N vendor(s) and all related GRNs and payments. Continue?"
+- Delete order (no FK cascades in current schema): `vendor_payments` → `vendor_grns` → `vendors` (clients: `client_payments` → `invoice_items` for each invoice → `invoices` → `invoice_amendments` → `clients`). All scoped by `user_id` via RLS.
+- Invalidate React Query caches on success; toast confirms count deleted.
 
-RLS: every table filtered by `auth.uid() = user_id`. Roles in separate `user_roles` table with `has_role()` security-definer function.
+## 3. Company logo on Invoices & GRN
 
-Derived balances (computed in server functions, not stored):
-- Vendor owed = Σ GRN totals − Σ vendor_payments + opening_balance
-- Client outstanding = Σ posted invoice totals − Σ client_payments + opening_balance
+**Storage:** Create a public storage bucket `business-assets` (migration) with policies allowing each user to upload/update/delete only files under their own `{user_id}/...` prefix; public read.
 
-## Modules & Routes
+**Settings page:** Add a "Company logo" card with file picker (PNG/JPG ≤ 2 MB). Uploads to `business-assets/{user_id}/logo.{ext}`. Persist public URL in `app_settings.business_logo_url` (new column, nullable text). Show current logo with a Remove button.
 
-```text
-/                          Executive Dashboard
-/vendors                   Vendor list + add/edit
-/vendors/$id               Vendor detail: GRNs, payments, balance ledger
-/vendors/grn/new           Log Goods Received form
-/clients                   Client list + add/edit
-/clients/$id               Client detail: invoices, payments, balance, "Log Weekly Installment"
-/invoices                  All invoices (filter draft/posted)
-/invoices/new              Create invoice (saves as draft by default)
-/invoices/$id              View/edit invoice + amendment history + PDF export
-/settings                  Global Settings (currency, theme, doc template designer)
-/login                     Auth
-```
+**Document templates:** Update `src/lib/document-templates.ts` so `DocInput.business` accepts `logo_url`. Render the logo (max-height 64px, left side of the header) in all three templates — classic, modern, compact — alongside business name/address.
 
-Layout shell:
-- Desktop (≥ md): collapsible **Sidebar** (shadcn `sidebar`) with sections: Dashboard, Vendors, Clients, Invoices, Settings
-- Mobile (< md): fixed **bottom navigation bar** (5 icons: Dashboard, Vendors, Clients, Invoices, More)
-- Header: currency badge, theme toggle, user menu
+**Pass-through:** Every place that calls `renderDocument(...)` (vendor GRN detail, invoice detail) already loads `app_settings`; include `business_logo_url` in the `business` object.
 
-## Global Configuration
+## 4. Products catalog
 
-1. **Multi-currency** — `app_settings.currency` ∈ {PKR ₨, USD $, EUR €}. `useCurrency()` hook + `formatMoney(n)` helper used everywhere money displays.
-2. **Themes** — three modes via `data-theme` on `<html>`:
-   - `light` (clean), `dark`, `contrast` (high-contrast yellow-on-black for outdoor)
-   - Tokens defined in `src/styles.css` using `oklch` under `:root`, `.dark`, `[data-theme="contrast"]`
-   - Toggle in header + persisted to `app_settings`
-3. **Document Designer** — 3 PDF templates: Classic Professional, Modern Minimalist, Compact/High-Density. Selectable globally (default) and per-document at export time. Template chosen at invoice/GRN level overrides global.
+**New table** `products` (migration):
+- `id`, `user_id`, `name` (text, required), `sku` (text, nullable), `description` (text, nullable), `unit` (text, default `"pcs"`), `default_price` (numeric, default 0), `default_tax_rate` (numeric, default 0), `active` (bool, default true), `created_at`, `updated_at`.
+- RLS: `auth.uid() = user_id` for all ops. Trigger for `updated_at`.
 
-## Module 1 — Vendor Management
-- Vendor CRUD table
-- GRN form: vendor dropdown, material, qty, unit, unit price (auto-calc total), date, doc template, notes
-- Vendor detail page: balance card, GRN ledger, payments ledger, "Log Payment" dialog
-- PDF download for individual GRN using selected template
+**New route** `/_authenticated/products/index.tsx`:
+- Table of products with name, SKU, unit, default price (in active currency), active toggle.
+- "New product" dialog (same shape as vendor dialog) — add/edit/delete with confirmation.
+- Bulk-select + delete (same pattern as #2).
 
-## Module 2 — Client Management & Weekly Ledger
-- Client CRUD table
-- **Invoice workflow:**
-  - Create → saved as `draft` (editable freely, balance unaffected, payment logging disabled)
-  - "Post Invoice" button → status `posted`, sets `posted_at`, adds to outstanding balance
-  - Editing posted invoice → modal **requires reason text (min 5 chars)** → writes row to `invoice_amendments` with previous/new totals → increments `current_version` → updates client balance
-  - Amendment history panel on invoice detail
-- PDF export with per-invoice template selector
-- **"Log Weekly Installment"** button on each client row + client detail:
-  - Dialog: Date, Amount, Payment Method (Cash/Bank/Cheque/Mobile), Reference, optional invoice
-  - Disabled if client has only draft invoices (no posted balance)
-  - On submit: insert `client_payments`, balance recalculates, toast confirmation
+**Sidebar/bottom-nav entry:** Add "Products" with `Package` icon in `src/components/AppShell.tsx`.
 
-## Module 3 — Executive Dashboard
-Top cards (in active currency):
-- Total Outstanding Due from Industries (Σ posted invoices − Σ client payments)
-- Total Money Owed to Vendors (Σ GRNs − Σ vendor payments)
-- This Week's Collections (Σ client_payments in last 7 days)
+**Invoice line-item integration** (`_authenticated.invoices.new.tsx` and `_authenticated.invoices.$id.tsx` edit mode):
+- Each line item gets a "Select product…" combobox (shadcn `Command` inside `Popover`) listing active products by name + SKU.
+- Choosing a product fills `description`, `unit_price`, and `unit` (line item description prepends unit). User can still edit fields freely afterward.
+- Optional free-text description stays supported (no product selected).
+- Demo seed adds ~6 sample products and uses them on some seeded invoices.
 
-Below:
-- Scrollable "Recent Weekly Collections" table (client name, date, amount, method)
-- Mini chart: 8-week collection trend (Recharts)
+## Technical notes
 
-## Mock Data
-Server fn `seedDemoData()` inserts: 4 vendors, 6 clients, 8 GRNs, 12 invoices (mix of draft/posted), 20 client payments spread over last 6 weeks. Triggered by a "Load Demo Data" button on Settings (only when tables empty).
+- All migrations through `supabase--migration` (one for `business_logo_url` + storage bucket, one for `products`).
+- Logo upload via `supabase.storage.from('business-assets').upload(...)` with `upsert: true`.
+- Products combobox: lazy-load with `useQuery(['products-active'])`, debounce filter client-side (small list).
+- File renames in step 1 are pure moves — no logic changes; routeTree regenerates on next dev/build.
+- No changes to balance math, posted-invoice amendment flow, or currency/theme system.
 
-## Build Order
-1. Enable Lovable Cloud + create all tables/RLS via migration
-2. Auth + protected `_authenticated` layout + responsive shell (sidebar/bottom-nav)
-3. Settings page (currency, theme, doc templates) + `useSettings` context
-4. Dashboard with KPI cards + recent collections (with seed data)
-5. Vendor module (list, detail, GRN, payments) + PDF
-6. Client module + invoice draft/post workflow + amendment audit + weekly installment
-7. PDF document templates (3 variants) wired to GRN & invoice export
-8. Polish: high-contrast theme tuning, mobile bottom nav, empty states
+## Out of scope
 
-## Design Direction
-Professional finance/ERP feel — neutral slate base, single saturated accent (emerald for inflows, rose for outflows), generous whitespace on desktop, denser tap targets on mobile. Inter for UI, JetBrains Mono for figures. Will confirm palette after approval.
-
----
-
-**Confirm to proceed** and I'll start with Cloud setup + schema + dashboard shell.
+- Per-product inventory tracking (stock on hand).
+- Logo cropping/resizing UI (browser uploads as-is; CSS caps render size).
+- Bulk delete on invoices/GRNs (separate request if needed).

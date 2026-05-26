@@ -17,6 +17,7 @@ export type Database = {
       app_settings: {
         Row: {
           business_address: string | null
+          business_logo_url: string | null
           business_name: string | null
           business_phone: string | null
           currency: Database["public"]["Enums"]["currency_code"]
@@ -27,6 +28,7 @@ export type Database = {
         }
         Insert: {
           business_address?: string | null
+          business_logo_url?: string | null
           business_name?: string | null
           business_phone?: string | null
           currency?: Database["public"]["Enums"]["currency_code"]
@@ -37,6 +39,7 @@ export type Database = {
         }
         Update: {
           business_address?: string | null
+          business_logo_url?: string | null
           business_name?: string | null
           business_phone?: string | null
           currency?: Database["public"]["Enums"]["currency_code"]
@@ -283,6 +286,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          created_at: string
+          default_price: number
+          default_tax_rate: number
+          description: string | null
+          id: string
+          name: string
+          sku: string | null
+          unit: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          default_price?: number
+          default_tax_rate?: number
+          description?: string | null
+          id?: string
+          name: string
+          sku?: string | null
+          unit?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          default_price?: number
+          default_tax_rate?: number
+          description?: string | null
+          id?: string
+          name?: string
+          sku?: string | null
+          unit?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

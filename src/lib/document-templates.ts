@@ -292,28 +292,28 @@ function modernTemplate(d: DocInput): string {
   }).join("");
 
   const logo = d.business.logo_url
-    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin-bottom:14px;filter:brightness(0) invert(1);" />`
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin-bottom:14px;" />`
     : "";
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
 <style>
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   body { font-family: -apple-system, 'Segoe UI', Inter, Arial, sans-serif; color: #1a1a1a; background: #ffffff; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.55; }
-  .hero { background: #0d4f3c; color: #fff; padding: 56px 64px 48px; }
+  .hero { background: #bcdcee; color: #1a2330; padding: 56px 64px 48px; }
   .hero .row { display: flex; justify-content: space-between; align-items: flex-end; gap: 48px; }
   .hero .biz .name { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
-  .hero .biz .sub { font-size: 12px; opacity: 0.85; margin-top: 8px; line-height: 1.7; max-width: 340px; }
+  .hero .biz .sub { font-size: 12px; opacity: 0.8; margin-top: 8px; line-height: 1.7; max-width: 340px; }
   .hero .doc { text-align: right; }
   .hero .doc .title { font-size: 56px; font-weight: 800; letter-spacing: -2px; line-height: 1; text-transform: lowercase; }
-  .hero .doc .num { font-size: 13px; opacity: 0.85; margin-top: 10px; letter-spacing: 1px; }
-  .hero .doc .status { display: inline-block; margin-left: 8px; padding: 2px 10px; border: 1px solid rgba(255,255,255,0.4); border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+  .hero .doc .num { font-size: 13px; opacity: 0.8; margin-top: 10px; letter-spacing: 1px; }
+  .hero .doc .status { display: inline-block; margin-left: 8px; padding: 2px 10px; border: 1px solid rgba(26,35,48,0.35); border-radius: 999px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
   .meta { padding: 36px 64px 12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 40px; }
   .meta .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; margin-bottom: 8px; }
   .meta .name { font-weight: 700; font-size: 15px; color: #1a1a1a; margin-bottom: 4px; }
   .meta .v { font-size: 12px; color: #4a4a4a; line-height: 1.7; }
   .items-wrap { padding: 24px 64px 0; }
   table.items { width: 100%; border-collapse: collapse; }
-  table.items thead th { text-align: left; padding: 16px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; font-weight: 600; border-bottom: 2px solid #0d4f3c; }
+  table.items thead th { text-align: left; padding: 16px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; font-weight: 600; border-bottom: 2px solid #2b8acb; }
   table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
   table.items tbody td { padding: 20px 0; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-variant-numeric: tabular-nums; }
   table.items tbody td.qty, table.items tbody td.rate, table.items tbody td.amt { text-align: right; }
@@ -322,7 +322,7 @@ function modernTemplate(d: DocInput): string {
   .totals-wrap { display: flex; justify-content: flex-end; padding: 28px 64px 56px; }
   .totals { width: 340px; }
   .totals .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; color: #4a4a4a; }
-  .totals .grand { margin-top: 12px; background: #0d4f3c; color: #fff; padding: 18px 22px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
+  .totals .grand { margin-top: 12px; background: #2b8acb; color: #fff; padding: 18px 22px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
   .totals .grand .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.85; }
   .totals .grand .val { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
   .notes { padding: 0 64px 56px; }

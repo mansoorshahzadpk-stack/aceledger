@@ -1,17 +1,17 @@
-Revert `modernTemplate(d)` in `src/lib/document-templates.ts` back to the emerald editorial design that existed before the light-blue invoice rewrite.
+Fix the Modern template logo visibility and swap the dark emerald color for light blue.
 
-### What to revert
-The latest rewrite (light-blue callout, serif "Invoice" wordmark, Playfair Display fonts, blue footer band) is replaced with the previous **emerald editorial** design:
-- Full-bleed emerald `#0d4f3c` header band across the top
-- Bold sans-serif typography (system/Inter)
-- Two-column meta strip (business left, document details right) inside the emerald band
-- Borderless items table with thick horizontal dividers
-- Dark pill-style totals block
-- Generous 64 px padding, editorial whitespace
-- No external font imports (remove Playfair Display `<link>`)
+### Changes in `src/lib/document-templates.ts` — `modernTemplate(d)` only
 
-### Files touched
-- `src/lib/document-templates.ts` — rewrite `modernTemplate(d)` body (lines 275-411), remove Google Fonts `<link>` from the template string.
+1. **Logo visibility fix**: remove the `filter: brightness(0) invert(1)` from the logo `<img>` style — that filter forces the logo to pure white, which made it disappear on white-background uploads and clashed with the new light-blue band. Logo renders in its original colors.
+
+2. **Color swap (emerald → light blue)**:
+   - `.hero` background: `#0d4f3c` → `#bcdcee` (soft light blue)
+   - `.hero` text color: `#fff` → `#1a2330` (dark navy for contrast on light blue)
+   - `.hero .doc .status` border: `rgba(255,255,255,0.4)` → `rgba(26,35,48,0.35)`
+   - `table.items thead th` bottom border: `#0d4f3c` → `#2b8acb` (deeper blue accent for the rule)
+   - `.totals .grand` background: `#0d4f3c` → `#2b8acb`; keep white text/value for contrast on the pill
+
+3. Everything else (layout, typography, padding, items table, totals structure, notes) stays as is. No changes to other templates or any other file.
 
 ### Out of scope
-Ace Design, Classic, and Compact templates remain untouched. `money()`, `fmtDate`, settings UI, themes, and DB are not changed.
+Ace Design, Classic, Compact, settings UI, themes, DB.

@@ -135,7 +135,7 @@ function KpiCard({ label, value, hint, tone, icon: Icon }: {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-            <p className="mt-2 figure text-2xl font-semibold">{value}</p>
+            <p className="mt-2 figure text-2xl font-semibold font-serif">{value}</p>
             <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
           </div>
           <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${colorMap[tone]}`}>

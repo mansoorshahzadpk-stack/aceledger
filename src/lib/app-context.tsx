@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import type { CurrencyCode } from "@/lib/format";
 
-export type UiTheme = "light" | "dark" | "contrast" | "coloured";
+export type UiTheme = "light" | "dark" | "contrast" | "lavender" | "maroon" | "green";
 export type DocTemplate = "acelog" | "classic" | "modern" | "compact";
 
 export interface AppSettings {

@@ -1,0 +1,9 @@
+# Ace Ledger
+
+> A private B2B ledger app for raw material supply businesses — track vendors, industry clients, invoices, weekly collections, inventory, and P&L.
+
+Ace Ledger is a sign-in–only application. Most pages require an authenticated account; only the landing/sign-in page is publicly viewable.
+
+## Pages
+
+- [Sign in](/login): Account sign-in and sign-up for ledger operators.

@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /clients
+Disallow: /vendors
+Disallow: /invoices
+Disallow: /materials
+Disallow: /inventory
+Disallow: /reports
+Disallow: /amendments
+Disallow: /settings
+
+Sitemap: https://aceledger.lovable.app/sitemap.xml

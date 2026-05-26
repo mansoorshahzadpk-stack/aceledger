@@ -200,19 +200,30 @@ function SettingsPage() {
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Theme</CardTitle><CardDescription>High-contrast is optimised for bright sunlight. Coloured uses elegant gradients.</CardDescription></CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {(["light", "dark", "contrast", "coloured"] as UiTheme[]).map((t) => (
-                <button key={t} onClick={() => updateSettings({ theme: t })} className={`rounded-md border p-4 text-left transition-colors ${settings.theme === t ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
-                  <div className="font-medium capitalize">{t === "contrast" ? "High Contrast" : t === "coloured" ? "Coloured" : t}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {t === "light" ? "Clean & bright" : t === "dark" ? "Easy on eyes" : t === "contrast" ? "Outdoor / sunlight" : "Elegant gradients"}
-                  </div>
-                  {t === "coloured" && (
-                    <div className="mt-2 h-6 rounded" style={{ background: "linear-gradient(90deg, #6366f1, #06b6d4, #f97316, #ec4899)" }} />
-                  )}
-                </button>
-              ))}
+            <CardHeader><CardTitle>Theme</CardTitle><CardDescription>High-contrast is optimised for bright sunlight. Lavender, Maroon and Green use elegant gradients.</CardDescription></CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {(["light", "dark", "contrast", "lavender", "maroon", "green"] as UiTheme[]).map((t) => {
+                const label = t === "contrast" ? "High Contrast" : t.charAt(0).toUpperCase() + t.slice(1);
+                const desc =
+                  t === "light" ? "Clean & bright" :
+                  t === "dark" ? "Easy on eyes" :
+                  t === "contrast" ? "Outdoor / sunlight" :
+                  t === "lavender" ? "Indigo, teal & coral" :
+                  t === "maroon" ? "Burgundy & warm gold" :
+                  "Forest, sage & mint";
+                const swatch =
+                  t === "lavender" ? "linear-gradient(90deg, #6366f1, #06b6d4, #f97316, #ec4899)" :
+                  t === "maroon" ? "linear-gradient(90deg, #6b1f2e, #9a3645, #c9a14a, #f5ecd6)" :
+                  t === "green" ? "linear-gradient(90deg, #1f4d36, #3a7d57, #8fbf9f, #e6f0e2)" :
+                  null;
+                return (
+                  <button key={t} onClick={() => updateSettings({ theme: t })} className={`rounded-md border p-4 text-left transition-colors ${settings.theme === t ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
+                    <div className="font-medium">{label}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+                    {swatch && <div className="mt-2 h-6 rounded" style={{ background: swatch }} />}
+                  </button>
+                );
+              })}
             </CardContent>
           </Card>
         </TabsContent>

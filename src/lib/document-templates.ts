@@ -313,7 +313,7 @@ function modernTemplate(d: DocInput): string {
   .meta .v { font-size: 12px; color: #4a4a4a; line-height: 1.7; }
   .items-wrap { padding: 24px 64px 0; }
   table.items { width: 100%; border-collapse: collapse; }
-  table.items thead th { text-align: left; padding: 16px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; font-weight: 600; border-bottom: 2px solid #0d4f3c; }
+  table.items thead th { text-align: left; padding: 16px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6b7280; font-weight: 600; border-bottom: 2px solid #2b8acb; }
   table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
   table.items tbody td { padding: 20px 0; border-bottom: 1px solid #e5e7eb; vertical-align: top; font-variant-numeric: tabular-nums; }
   table.items tbody td.qty, table.items tbody td.rate, table.items tbody td.amt { text-align: right; }

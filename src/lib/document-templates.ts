@@ -292,7 +292,7 @@ function modernTemplate(d: DocInput): string {
   }).join("");
 
   const logo = d.business.logo_url
-    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin-bottom:14px;filter:brightness(0) invert(1);" />`
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin-bottom:14px;" />`
     : "";
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>

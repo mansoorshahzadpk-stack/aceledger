@@ -12,6 +12,16 @@ import { BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
+  head: () => ({
+    meta: [
+      { title: "Sign in — Ace Ledger" },
+      { name: "description", content: "Sign in or create an account to manage vendors, industry clients, invoices, and weekly collections in Ace Ledger." },
+      { property: "og:title", content: "Sign in — Ace Ledger" },
+      { property: "og:description", content: "Sign in or create an account to manage vendors, industry clients, invoices, and weekly collections in Ace Ledger." },
+      { property: "og:url", content: "https://aceledger.lovable.app/login" },
+    ],
+    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/login" }],
+  }),
 });
 
 function LoginPage() {
@@ -52,7 +62,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-3 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
@@ -100,6 +110,6 @@ function LoginPage() {
           </Tabs>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }

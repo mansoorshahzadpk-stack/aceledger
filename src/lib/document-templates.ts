@@ -273,107 +273,139 @@ function classicTemplate(d: DocInput): string {
 }
 
 /* =====================================================================
-   MODERN — editorial, full-bleed emerald header, oversized typography
+   MODERN — light-blue callout, serif "Invoice" wordmark, blue footer band
    ===================================================================== */
 function modernTemplate(d: DocInput): string {
-  const ship = num(d.shipping);
   const tax = num(d.tax);
-  const items = d.items.map((it, idx) => {
+  const items = d.items.map((it) => {
     const meta = itemMeta(it);
     return `<tr>
-      <td class="num">${String(idx + 1).padStart(2, "0")}</td>
-      <td><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" · ")}</div>` : ""}</td>
+      <td class="desc"><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" · ")}</div>` : ""}</td>
+      <td class="unit">${CURRENCY_SYMBOLS[d.currency]}${rateStr(it)}</td>
       <td class="qty">${qtyStr(it)}</td>
-      <td class="rate">${rateStr(it)}</td>
-      <td class="amt">${amtStr(it)}</td>
+      <td class="price">${CURRENCY_SYMBOLS[d.currency]}${amtStr(it)}</td>
     </tr>`;
   }).join("");
+
   const logo = d.business.logo_url
-    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:60px;max-width:200px;object-fit:contain;filter:brightness(0) invert(1);" />`
-    : `<div style="font-size:13px;letter-spacing:6px;text-transform:uppercase;color:#f7f4ed;opacity:.85;">${escapeHtml(d.business.name || "")}</div>`;
+    ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:42px;max-width:160px;object-fit:contain;" />`
+    : `<div class="brandmark">◆</div>`;
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(d.title)} ${escapeHtml(d.number)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, 'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif; color: #1a1a1a; background: #f7f4ed; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.5; }
-  .hero { background: #0d4f3c; color: #f7f4ed; padding: 56px 64px 48px; display: flex; justify-content: space-between; align-items: flex-end; gap: 32px; }
-  .hero .left .eyebrow { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; opacity: .7; margin-bottom: 14px; }
-  .hero .left h1 { margin: 0; font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: .95; }
-  .hero .right { text-align: right; }
-  .hero .right .num { font-size: 20px; font-weight: 300; letter-spacing: 1px; opacity: .9; }
-  .hero .right .logo-wrap { margin-bottom: 16px; }
-  .body { padding: 48px 64px 64px; }
-  .biz-row { display: flex; justify-content: space-between; gap: 48px; padding-bottom: 28px; margin-bottom: 32px; border-bottom: 2px solid #1a1a1a; }
-  .biz .name { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
-  .biz .sub { color: #7a7468; font-size: 12px; line-height: 1.6; }
-  .meta-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 48px; margin-bottom: 40px; }
-  .meta-strip .cell .lbl { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #7a7468; margin-bottom: 8px; }
-  .meta-strip .cell .val { font-size: 15px; font-weight: 600; }
-  .meta-strip .cell .sub { font-size: 12px; color: #4a4a4a; margin-top: 2px; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: Inter, -apple-system, 'Segoe UI', Arial, sans-serif; color: #1f2937; background: linear-gradient(180deg,#eef0f1 0%, #e7eaec 100%); margin: 0; padding: 0; font-size: 12px; line-height: 1.5; }
+  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .top { padding: 40px 56px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand .brandmark { width: 36px; height: 36px; background: #cfe5f2; color: #2b8acb; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; font-size: 22px; }
+  .biz .name { font-size: 26px; font-weight: 700; color: #2b8acb; letter-spacing: -0.5px; line-height: 1; }
+  .contact { text-align: right; color: #5b6470; font-size: 11.5px; line-height: 1.7; }
+  .hero { padding: 18px 56px 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
+  .hero h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 64px; font-weight: 900; color: #1a2330; margin: 0 0 18px; letter-spacing: -1px; line-height: 1; }
+  .billto .lbl { font-size: 12px; color: #5b6470; margin-bottom: 4px; }
+  .billto .name { font-weight: 700; font-size: 14px; color: #1a2330; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
+  .billto .sub { font-size: 11.5px; color: #5b6470; line-height: 1.7; }
+  .callout { position: relative; background: #bcdcee; padding: 22px 28px 22px 36px; min-width: 240px; border-radius: 2px; }
+  .callout::before { content: ""; position: absolute; left: -12px; top: 28px; width: 0; height: 0; border-style: solid; border-width: 10px 12px 10px 0; border-color: transparent #bcdcee transparent transparent; }
+  .callout .item { position: relative; padding-left: 22px; margin-bottom: 14px; }
+  .callout .item:last-child { margin-bottom: 0; }
+  .callout .item::before { content: ""; position: absolute; left: 0; top: 8px; width: 12px; height: 2px; background: #2b8acb; transform: rotate(-35deg); border-radius: 2px; }
+  .callout .lbl { font-size: 12px; color: #2c3e50; }
+  .callout .val { font-weight: 700; font-size: 14px; color: #1a2330; margin-top: 2px; }
+  .items-wrap { padding: 60px 56px 28px; flex: 1; }
   table.items { width: 100%; border-collapse: collapse; }
-  table.items thead th { text-align: left; padding: 14px 0; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #7a7468; font-weight: 600; border-bottom: 2px solid #1a1a1a; }
-  table.items thead th.qty, table.items thead th.rate, table.items thead th.amt { text-align: right; }
-  table.items thead th.num { width: 50px; }
-  table.items tbody td { padding: 22px 0; border-bottom: 1px solid #d6d0c4; vertical-align: top; }
-  table.items tbody td.num { font-size: 14px; font-weight: 300; color: #7a7468; font-variant-numeric: tabular-nums; }
-  table.items tbody td.qty, table.items tbody td.rate { text-align: right; font-variant-numeric: tabular-nums; color: #4a4a4a; }
-  table.items tbody td.amt { text-align: right; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .iname { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
-  .imeta { color: #7a7468; font-size: 11px; }
-  .totals { margin-left: auto; margin-top: 32px; width: 380px; }
-  .totals .row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; }
-  .totals .row .lbl { color: #7a7468; }
-  .totals .grand { margin-top: 16px; background: #0d4f3c; color: #f7f4ed; padding: 22px 28px; border-radius: 999px; display: flex; justify-content: space-between; align-items: center; }
-  .totals .grand .lbl { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: .8; color: #f7f4ed; }
-  .totals .grand .val { font-size: 24px; font-weight: 800; }
-  .notes { margin-top: 48px; padding: 24px 28px; background: #ece7da; border-left: 4px solid #0d4f3c; }
-  .notes .lbl { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: #0d4f3c; font-weight: 700; margin-bottom: 6px; }
-  @media print { @page { margin: 0; } }
+  table.items thead th { text-align: left; padding: 12px 0 14px; font-size: 12px; font-weight: 700; color: #1a2330; border-bottom: 1.5px solid #1a2330; }
+  table.items thead th.unit, table.items thead th.qty { text-align: center; }
+  table.items thead th.price { text-align: right; }
+  table.items tbody td { padding: 22px 0 22px; border-bottom: 1px solid #d9dde1; vertical-align: top; font-variant-numeric: tabular-nums; }
+  table.items tbody td.unit, table.items tbody td.qty { text-align: center; color: #1a2330; }
+  table.items tbody td.price { text-align: right; font-weight: 700; color: #1a2330; }
+  .iname { font-size: 14px; font-weight: 600; color: #1a2330; margin-bottom: 2px; }
+  .imeta { color: #7a8390; font-size: 11px; }
+  .footband { background: #bcdcee; padding: 26px 56px 36px; margin-top: 24px; }
+  .footband .rule { border-top: 1.5px solid #1a2330; padding-top: 14px; }
+  .foot-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.2fr; gap: 24px; align-items: end; }
+  .foot-row .h { font-size: 12px; font-weight: 700; color: #1a2330; margin-bottom: 10px; }
+  .foot-row .v { font-size: 13px; color: #1a2330; }
+  .foot-row .v strong { font-weight: 700; }
+  .foot-row .due-amount { font-family: 'Playfair Display', Georgia, serif; font-size: 34px; font-weight: 800; color: #1f6fa8; text-align: right; letter-spacing: -0.5px; line-height: 1; }
+  .foot-row .due-h { text-align: right; }
+  @media print { @page { margin: 0; size: A4; } body { background: #eef0f1; } }
 </style></head>
 <body>
-  <div class="hero">
-    <div class="left">
-      <div class="eyebrow">${d.status ? escapeHtml(d.status) : "Document"}</div>
-      <h1>${escapeHtml(d.title)}</h1>
-    </div>
-    <div class="right">
-      <div class="logo-wrap">${logo}</div>
-      <div class="num">${escapeHtml(d.number)}</div>
-    </div>
-  </div>
-  <div class="body">
-    <div class="biz-row">
-      <div class="biz">
-        <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
-        <div class="sub">${escapeHtml(d.business.address || "").replace(/\n/g, "<br/>")}${d.business.phone ? `<br/>${escapeHtml(d.business.phone)}` : ""}</div>
+  <div class="page">
+    <div class="top">
+      <div class="brand">
+        ${logo}
+        <div class="biz"><div class="name">${escapeHtml(d.business.name || "Your Business")}</div></div>
+      </div>
+      <div class="contact">
+        ${d.business.address ? `${escapeHtml(d.business.address).replace(/\n/g, "<br/>")}<br/>` : ""}
+        ${d.business.phone ? `Phone: ${escapeHtml(d.business.phone)}` : ""}
       </div>
     </div>
-    <div class="meta-strip">
-      <div class="cell">
-        <div class="lbl">${escapeHtml(d.counterparty.label)}</div>
-        <div class="val">${escapeHtml(d.counterparty.name || "")}</div>
-        <div class="sub">${escapeHtml(d.counterparty.address || "").replace(/\n/g, "<br/>")}</div>
+
+    <div class="hero">
+      <div>
+        <h1>${escapeHtml(d.title)}</h1>
+        <div class="billto">
+          <div class="lbl">${escapeHtml(d.counterparty.label)}:</div>
+          <div class="name">${escapeHtml(d.counterparty.name || "")}</div>
+          <div class="sub">
+            ${d.counterparty.address ? `${escapeHtml(d.counterparty.address).replace(/\n/g, "<br/>")}<br/>` : ""}
+            ${d.counterparty.phone ? `Mobile: ${escapeHtml(d.counterparty.phone)}` : ""}
+          </div>
+        </div>
       </div>
-      <div class="cell">
-        <div class="lbl">Issue Date</div>
-        <div class="val">${escapeHtml(fmtDate(d.date))}</div>
-      </div>
-      <div class="cell">
-        <div class="lbl">${d.due_date ? "Due Date" : "Currency"}</div>
-        <div class="val">${d.due_date ? escapeHtml(fmtDate(d.due_date)) : escapeHtml(d.currency)}</div>
+      <div class="callout">
+        <div class="item">
+          <div class="lbl">Date:</div>
+          <div class="val">${escapeHtml(fmtDate(d.date))}</div>
+        </div>
+        <div class="item">
+          <div class="lbl">Invoice No:</div>
+          <div class="val">${escapeHtml(d.number)}</div>
+        </div>
       </div>
     </div>
-    <table class="items">
-      <thead><tr><th class="num">№</th><th>Item</th><th class="qty">Qty</th><th class="rate">Rate</th><th class="amt">Amount</th></tr></thead>
-      <tbody>${items}</tbody>
-    </table>
-    <div class="totals">
-      <div class="row"><span class="lbl">Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
-      ${tax !== 0 ? `<div class="row"><span class="lbl">Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
-      ${ship !== 0 ? `<div class="row"><span class="lbl">Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
-      <div class="grand"><span class="lbl">Total Due</span><span class="val">${money(d.total, d.currency)}</span></div>
+
+    <div class="items-wrap">
+      <table class="items">
+        <thead><tr>
+          <th class="desc">Item Description</th>
+          <th class="unit">Unit Price</th>
+          <th class="qty">Quantity</th>
+          <th class="price">Price</th>
+        </tr></thead>
+        <tbody>${items}</tbody>
+      </table>
     </div>
-    ${d.notes ? `<div class="notes"><div class="lbl">Notes</div>${escapeHtml(d.notes)}</div>` : ""}
+
+    <div class="footband">
+      <div class="rule">
+        <div class="foot-row">
+          <div>
+            <div class="h">Basic Information</div>
+            <div class="v">${d.notes ? escapeHtml(d.notes).replace(/\n/g, "<br/>") : (d.business.phone ? escapeHtml(d.business.phone) : "—")}</div>
+          </div>
+          <div>
+            <div class="h">Due Date</div>
+            <div class="v"><strong>${d.due_date ? escapeHtml(fmtDate(d.due_date)) : "—"}</strong></div>
+          </div>
+          <div>
+            <div class="h">Tax (VAT)</div>
+            <div class="v">${money(tax, d.currency)}</div>
+          </div>
+          <div>
+            <div class="h due-h">Due Amount</div>
+            <div class="due-amount">${CURRENCY_SYMBOLS[d.currency]}${num(d.total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </body></html>`;
 }

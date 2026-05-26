@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [
+  { id: "acelog", name: "Acelog (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
   { id: "classic", name: "Classic Professional", desc: "Serif typography, double-rule headers, traditional invoice feel" },
   { id: "modern", name: "Modern Minimalist", desc: "Clean sans-serif, generous whitespace, contemporary look" },
   { id: "compact", name: "Compact / High-Density", desc: "Maximum info per page, ideal for itemised bills" },
@@ -214,12 +215,13 @@ function SettingsPage() {
         <TabsContent value="documents">
           <Card>
             <CardHeader><CardTitle>Default document template</CardTitle><CardDescription>Choose the default layout for invoices and GRNs. You can override per document.</CardDescription></CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-3">
+            <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {TEMPLATES.map((t) => (
                 <button key={t.id} onClick={() => updateSettings({ default_doc_template: t.id })} className={`rounded-md border p-4 text-left transition-colors ${settings.default_doc_template === t.id ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
                   <div className="font-medium">{t.name}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{t.desc}</div>
                   <div className="mt-3 h-16 rounded border bg-muted/40 px-2 py-1 text-[8px] leading-tight overflow-hidden">
+                    {t.id === "acelog" && <div className="text-right text-xs font-light">Invoice <span className="text-[#4a90c2]">INV-0001</span></div>}
                     {t.id === "classic" && <div className="border-b-2 border-current pb-1 mb-1 font-serif font-bold">INVOICE</div>}
                     {t.id === "modern" && <div className="text-lg font-extralight">Invoice</div>}
                     {t.id === "compact" && <div className="border-b-2 border-current pb-0.5 mb-0.5 text-[10px] font-bold">INVOICE</div>}

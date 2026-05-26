@@ -29,12 +29,12 @@ export function AppShell() {
   const isActive = (to: string, exact?: boolean) => exact ? pathname === to : pathname === to || pathname.startsWith(to + "/");
 
   const cycleTheme = () => {
-    const order: Array<"light" | "dark" | "contrast" | "coloured"> = ["light", "dark", "contrast", "coloured"];
+    const order: Array<"light" | "dark" | "contrast" | "lavender" | "maroon" | "green"> = ["light", "dark", "contrast", "lavender", "maroon", "green"];
     const next = order[(order.indexOf(settings.theme) + 1) % order.length];
     updateSettings({ theme: next });
   };
 
-  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : settings.theme === "coloured" ? Palette : Sun;
+  const ThemeIcon = settings.theme === "dark" ? Moon : settings.theme === "contrast" ? Eye : (settings.theme === "lavender" || settings.theme === "maroon" || settings.theme === "green") ? Palette : Sun;
 
   return (
     <div className="flex min-h-screen w-full bg-background">

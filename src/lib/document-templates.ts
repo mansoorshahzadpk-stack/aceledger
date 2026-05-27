@@ -535,7 +535,7 @@ function isIOS(): boolean {
 
 export function renderDocument(d: DocInput) {
   const safeName = `${d.title}-${d.number}`.replace(/[^a-z0-9\-_. ]+/gi, "_").trim() || "document";
-  const filename = `${safeName}.html`;
+  const filename = `${safeName}.pdf`;
   let html = buildDocumentHtml(d);
   html = injectToolbar(html, filename);
 

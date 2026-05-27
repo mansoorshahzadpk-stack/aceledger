@@ -1,22 +1,21 @@
-## Fix: Download button on rendered invoice fails ("site can't be reached")
+## Fix: Download alert "URL.createObjectURL is not a function"
 
 ### Root cause
-In `src/lib/document-templates.ts`, the toolbar's Download anchor points at a blob URL created in the **parent React app's window**. After the user navigates to that blob URL (current tab on iOS, new tab on desktop), the document is in a **different browsing context** with no access to the parent's blob registry — so clicking Download tries to load a blob URL that doesn't exist in this context, producing `ERR_FAILED` / "Check Internet connection". The Print button still works because it calls `window.print()` inside the same document.
+The rendered invoice document lives at a `blob:` URL on the Lovable preview origin. In that sandboxed browsing context, `URL.createObjectURL` is not exposed on the `URL` global, so the inline Download handler throws.
 
-### Change (only `src/lib/document-templates.ts`)
+### Fix (only `src/lib/document-templates.ts`, only the `onclick` string in `injectToolbar`)
+Replace the `Blob` + `URL.createObjectURL` path with a **base64 `data:` URL**, which is available in every browsing context and honors the anchor's `download` attribute:
 
-1. In `injectToolbar`, replace the Download `<a href="/__doc_blob__" download="…">` with a `<button>` whose inline `onclick` builds the blob **inside the rendered document itself**:
-   - `const html = '<!doctype html>\n' + document.documentElement.outerHTML;`
-   - `const blob = new Blob([html], { type: 'text/html' });`
-   - `const url = URL.createObjectURL(blob);`
-   - Create a temporary `<a href={url} download="<filename>.html">`, append, click, remove.
-   - `setTimeout(() => URL.revokeObjectURL(url), 60_000);`
-2. JSON-escape the filename when interpolating it into the inline handler so quotes/special chars can't break the HTML.
-3. In `renderDocument`, drop the post-processing step that rewrote `/__doc_blob__` → parent-side blob URL. iOS current-tab navigation and desktop `window.open` keep working unchanged; the parent-side blob URL is only used for the initial render.
-4. Keep the Print button (`window.print()`) and `@media print { .doc-toolbar { display: none } }` rule as-is.
+```js
+var html = '<!doctype html>\n' + document.documentElement.outerHTML;
+var b64  = btoa(unescape(encodeURIComponent(html))); // UTF-8 safe for Rs, Urdu, etc.
+var href = 'data:text/html;charset=utf-8;base64,' + b64;
+var a = document.createElement('a');
+a.href = href; a.download = <filename>;
+document.body.appendChild(a); a.click(); a.remove();
+```
+
+Drop the `setTimeout(URL.revokeObjectURL, …)` line (no object URL to revoke). Keep the existing `try/catch` + `alert` wrapper. The outer `renderDocument` (parent-side blob + iOS-vs-desktop navigation) is unchanged — that runs in the React app where `createObjectURL` works.
 
 ### Files touched
-- `src/lib/document-templates.ts` — `injectToolbar` + small cleanup in `renderDocument`.
-
-### Out of scope
-- Invoice/GRN template markup, styling, call sites, new PDF dependencies. "Save as PDF" continues to flow through Print → Save as PDF (desktop) or the iOS share sheet → Save to Files / Print to PDF.
+- `src/lib/document-templates.ts` — only the `onclick` string built inside `injectToolbar`. No template, styling, call-site, or dependency changes.

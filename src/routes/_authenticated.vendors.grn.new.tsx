@@ -39,7 +39,6 @@ function NewGrnPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
-  void 0;
 
   // Auto-suggest next 4-digit GRN number
   useEffect(() => {

@@ -489,16 +489,24 @@ export function buildDocumentHtml(d: DocInput): string {
 
 function injectToolbar(html: string, filename: string): string {
   const fnameJson = JSON.stringify(filename);
-  // Use a base64 data: URL instead of URL.createObjectURL — some sandboxed
-  // preview contexts (e.g. blob: documents) do not expose createObjectURL.
+  const CDN = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js";
   const onclick =
-    "(function(){try{" +
-      "var html='<!doctype html>\\n'+document.documentElement.outerHTML;" +
-      "var b64=btoa(unescape(encodeURIComponent(html)));" +
-      "var href='data:text/html;charset=utf-8;base64,'+b64;" +
-      "var a=document.createElement('a');a.href=href;a.download=" + fnameJson + ";" +
-      "document.body.appendChild(a);a.click();document.body.removeChild(a);" +
-    "}catch(e){alert('Download failed: '+e.message);}})()";
+    "(function(){" +
+      "var bar=document.querySelector('.doc-toolbar');" +
+      "function run(){try{" +
+        "if(bar)bar.style.display='none';" +
+        "var opt={margin:10,filename:" + fnameJson + "," +
+          "image:{type:'jpeg',quality:0.95}," +
+          "html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'}," +
+          "jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}," +
+          "pagebreak:{mode:['css','legacy']}};" +
+        "window.html2pdf().set(opt).from(document.body).save().then(function(){if(bar)bar.style.display='';}).catch(function(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();});" +
+      "}catch(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();}}" +
+      "if(window.html2pdf){run();return;}" +
+      "var s=document.createElement('script');s.src='" + CDN + "';" +
+      "s.onload=run;s.onerror=function(){alert('Could not load PDF library. Using Print instead.');window.print();};" +
+      "document.head.appendChild(s);" +
+    "})()";
   const toolbar = `
 <style>
   .doc-toolbar { position: sticky; top: 0; z-index: 9999; display: flex; gap: 8px; justify-content: flex-end;
@@ -510,7 +518,7 @@ function injectToolbar(html: string, filename: string): string {
   @media print { .doc-toolbar { display: none !important; } }
 </style>
 <div class="doc-toolbar">
-  <button type="button" class="dl" onclick="${escapeHtml(onclick)}">Download</button>
+  <button type="button" class="dl" onclick="${escapeHtml(onclick)}">Download PDF</button>
   <button type="button" onclick="window.print()">Print / Save as PDF</button>
 </div>`;
   if (html.includes("<body>")) return html.replace("<body>", `<body>${toolbar}`);
@@ -527,7 +535,7 @@ function isIOS(): boolean {
 
 export function renderDocument(d: DocInput) {
   const safeName = `${d.title}-${d.number}`.replace(/[^a-z0-9\-_. ]+/gi, "_").trim() || "document";
-  const filename = `${safeName}.html`;
+  const filename = `${safeName}.pdf`;
   let html = buildDocumentHtml(d);
   html = injectToolbar(html, filename);
 

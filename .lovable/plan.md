@@ -1,30 +1,29 @@
 ## Goal
+On mobile (iOS/Android), the "Download" button currently saves an `.html` file, which most phones can't open as a document. Make the download produce a real **PDF** file instead, while keeping the on-screen preview and "Print / Save as PDF" experience unchanged on desktop.
 
-Make Settings → Document Designer the single source of truth for the invoice/GRN print template. Remove the per-document "Document template" selector from invoice and GRN pages. Every invoice and GRN renders using the currently selected default template; changing it in Settings instantly changes all documents.
+## Approach
+Render the document HTML to a PDF on the client using `html2pdf.js` (wraps `html2canvas` + `jsPDF`). This avoids any backend/PDF service and works the same on iOS Safari, Android Chrome, and desktop. The user taps **Download** → gets `Invoice-INV-0001.pdf` saved through the normal browser/iOS share sheet.
 
 ## Changes
 
-1. **`src/routes/_authenticated.invoices.new.tsx`**
-   - Remove the `template` state and the "Document template" `<Field>`/`<Select>` block.
-   - On insert, save `doc_template: settings.default_doc_template`.
+### 1. Add dependency
+- `bun add html2pdf.js`
 
-2. **`src/routes/_authenticated.invoices.$id.tsx`**
-   - Remove the `<Select>` for `form.doc_template` from the UI.
-   - Stop persisting `doc_template` on save (keep whatever's in the row; the renderer will override).
-   - When calling `renderDocument(...)`, pass `template: settings.default_doc_template` instead of `form.doc_template` so the print/preview always reflects the current Settings choice — including for older invoices.
+### 2. `src/lib/document-templates.ts` — change only the download path
+- In `injectToolbar(...)`:
+  - Replace the current base64 `data:text/html` download `onclick` with a handler that:
+    1. Dynamically loads `html2pdf.js` from a CDN (`https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js`) the first time it's clicked — needed because the toolbar is injected into a standalone HTML document (blob/data URL) that doesn't share our app's bundle.
+    2. Hides the toolbar, calls `html2pdf().set({ margin: 10, filename, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(document.body).save()`, then restores the toolbar.
+    3. On any error, falls back to `window.print()` (the existing reliable path) and shows a brief alert.
+  - Pass the filename as `${safeName}.pdf` (currently `.html`) to `injectToolbar`.
+- Keep the "Print / Save as PDF" button as-is (desktop users who prefer the native print dialog still have it).
+- `renderDocument(...)`: change `const filename = \`${safeName}.html\`` → `\`${safeName}.pdf\``. Leave the blob/open-tab navigation logic unchanged — the preview document itself is still HTML, only the **downloaded** file becomes a PDF.
 
-3. **`src/routes/_authenticated.vendors.grn.new.tsx`**
-   - Remove the `doc_template` `<Select>` from the form UI.
-   - Keep storing `doc_template: settings.default_doc_template` on insert and drop the `useEffect` that synced it (no longer needed since there's no user-facing control).
+### 3. No other files change
+- No template, call-site, settings, or DB changes.
+- No changes to print/preview flow, the recent Settings-only template selection, or the iOS-vs-desktop window-open logic.
 
-4. **GRN view / print path** (same file or the vendor detail page): wherever `renderDocument` is invoked for a GRN, switch `template:` to `settings.default_doc_template` so existing GRNs also follow the Settings choice.
-
-## Not changing
-
-- Settings → Document Designer UI stays exactly as it is.
-- `app_settings.default_doc_template` column and the existing `doc_template` columns on `invoices` / `vendor_grns` are left in place (no migration). The column simply becomes a historical record; the renderer ignores it in favor of the live Setting.
-- `src/lib/document-templates.ts` and the recent download fix are untouched.
-
-## Result
-
-Users pick a template once in Settings. The invoice and GRN screens no longer show a template selector. Print/download from any invoice or GRN — old or new — uses the template currently selected in Settings.
+## Notes / trade-offs
+- `html2pdf.js` rasterises the page (image-in-PDF). Text won't be selectable, but layout, fonts, colors, and logos render exactly as shown. This is the most reliable cross-device approach without a server.
+- The CDN script is fetched once per opened preview tab (~150 KB gzipped) and cached by the browser afterwards. If you'd rather bundle it with the app, we can swap the CDN load for a same-origin URL — but since the toolbar lives inside a blob document, the CDN route is simplest and works offline-after-first-load via HTTP cache.
+- Multi-page invoices are handled automatically by `html2pdf.js` page-break logic.

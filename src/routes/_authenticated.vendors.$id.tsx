@@ -131,7 +131,7 @@ function VendorDetail() {
 
   const printGrn = (grn: GRN) => {
     renderDocument({
-      template: grn.doc_template as any,
+      template: settings.default_doc_template as any,
       title: "Goods Received Note",
       number: grn.grn_number,
       date: grn.grn_date,

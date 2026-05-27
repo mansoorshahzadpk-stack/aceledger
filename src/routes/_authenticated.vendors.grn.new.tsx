@@ -39,6 +39,7 @@ function NewGrnPage() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
+  void 0;
 
   // Auto-suggest next 4-digit GRN number
   useEffect(() => {
@@ -162,17 +163,6 @@ function NewGrnPage() {
               <Field label="Quantity"><Input type="number" step="0.001" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></Field>
               <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
               <Field label="Unit price"><Input type="number" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></Field>
-              <Field label="Document layout">
-                <Select value={form.doc_template} onValueChange={(v) => setForm({ ...form, doc_template: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="acelog">Acelog (Recommended)</SelectItem>
-                    <SelectItem value="classic">Classic Professional</SelectItem>
-                    <SelectItem value="modern">Modern Minimalist</SelectItem>
-                    <SelectItem value="compact">Compact / High-Density</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
             </div>
             <Field label="Notes"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">

@@ -1,17 +1,25 @@
+## Fix invoice/document rendering on iOS
 
-## Add Google Sign-In to Login/Sign-Up
+The current `renderDocument` in `src/lib/document-templates.ts` calls `window.open("", "_blank")`, writes HTML into the new window, and auto-triggers `window.print()`. On mobile iOS (Safari and Chrome) this pattern is unreliable: popups get blocked, `document.write` into a blank window often produces a stuck `about:blank`, and the silent auto-print breaks instead of giving the user a way to save the file.
 
-Currently the login page only supports email/password. I'll add a "Continue with Google" button to both the Sign in and Sign up tabs.
+### Change
 
-### Changes
+Rewrite only the `renderDocument` function (no template/markup changes):
 
-1. **Enable Google as an auth provider** in Lovable Cloud (managed Google OAuth — no API keys needed from you).
-2. **Update `src/routes/login.tsx`**:
-   - Add a `Continue with Google` button above the email/password tabs, with a divider ("or") below it.
-   - Wire it to the Lovable managed OAuth flow (`lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin })`).
-   - Handle redirect/error states with toast feedback.
-   - Keep existing email/password flow intact.
+1. Build the HTML string as today via `buildDocumentHtml(d)`.
+2. Inject a small toolbar at the top of the HTML (`Print / Save as PDF` button + `Download` link, hidden via `@media print`) so the user always has an explicit, tappable save action — no auto-print.
+3. Wrap the HTML in a `Blob([html], { type: "text/html" })` and create a URL with `URL.createObjectURL(blob)`.
+4. Detect iOS (`/iPad|iPhone|iPod/.test(navigator.userAgent)` plus iPadOS check) and:
+   - **iOS**: navigate the **current tab** to the blob URL (`window.location.href = url`). This reliably renders the document and lets the user use the iOS share sheet → "Save to Files" / "Print". Also expose a same-page `<a href={blobUrl} download="<title>-<number>.html">` so Chrome iOS users get an explicit download affordance.
+   - **Desktop / Android**: `window.open(url, "_blank")` so it opens in a new tab without `document.write`. The injected Print button handles printing.
+5. Revoke the object URL after a delay (`setTimeout(() => URL.revokeObjectURL(url), 60_000)`) to avoid memory leaks while still letting the new tab load it.
+6. Remove the `setTimeout(... w.print())` auto-print call.
 
-### Result
+### Files touched
 
-Users will see a Google sign-in button on the login screen that works for both sign-in and sign-up (Google OAuth handles both automatically — new users get an account, returning users sign in).
+- `src/lib/document-templates.ts` — only the `renderDocument` export at the bottom (and a tiny helper to inject the toolbar). No call sites change; every caller (`invoices`, `vendors/grn`, etc.) keeps working.
+
+### Out of scope
+
+- No changes to invoice/GRN templates, styling, or call sites.
+- No new dependency (no `jsPDF`); the document remains printable HTML, which iOS Files can save as PDF via the share sheet — matching what the user asked for.

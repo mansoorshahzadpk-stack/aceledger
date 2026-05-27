@@ -487,12 +487,59 @@ export function buildDocumentHtml(d: DocInput): string {
   }
 }
 
+function injectToolbar(html: string, filename: string): string {
+  const toolbar = `
+<style>
+  .doc-toolbar { position: sticky; top: 0; z-index: 9999; display: flex; gap: 8px; justify-content: flex-end;
+    padding: 10px 16px; background: #1a1a1a; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .doc-toolbar button, .doc-toolbar a { font: 500 13px/1 -apple-system, Segoe UI, Inter, Arial, sans-serif;
+    padding: 9px 14px; border-radius: 6px; border: 0; cursor: pointer; text-decoration: none;
+    background: #ffffff; color: #1a1a1a; }
+  .doc-toolbar a.dl { background: #2b8acb; color: #fff; }
+  @media print { .doc-toolbar { display: none !important; } }
+</style>
+<div class="doc-toolbar">
+  <a class="dl" href="${escapeHtml(`/__doc_blob__`)}" download="${escapeHtml(filename)}" data-doc-download>Download</a>
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>`;
+  if (html.includes("<body>")) return html.replace("<body>", `<body>${toolbar}`);
+  return toolbar + html;
+}
+
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  // iPadOS 13+ reports as Mac; detect via touch points
+  return ua.includes("Mac") && typeof document !== "undefined" && (navigator as any).maxTouchPoints > 1;
+}
+
 export function renderDocument(d: DocInput) {
-  const html = buildDocumentHtml(d);
-  const w = window.open("", "_blank", "width=900,height=1100");
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 400);
+  const safeName = `${d.title}-${d.number}`.replace(/[^a-z0-9\-_. ]+/gi, "_").trim() || "document";
+  const filename = `${safeName}.html`;
+  let html = buildDocumentHtml(d);
+  html = injectToolbar(html, filename);
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  // Wire the in-page Download anchor to the blob URL itself.
+  html = html.replace(`href="/__doc_blob__"`, `href="${url}"`);
+  // Rebuild blob with the corrected anchor so the download link works.
+  const finalBlob = new Blob([html], { type: "text/html;charset=utf-8" });
+  URL.revokeObjectURL(url);
+  const finalUrl = URL.createObjectURL(finalBlob);
+
+  if (isIOS()) {
+    // iOS Safari/Chrome: navigate current tab so the share sheet → Save to Files works reliably.
+    window.location.href = finalUrl;
+  } else {
+    const w = window.open(finalUrl, "_blank");
+    if (!w) {
+      // Popup blocked — fall back to same-tab navigation.
+      window.location.href = finalUrl;
+    }
+  }
+
+  setTimeout(() => URL.revokeObjectURL(finalUrl), 60_000);
 }

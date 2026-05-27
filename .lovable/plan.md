@@ -1,21 +1,30 @@
-## Fix: Download alert "URL.createObjectURL is not a function"
+## Goal
 
-### Root cause
-The rendered invoice document lives at a `blob:` URL on the Lovable preview origin. In that sandboxed browsing context, `URL.createObjectURL` is not exposed on the `URL` global, so the inline Download handler throws.
+Make Settings → Document Designer the single source of truth for the invoice/GRN print template. Remove the per-document "Document template" selector from invoice and GRN pages. Every invoice and GRN renders using the currently selected default template; changing it in Settings instantly changes all documents.
 
-### Fix (only `src/lib/document-templates.ts`, only the `onclick` string in `injectToolbar`)
-Replace the `Blob` + `URL.createObjectURL` path with a **base64 `data:` URL**, which is available in every browsing context and honors the anchor's `download` attribute:
+## Changes
 
-```js
-var html = '<!doctype html>\n' + document.documentElement.outerHTML;
-var b64  = btoa(unescape(encodeURIComponent(html))); // UTF-8 safe for Rs, Urdu, etc.
-var href = 'data:text/html;charset=utf-8;base64,' + b64;
-var a = document.createElement('a');
-a.href = href; a.download = <filename>;
-document.body.appendChild(a); a.click(); a.remove();
-```
+1. **`src/routes/_authenticated.invoices.new.tsx`**
+   - Remove the `template` state and the "Document template" `<Field>`/`<Select>` block.
+   - On insert, save `doc_template: settings.default_doc_template`.
 
-Drop the `setTimeout(URL.revokeObjectURL, …)` line (no object URL to revoke). Keep the existing `try/catch` + `alert` wrapper. The outer `renderDocument` (parent-side blob + iOS-vs-desktop navigation) is unchanged — that runs in the React app where `createObjectURL` works.
+2. **`src/routes/_authenticated.invoices.$id.tsx`**
+   - Remove the `<Select>` for `form.doc_template` from the UI.
+   - Stop persisting `doc_template` on save (keep whatever's in the row; the renderer will override).
+   - When calling `renderDocument(...)`, pass `template: settings.default_doc_template` instead of `form.doc_template` so the print/preview always reflects the current Settings choice — including for older invoices.
 
-### Files touched
-- `src/lib/document-templates.ts` — only the `onclick` string built inside `injectToolbar`. No template, styling, call-site, or dependency changes.
+3. **`src/routes/_authenticated.vendors.grn.new.tsx`**
+   - Remove the `doc_template` `<Select>` from the form UI.
+   - Keep storing `doc_template: settings.default_doc_template` on insert and drop the `useEffect` that synced it (no longer needed since there's no user-facing control).
+
+4. **GRN view / print path** (same file or the vendor detail page): wherever `renderDocument` is invoked for a GRN, switch `template:` to `settings.default_doc_template` so existing GRNs also follow the Settings choice.
+
+## Not changing
+
+- Settings → Document Designer UI stays exactly as it is.
+- `app_settings.default_doc_template` column and the existing `doc_template` columns on `invoices` / `vendor_grns` are left in place (no migration). The column simply becomes a historical record; the renderer ignores it in favor of the live Setting.
+- `src/lib/document-templates.ts` and the recent download fix are untouched.
+
+## Result
+
+Users pick a template once in Settings. The invoice and GRN screens no longer show a template selector. Print/download from any invoice or GRN — old or new — uses the template currently selected in Settings.

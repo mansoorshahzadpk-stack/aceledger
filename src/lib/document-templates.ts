@@ -488,18 +488,28 @@ export function buildDocumentHtml(d: DocInput): string {
 }
 
 function injectToolbar(html: string, filename: string): string {
+  const fnameJson = JSON.stringify(filename);
+  const onclick =
+    "(function(){try{" +
+      "var html='<!doctype html>\\n'+document.documentElement.outerHTML;" +
+      "var blob=new Blob([html],{type:'text/html;charset=utf-8'});" +
+      "var url=URL.createObjectURL(blob);" +
+      "var a=document.createElement('a');a.href=url;a.download=" + fnameJson + ";" +
+      "document.body.appendChild(a);a.click();document.body.removeChild(a);" +
+      "setTimeout(function(){URL.revokeObjectURL(url);},60000);" +
+    "}catch(e){alert('Download failed: '+e.message);}})()";
   const toolbar = `
 <style>
   .doc-toolbar { position: sticky; top: 0; z-index: 9999; display: flex; gap: 8px; justify-content: flex-end;
     padding: 10px 16px; background: #1a1a1a; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  .doc-toolbar button, .doc-toolbar a { font: 500 13px/1 -apple-system, Segoe UI, Inter, Arial, sans-serif;
-    padding: 9px 14px; border-radius: 6px; border: 0; cursor: pointer; text-decoration: none;
+  .doc-toolbar button { font: 500 13px/1 -apple-system, Segoe UI, Inter, Arial, sans-serif;
+    padding: 9px 14px; border-radius: 6px; border: 0; cursor: pointer;
     background: #ffffff; color: #1a1a1a; }
-  .doc-toolbar a.dl { background: #2b8acb; color: #fff; }
+  .doc-toolbar button.dl { background: #2b8acb; color: #fff; }
   @media print { .doc-toolbar { display: none !important; } }
 </style>
 <div class="doc-toolbar">
-  <a class="dl" href="${escapeHtml(`/__doc_blob__`)}" download="${escapeHtml(filename)}" data-doc-download>Download</a>
+  <button type="button" class="dl" onclick="${escapeHtml(onclick)}">Download</button>
   <button type="button" onclick="window.print()">Print / Save as PDF</button>
 </div>`;
   if (html.includes("<body>")) return html.replace("<body>", `<body>${toolbar}`);
@@ -523,23 +533,16 @@ export function renderDocument(d: DocInput) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
 
-  // Wire the in-page Download anchor to the blob URL itself.
-  html = html.replace(`href="/__doc_blob__"`, `href="${url}"`);
-  // Rebuild blob with the corrected anchor so the download link works.
-  const finalBlob = new Blob([html], { type: "text/html;charset=utf-8" });
-  URL.revokeObjectURL(url);
-  const finalUrl = URL.createObjectURL(finalBlob);
-
   if (isIOS()) {
     // iOS Safari/Chrome: navigate current tab so the share sheet → Save to Files works reliably.
-    window.location.href = finalUrl;
+    window.location.href = url;
   } else {
-    const w = window.open(finalUrl, "_blank");
+    const w = window.open(url, "_blank");
     if (!w) {
       // Popup blocked — fall back to same-tab navigation.
-      window.location.href = finalUrl;
+      window.location.href = url;
     }
   }
 
-  setTimeout(() => URL.revokeObjectURL(finalUrl), 60_000);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

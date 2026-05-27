@@ -489,14 +489,15 @@ export function buildDocumentHtml(d: DocInput): string {
 
 function injectToolbar(html: string, filename: string): string {
   const fnameJson = JSON.stringify(filename);
+  // Use a base64 data: URL instead of URL.createObjectURL — some sandboxed
+  // preview contexts (e.g. blob: documents) do not expose createObjectURL.
   const onclick =
     "(function(){try{" +
       "var html='<!doctype html>\\n'+document.documentElement.outerHTML;" +
-      "var blob=new Blob([html],{type:'text/html;charset=utf-8'});" +
-      "var url=URL.createObjectURL(blob);" +
-      "var a=document.createElement('a');a.href=url;a.download=" + fnameJson + ";" +
+      "var b64=btoa(unescape(encodeURIComponent(html)));" +
+      "var href='data:text/html;charset=utf-8;base64,'+b64;" +
+      "var a=document.createElement('a');a.href=href;a.download=" + fnameJson + ";" +
       "document.body.appendChild(a);a.click();document.body.removeChild(a);" +
-      "setTimeout(function(){URL.revokeObjectURL(url);},60000);" +
     "}catch(e){alert('Download failed: '+e.message);}})()";
   const toolbar = `
 <style>

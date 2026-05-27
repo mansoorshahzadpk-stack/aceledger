@@ -1,25 +1,22 @@
-## Fix invoice/document rendering on iOS
+## Fix: Download button on rendered invoice fails ("site can't be reached")
 
-The current `renderDocument` in `src/lib/document-templates.ts` calls `window.open("", "_blank")`, writes HTML into the new window, and auto-triggers `window.print()`. On mobile iOS (Safari and Chrome) this pattern is unreliable: popups get blocked, `document.write` into a blank window often produces a stuck `about:blank`, and the silent auto-print breaks instead of giving the user a way to save the file.
+### Root cause
+In `src/lib/document-templates.ts`, the toolbar's Download anchor points at a blob URL created in the **parent React app's window**. After the user navigates to that blob URL (current tab on iOS, new tab on desktop), the document is in a **different browsing context** with no access to the parent's blob registry — so clicking Download tries to load a blob URL that doesn't exist in this context, producing `ERR_FAILED` / "Check Internet connection". The Print button still works because it calls `window.print()` inside the same document.
 
-### Change
+### Change (only `src/lib/document-templates.ts`)
 
-Rewrite only the `renderDocument` function (no template/markup changes):
-
-1. Build the HTML string as today via `buildDocumentHtml(d)`.
-2. Inject a small toolbar at the top of the HTML (`Print / Save as PDF` button + `Download` link, hidden via `@media print`) so the user always has an explicit, tappable save action — no auto-print.
-3. Wrap the HTML in a `Blob([html], { type: "text/html" })` and create a URL with `URL.createObjectURL(blob)`.
-4. Detect iOS (`/iPad|iPhone|iPod/.test(navigator.userAgent)` plus iPadOS check) and:
-   - **iOS**: navigate the **current tab** to the blob URL (`window.location.href = url`). This reliably renders the document and lets the user use the iOS share sheet → "Save to Files" / "Print". Also expose a same-page `<a href={blobUrl} download="<title>-<number>.html">` so Chrome iOS users get an explicit download affordance.
-   - **Desktop / Android**: `window.open(url, "_blank")` so it opens in a new tab without `document.write`. The injected Print button handles printing.
-5. Revoke the object URL after a delay (`setTimeout(() => URL.revokeObjectURL(url), 60_000)`) to avoid memory leaks while still letting the new tab load it.
-6. Remove the `setTimeout(... w.print())` auto-print call.
+1. In `injectToolbar`, replace the Download `<a href="/__doc_blob__" download="…">` with a `<button>` whose inline `onclick` builds the blob **inside the rendered document itself**:
+   - `const html = '<!doctype html>\n' + document.documentElement.outerHTML;`
+   - `const blob = new Blob([html], { type: 'text/html' });`
+   - `const url = URL.createObjectURL(blob);`
+   - Create a temporary `<a href={url} download="<filename>.html">`, append, click, remove.
+   - `setTimeout(() => URL.revokeObjectURL(url), 60_000);`
+2. JSON-escape the filename when interpolating it into the inline handler so quotes/special chars can't break the HTML.
+3. In `renderDocument`, drop the post-processing step that rewrote `/__doc_blob__` → parent-side blob URL. iOS current-tab navigation and desktop `window.open` keep working unchanged; the parent-side blob URL is only used for the initial render.
+4. Keep the Print button (`window.print()`) and `@media print { .doc-toolbar { display: none } }` rule as-is.
 
 ### Files touched
-
-- `src/lib/document-templates.ts` — only the `renderDocument` export at the bottom (and a tiny helper to inject the toolbar). No call sites change; every caller (`invoices`, `vendors/grn`, etc.) keeps working.
+- `src/lib/document-templates.ts` — `injectToolbar` + small cleanup in `renderDocument`.
 
 ### Out of scope
-
-- No changes to invoice/GRN templates, styling, or call sites.
-- No new dependency (no `jsPDF`); the document remains printable HTML, which iOS Files can save as PDF via the share sheet — matching what the user asked for.
+- Invoice/GRN template markup, styling, call sites, new PDF dependencies. "Save as PDF" continues to flow through Print → Save as PDF (desktop) or the iOS share sheet → Save to Files / Print to PDF.

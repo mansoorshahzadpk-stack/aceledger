@@ -34,7 +34,7 @@ function NewInvoice() {
   const [invNum, setInvNum] = useState("");
   const [issue, setIssue] = useState(new Date().toISOString().slice(0, 10));
   const [due, setDue] = useState("");
-  const [template, setTemplate] = useState(settings.default_doc_template);
+  
   const [tax, setTax] = useState("0");
   const [shipping, setShipping] = useState("0");
   const [notes, setNotes] = useState("");
@@ -90,7 +90,7 @@ function NewInvoice() {
       user_id: user.id, client_id: clientId, invoice_number: invNum,
       status, issue_date: issue, due_date: due || null,
       subtotal, tax: taxNum, shipping: shipNum, total,
-      doc_template: template, notes: notes || null,
+      doc_template: settings.default_doc_template, notes: notes || null,
       posted_at: status === "posted" ? new Date().toISOString() : null,
     } as any).select().single();
     if (error) { toast.error(error.message); return; }
@@ -129,17 +129,6 @@ function NewInvoice() {
             <Field label="Invoice #"><Input value={invNum} onChange={(e) => setInvNum(e.target.value)} placeholder="INV-0001" /></Field>
             <Field label="Issue date"><Input type="date" value={issue} onChange={(e) => setIssue(e.target.value)} /></Field>
             <Field label="Due date"><Input type="date" value={due} onChange={(e) => setDue(e.target.value)} /></Field>
-            <Field label="Document template">
-              <Select value={template} onValueChange={(v) => setTemplate(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="acelog">Acelog (Recommended)</SelectItem>
-                  <SelectItem value="classic">Classic Professional</SelectItem>
-                  <SelectItem value="modern">Modern Minimalist</SelectItem>
-                  <SelectItem value="compact">Compact / High-Density</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
           </div>
         </CardContent>
       </Card>

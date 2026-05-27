@@ -160,7 +160,7 @@ function InvoiceDetail() {
 
   const print = () => {
     renderDocument({
-      template: form.doc_template, title: "Invoice", number: form.invoice_number,
+      template: settings.default_doc_template, title: "Invoice", number: form.invoice_number,
       date: form.issue_date, due_date: form.due_date,
       currency: settings.currency,
       business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
@@ -211,17 +211,6 @@ function InvoiceDetail() {
             <Field label="Invoice #"><Input disabled={!editing} value={form.invoice_number} onChange={(e) => setForm({ ...form, invoice_number: e.target.value })} /></Field>
             <Field label="Issue date"><Input type="date" disabled={!editing} value={form.issue_date} onChange={(e) => setForm({ ...form, issue_date: e.target.value })} /></Field>
             <Field label="Due date"><Input type="date" disabled={!editing} value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /></Field>
-            <Field label="Template">
-              <Select value={form.doc_template} onValueChange={(v) => setForm({ ...form, doc_template: v })} disabled={!editing}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="acelog">Acelog (Recommended)</SelectItem>
-                  <SelectItem value="classic">Classic Professional</SelectItem>
-                  <SelectItem value="modern">Modern Minimalist</SelectItem>
-                  <SelectItem value="compact">Compact / High-Density</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
           </div>
 
           <div className="space-y-2">

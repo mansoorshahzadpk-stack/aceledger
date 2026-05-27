@@ -533,10 +533,39 @@ function isIOS(): boolean {
   return ua.includes("Mac") && typeof document !== "undefined" && (navigator as any).maxTouchPoints > 1;
 }
 
-export function renderDocument(d: DocInput) {
+async function fetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(url, { mode: "cors", signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(typeof fr.result === "string" ? fr.result : null);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function renderDocument(d: DocInput) {
   const safeName = `${d.title}-${d.number}`.replace(/[^a-z0-9\-_. ]+/gi, "_").trim() || "document";
   const filename = `${safeName}.pdf`;
-  let html = buildDocumentHtml(d);
+
+  let input = d;
+  const logoUrl = d.business.logo_url;
+  if (logoUrl && /^https?:\/\//i.test(logoUrl)) {
+    const dataUrl = await fetchAsDataUrl(logoUrl);
+    if (dataUrl) {
+      input = { ...d, business: { ...d.business, logo_url: dataUrl } };
+    }
+  }
+
+  let html = buildDocumentHtml(input);
   html = injectToolbar(html, filename);
 
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });

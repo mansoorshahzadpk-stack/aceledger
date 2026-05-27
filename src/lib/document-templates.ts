@@ -493,14 +493,28 @@ function injectToolbar(html: string, filename: string): string {
   const onclick =
     "(function(){" +
       "var bar=document.querySelector('.doc-toolbar');" +
+      "function waitImgs(){" +
+        "var imgs=Array.prototype.slice.call(document.images||[]);" +
+        "return Promise.all(imgs.map(function(img){" +
+          "if(img.complete&&img.naturalWidth>0){return img.decode?img.decode().catch(function(){}):Promise.resolve();}" +
+          "return new Promise(function(res){" +
+            "var done=false;function fin(){if(done)return;done=true;res();}" +
+            "img.addEventListener('load',function(){(img.decode?img.decode().catch(function(){}):Promise.resolve()).then(fin);});" +
+            "img.addEventListener('error',fin);" +
+            "setTimeout(fin,6000);" +
+          "});" +
+        "}));" +
+      "}" +
       "function run(){try{" +
         "if(bar)bar.style.display='none';" +
         "var opt={margin:10,filename:" + fnameJson + "," +
           "image:{type:'jpeg',quality:0.95}," +
-          "html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'}," +
+          "html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',imageTimeout:15000}," +
           "jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}," +
           "pagebreak:{mode:['css','legacy']}};" +
-        "window.html2pdf().set(opt).from(document.body).save().then(function(){if(bar)bar.style.display='';}).catch(function(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();});" +
+        "waitImgs().then(function(){return window.html2pdf().set(opt).from(document.body).save();})" +
+          ".then(function(){if(bar)bar.style.display='';})" +
+          ".catch(function(e){if(bar)bar.style.display='';alert('PDF failed: '+(e&&e.message||e));window.print();});" +
       "}catch(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();}}" +
       "if(window.html2pdf){run();return;}" +
       "var s=document.createElement('script');s.src='" + CDN + "';" +

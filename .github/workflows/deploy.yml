@@ -1,8 +1,9 @@
-name: Deploy Lovable App to Hostinger
+name: Auto Deploy to Hostinger
+
 on:
   push:
     branches:
-      - main
+      - main # Triggers whenever Lovable pushes updates to your main branch
 
 jobs:
   build-and-deploy:
@@ -11,25 +12,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install Dependencies
+      - name: Install Project Dependencies
         run: npm install
 
-      - name: Build Vite App
+      - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Sync built files to Hostinger
+      - name: Sync Live Files to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          protocol: ftp
-          dangerous-clean-slate: true
-          local-dir: ./dist/client/
-          server-dir: ./
+          local-dir: ./dist/               # Lovable builds app files into here
+          server-dir: /public_html/        # This drops them exactly inside your public_html folder!

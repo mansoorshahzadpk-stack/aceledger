@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Printer, Pencil, Trash2, History } from "lucide-react";
+import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send } from "lucide-react";
 import { renderDocument } from "@/lib/document-templates";
 
 export const Route = createFileRoute("/_authenticated/vendors/$id")({
@@ -32,6 +32,8 @@ type GRN = {
   total_amount: number;
   doc_template: string;
   notes: string | null;
+  status?: "draft" | "posted";
+  posted_at?: string | null;
 };
 
 function VendorDetail() {
@@ -58,7 +60,7 @@ function VendorDetail() {
         supabase.from("grn_amendments" as any).select("*").order("created_at", { ascending: false }),
       ]);
       const owed = Number(v?.opening_balance ?? 0)
-        + (grns ?? []).reduce((s, x) => s + Number(x.total_amount), 0)
+        + (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
         - (pays ?? []).reduce((s, x) => s + Number(x.amount), 0);
       return { v, grns: (grns ?? []) as GRN[], pays: pays ?? [], owed, amends: (amends ?? []) as any[] };
     },
@@ -98,35 +100,56 @@ function VendorDetail() {
     const qty = parseFloat(editForm.quantity) || 0;
     const price = parseFloat(editForm.unit_price) || 0;
     const newTotal = qty * price;
-    const isPosted = true; // GRNs are always posted in current model; treat any edit as needing reason
-    if (isPosted && editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
-    await supabase.from("grn_amendments" as any).insert({
-      user_id: user.id, grn_id: editGrn.id, reason: editReason.trim(),
-      previous_total: editGrn.total_amount, new_total: newTotal, action: "edit",
-    });
+    const isPosted = (editGrn.status || "posted") === "posted";
+    if (isPosted) {
+      if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+      await supabase.from("grn_amendments" as any).insert({
+        user_id: user.id, grn_id: editGrn.id, reason: editReason.trim(),
+        previous_total: editGrn.total_amount, new_total: newTotal, action: "edit",
+      });
+    }
     await supabase.from("vendor_grns").update({
       grn_number: editForm.grn_number, grn_date: editForm.grn_date,
       material: editForm.material, quantity: qty, unit: editForm.unit,
       unit_price: price, total_amount: newTotal, notes: editForm.notes || null,
     }).eq("id", editGrn.id);
-    toast.success("GRN amended");
+    toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
+    setEditReason("");
     qc.invalidateQueries({ queryKey: ["vendor", id] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const confirmDelete = async () => {
     if (!deleteGrn || !user) return;
-    if (deleteReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
-    await supabase.from("grn_amendments" as any).insert({
-      user_id: user.id, grn_id: deleteGrn.id, reason: `[DELETED] ${deleteReason.trim()}`,
-      previous_total: deleteGrn.total_amount, new_total: 0, action: "delete",
-    });
+    const isPosted = (deleteGrn.status || "posted") === "posted";
+    if (isPosted && deleteReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+    if (isPosted) {
+      await supabase.from("grn_amendments" as any).insert({
+        user_id: user.id, grn_id: deleteGrn.id, reason: `[DELETED] ${deleteReason.trim()}`,
+        previous_total: deleteGrn.total_amount, new_total: 0, action: "delete",
+      });
+    }
     await supabase.from("vendor_grns").delete().eq("id", deleteGrn.id);
     toast.success("GRN deleted");
     setDeleteGrn(null); setDeleteReason("");
     qc.invalidateQueries({ queryKey: ["vendor", id] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
+  const postGrnDirect = async (grn: GRN) => {
+    if (!user) return;
+    const { error } = await supabase.from("vendor_grns").update({
+      status: "posted",
+      posted_at: new Date().toISOString()
+    } as any).eq("id", grn.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("GRN posted — added to vendor balance");
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
   };
 
   const printGrn = (grn: GRN) => {
@@ -170,17 +193,27 @@ function VendorDetail() {
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>GRN #</TableHead><TableHead>Material</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-28 text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>GRN #</TableHead><TableHead>Material</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-36 text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {data.grns.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No GRNs yet</TableCell></TableRow>}
+                  {data.grns.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No GRNs yet</TableCell></TableRow>}
                   {data.grns.map((g) => (
                     <TableRow key={g.id}>
                       <TableCell className="tabular">{formatDate(g.grn_date)}</TableCell>
                       <TableCell className="font-mono text-xs">{g.grn_number}</TableCell>
                       <TableCell>{g.material}</TableCell>
+                      <TableCell>
+                        <Badge variant={(g.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">
+                          {g.status || "posted"}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right figure">{formatMoney(g.total_amount, settings.currency)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          {(g.status || "posted") === "draft" && (
+                            <Button size="icon" variant="ghost" onClick={() => postGrnDirect(g)} title="Post GRN" className="text-primary hover:text-primary hover:bg-primary/10">
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button size="icon" variant="ghost" onClick={() => printGrn(g)} title="Print"><Printer className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => openEdit(g)} title="Edit"><Pencil className="h-4 w-4" /></Button>
                           <Button size="icon" variant="ghost" onClick={() => { setDeleteGrn(g); setDeleteReason(""); }} title="Delete"><Trash2 className="h-4 w-4" /></Button>
@@ -287,10 +320,12 @@ function VendorDetail() {
                 <Field label="Unit price"><Input type="number" step="0.01" value={editForm.unit_price} onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })} /></Field>
               </div>
               <Field label="Notes"><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></Field>
-              <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                <Label className="text-xs uppercase tracking-wide text-muted-foreground">Reason for change (required)</Label>
-                <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected quantity per weighbridge slip" rows={3} />
-              </div>
+              {(editGrn?.status || "posted") === "posted" && (
+                <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Reason for change (required)</Label>
+                  <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected quantity per weighbridge slip" rows={3} />
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
@@ -303,9 +338,21 @@ function VendorDetail() {
       {/* Delete GRN dialog */}
       <Dialog open={!!deleteGrn} onOpenChange={(o) => !o && setDeleteGrn(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Delete GRN {deleteGrn?.grn_number}?</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">This removes the GRN and reduces the amount we owe this vendor. A reason is required for the audit trail.</p>
-          <Textarea autoFocus value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Reason for deletion" rows={4} />
+          <DialogHeader>
+            <DialogTitle>
+              {(deleteGrn?.status || "posted") === "posted"
+                ? `Delete GRN ${deleteGrn?.grn_number}?`
+                : `Delete Draft GRN ${deleteGrn?.grn_number}?`}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {(deleteGrn?.status || "posted") === "posted"
+              ? "This removes the GRN and reduces the amount we owe this vendor. A reason is required for the audit trail."
+              : "This will permanently delete this draft GRN."}
+          </p>
+          {(deleteGrn?.status || "posted") === "posted" && (
+            <Textarea autoFocus value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Reason for deletion" rows={4} />
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteGrn(null)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete}>Delete GRN</Button>

@@ -44,11 +44,11 @@ function VendorsPage() {
     queryKey: ["vendors", user?.id],
     queryFn: async () => {
       const { data: vs } = await supabase.from("vendors").select("*").order("created_at", { ascending: false });
-      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount");
+      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status");
       const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount");
       return (vs ?? []).map((v) => {
         const owed = Number(v.opening_balance)
-          + (grns ?? []).filter((g) => g.vendor_id === v.id).reduce((s, x) => s + Number(x.total_amount), 0)
+          + (grns ?? []).filter((g) => g.vendor_id === v.id && (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
           - (pays ?? []).filter((p) => p.vendor_id === v.id).reduce((s, x) => s + Number(x.amount), 0);
         return { ...v, owed };
       });

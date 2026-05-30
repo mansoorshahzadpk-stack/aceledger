@@ -71,7 +71,7 @@ function PLPage() {
     queryFn: async () => {
       const [{ data: invs }, { data: grns }] = await Promise.all([
         supabase.from("invoices").select("issue_date, total, status").eq("status", "posted").gte("issue_date", from).lte("issue_date", to),
-        supabase.from("vendor_grns").select("grn_date, total_amount").gte("grn_date", from).lte("grn_date", to),
+        supabase.from("vendor_grns").select("grn_date, total_amount, status").eq("status", "posted").gte("grn_date", from).lte("grn_date", to),
       ]);
       return { invs: invs ?? [], grns: grns ?? [] };
     },

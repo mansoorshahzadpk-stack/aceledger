@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated/inventory")({
 });
 
 type Material = { id: string; name: string; sku: string | null; unit: string };
-type GRN = { id: string; product_id: string | null; material: string; quantity: number; unit: string; unit_price: number; total_amount: number };
+type GRN = { id: string; product_id: string | null; material: string; quantity: number; unit: string; unit_price: number; total_amount: number; status?: string };
 type InvItem = { id: string; product_id: string | null; quantity: number; description: string; invoice_id: string };
 type Inv = { id: string; status: string };
 
@@ -37,7 +37,7 @@ function InventoryPage() {
     queryFn: async () => {
       const [{ data: materials }, { data: grns }, { data: items }, { data: invs }] = await Promise.all([
         supabase.from("products" as any).select("id, name, sku, unit").order("name"),
-        supabase.from("vendor_grns").select("id, product_id, material, quantity, unit, unit_price, total_amount"),
+        supabase.from("vendor_grns").select("id, product_id, material, quantity, unit, unit_price, total_amount, status"),
         supabase.from("invoice_items").select("id, product_id, quantity, description, invoice_id"),
         supabase.from("invoices").select("id, status"),
       ]);
@@ -63,6 +63,7 @@ function InventoryPage() {
     });
 
     data.grns.forEach((g) => {
+      if ((g.status || "posted") !== "posted") return;
       const key = g.product_id ?? `_name:${(g.material || "").toLowerCase().trim()}`;
       let row = map.get(key);
       if (!row) {

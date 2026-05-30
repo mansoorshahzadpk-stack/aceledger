@@ -39,7 +39,7 @@ function AnalyticsPage() {
     queryKey: ["analytics", user?.id, from, to],
     queryFn: async () => {
       const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] = await Promise.all([
-        supabase.from("vendor_grns").select("*").gte("grn_date", from).lte("grn_date", to),
+        supabase.from("vendor_grns").select("*").eq("status", "posted").gte("grn_date", from).lte("grn_date", to),
         supabase.from("invoices").select("*").gte("issue_date", from).lte("issue_date", to),
         supabase.from("client_payments").select("*").gte("payment_date", from).lte("payment_date", to),
         supabase.from("vendors").select("id, name"),

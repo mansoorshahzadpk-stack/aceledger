@@ -77,8 +77,7 @@ function NewGrnPage() {
 
   const total = useMemo(() => (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0), [form.quantity, form.unit_price]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (status: "draft" | "posted") => {
     if (!user || !form.vendor_id) { toast.error("Choose a vendor"); return; }
     if (!form.material) { toast.error("Choose or enter a material"); return; }
     const { error } = await supabase.from("vendor_grns").insert({
@@ -94,9 +93,14 @@ function NewGrnPage() {
       grn_date: form.grn_date,
       doc_template: form.doc_template,
       notes: form.notes || null,
+      status,
+      posted_at: status === "posted" ? new Date().toISOString() : null,
     } as any);
     if (error) toast.error(error.message);
-    else { toast.success("GRN logged"); navigate({ to: "/vendors/$id", params: { id: form.vendor_id } }); }
+    else {
+      toast.success(status === "draft" ? "Draft saved" : "GRN posted");
+      navigate({ to: "/vendors/$id", params: { id: form.vendor_id } });
+    }
   };
 
   return (
@@ -108,7 +112,7 @@ function NewGrnPage() {
       <Card>
         <CardHeader><CardTitle>GRN details</CardTitle></CardHeader>
         <CardContent>
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave("posted"); }} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Vendor">
                 <Select value={form.vendor_id} onValueChange={(v) => setForm({ ...form, vendor_id: v })}>
@@ -169,8 +173,9 @@ function NewGrnPage() {
               <span className="figure text-xl font-semibold">{formatMoney(total, settings.currency)}</span>
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => navigate({ to: "/vendors" })}>Cancel</Button>
-              <Button type="submit">Save GRN</Button>
+              <Button type="button" variant="outline" onClick={() => window.history.back()}>Cancel</Button>
+              <Button type="button" variant="secondary" onClick={() => handleSave("draft")}>Save as Draft</Button>
+              <Button type="button" onClick={() => handleSave("posted")}>Post GRN</Button>
             </div>
           </form>
         </CardContent>

@@ -35,7 +35,7 @@ function Dashboard() {
         supabase.from("invoices").select("id, total, status, client_id"),
         supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name)").order("payment_date", { ascending: false }).limit(20),
         supabase.from("vendors").select("id, opening_balance"),
-        supabase.from("vendor_grns").select("id, total_amount"),
+        supabase.from("vendor_grns").select("id, total_amount, status"),
         supabase.from("vendor_payments").select("id, amount"),
       ]);
       const clientOpening = (clients.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
@@ -44,7 +44,7 @@ function Dashboard() {
       const outstanding = clientOpening + postedTotal - paidIn;
 
       const vendorOpening = (vendors.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
-      const grnTotal = (grns.data ?? []).reduce((s, x) => s + Number(x.total_amount), 0);
+      const grnTotal = (grns.data ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0);
       const paidOut = (vpay.data ?? []).reduce((s, x) => s + Number(x.amount), 0);
       const owed = vendorOpening + grnTotal - paidOut;
 

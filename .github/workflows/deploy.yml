@@ -22,6 +22,12 @@ jobs:
       - name: Build Vite App
         run: npm run build
 
+      # Fix: Manually prepare a clean, flat folder with the real web assets
+      - name: Prepare Clean Deployment Folder
+        run: |
+          mkdir -p ./clean-deploy
+          cp -r ./dist/client/* ./clean-deploy/
+
       - name: Sync built files to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -31,5 +37,5 @@ jobs:
           port: 21
           protocol: ftp
           dangerous-clean-slate: true
-          local-dir: ./dist/
+          local-dir: ./clean-deploy/
           server-dir: ./

@@ -32,3 +32,10 @@ jobs:
           local-dir: ./dist/client/        # Upload only client assets (index.html, assets, .htaccess)
           server-dir: ./                   # Upload directly to the web root
           timeout: 180000                  # Increase timeout to 3 minutes to prevent socket timeouts
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .htaccess
+            **/.htaccess
+

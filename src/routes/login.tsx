@@ -76,6 +76,20 @@ function LoginPage() {
     // If redirected, browser navigates away; if tokens returned, onAuthStateChange handles redirect.
   };
 
+  const sendReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Password reset link sent — check your email");
+      setShowForgot(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-lg">

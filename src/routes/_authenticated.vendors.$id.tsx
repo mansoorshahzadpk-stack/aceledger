@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Printer, Pencil, Trash2, History } from "lucide-react";
+import { renderDocument } from "@/lib/document-templates";
 
 export const Route = createFileRoute("/_authenticated/vendors/$id")({
   component: VendorDetail,
@@ -37,7 +38,6 @@ function VendorDetail() {
   const { id } = Route.useParams();
   const { settings, user } = useApp();
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "" });
 
@@ -130,7 +130,18 @@ function VendorDetail() {
   };
 
   const printGrn = (grn: GRN) => {
-    navigate({ to: "/print", search: { type: "grn", id: grn.id } });
+    renderDocument({
+      template: settings.default_doc_template as any,
+      title: "Goods Received Note",
+      number: grn.grn_number,
+      date: grn.grn_date,
+      currency: settings.currency,
+      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
+      counterparty: { label: "Received From", name: data?.v?.name, address: data?.v?.address, phone: data?.v?.phone },
+      items: [{ description: grn.material, quantity: grn.quantity, unit_price: grn.unit_price, line_total: grn.total_amount, unit: grn.unit }],
+      subtotal: grn.total_amount, tax: 0, shipping: 0, total: grn.total_amount, notes: grn.notes,
+      showBalanceDue: false,
+    });
   };
 
   if (!data?.v) return <p className="text-sm text-muted-foreground">Loading…</p>;

@@ -30,5 +30,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/client/        # Upload only client assets (index.html, assets, .htaccess)
-          server-dir: /public_html/        # Place files directly in the public_html folder
+          server-dir: ./                   # Upload directly to the web root
           timeout: 180000                  # Increase timeout to 3 minutes to prevent socket timeouts

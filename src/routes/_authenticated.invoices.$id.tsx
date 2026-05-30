@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
-import { renderDocument } from "@/lib/document-templates";
 import { ArrowLeft, Plus, Printer, Send, Trash2, History } from "lucide-react";
 import { toast } from "sonner";
 
@@ -159,19 +158,7 @@ function InvoiceDetail() {
   };
 
   const print = () => {
-    renderDocument({
-      template: settings.default_doc_template, title: "Invoice", number: form.invoice_number,
-      date: form.issue_date, due_date: form.due_date,
-      currency: settings.currency,
-      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
-      counterparty: { label: "Bill To", name: inv.clients?.name, address: inv.clients?.address, phone: inv.clients?.phone },
-      items: items.map((it) => ({
-        description: it.description, quantity: it.quantity, unit_price: it.unit_price,
-        line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
-        unit: it.unit, grn_ref: it.grn_ref, vehicle_ref: it.vehicle_ref,
-      })),
-      subtotal, tax: taxNum, shipping: shipNum, total, notes: form.notes, status: inv.status,
-    });
+    navigate({ to: "/print", search: { type: "invoice", id } });
   };
 
   return (

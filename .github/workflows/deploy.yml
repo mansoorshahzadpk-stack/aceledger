@@ -29,5 +29,6 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/client/        # Lovable client builds static app files into here
-          server-dir: /public_html/        # This drops them exactly inside your public_html folder!
+          local-dir: ./dist/client/        # Upload only client assets (index.html, assets, .htaccess)
+          server-dir: /public_html/        # Place files directly in the public_html folder
+          timeout: 180000                  # Increase timeout to 3 minutes to prevent socket timeouts

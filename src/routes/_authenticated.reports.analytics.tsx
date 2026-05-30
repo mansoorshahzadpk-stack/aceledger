@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_authenticated/reports/analytics")({
       { name: "description", content: "Breakdowns of clients, vendors, materials, and collection trends across selected periods." },
       { property: "og:title", content: "Analytics — Ace Ledger" },
       { property: "og:description", content: "Breakdowns of clients, vendors, materials, and collection trends across selected periods." },
-      { property: "og:url", content: "https://aceledger.lovable.app/reports/analytics" },
+      { property: "og:url", content: "https://aceledger.top/reports/analytics" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/reports/analytics" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/reports/analytics" }],
   }),
 });
 

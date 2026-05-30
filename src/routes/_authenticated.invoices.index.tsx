@@ -19,9 +19,9 @@ export const Route = createFileRoute("/_authenticated/invoices/")({
       { name: "description", content: "Create, post, and review B2B invoices issued to industry clients." },
       { property: "og:title", content: "Invoices — Ace Ledger" },
       { property: "og:description", content: "Create, post, and review B2B invoices issued to industry clients." },
-      { property: "og:url", content: "https://aceledger.lovable.app/invoices" },
+      { property: "og:url", content: "https://aceledger.top/invoices" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/invoices" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/invoices" }],
   }),
 });
 

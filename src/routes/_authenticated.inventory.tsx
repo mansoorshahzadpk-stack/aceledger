@@ -17,9 +17,9 @@ export const Route = createFileRoute("/_authenticated/inventory")({
       { name: "description", content: "Live stock-on-hand by material, computed from GRNs and invoice usage." },
       { property: "og:title", content: "Inventory — Ace Ledger" },
       { property: "og:description", content: "Live stock-on-hand by material, computed from GRNs and invoice usage." },
-      { property: "og:url", content: "https://aceledger.lovable.app/inventory" },
+      { property: "og:url", content: "https://aceledger.top/inventory" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/inventory" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/inventory" }],
   }),
 });
 

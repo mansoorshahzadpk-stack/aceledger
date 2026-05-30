@@ -27,9 +27,9 @@ export const Route = createFileRoute("/_authenticated/vendors/")({
       { name: "description", content: "Track raw material vendors, GRNs, opening balances, and outstanding payables." },
       { property: "og:title", content: "Vendors — Ace Ledger" },
       { property: "og:description", content: "Track raw material vendors, GRNs, opening balances, and outstanding payables." },
-      { property: "og:url", content: "https://aceledger.lovable.app/vendors" },
+      { property: "og:url", content: "https://aceledger.top/vendors" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/vendors" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/vendors" }],
   }),
 });
 

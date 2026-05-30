@@ -29,9 +29,9 @@ export const Route = createFileRoute("/_authenticated/materials/")({
       { name: "description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
       { property: "og:title", content: "Materials — Ace Ledger" },
       { property: "og:description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
-      { property: "og:url", content: "https://aceledger.lovable.app/materials" },
+      { property: "og:url", content: "https://aceledger.top/materials" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/materials" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/materials" }],
   }),
 });
 

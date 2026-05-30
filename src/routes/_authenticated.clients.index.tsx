@@ -28,9 +28,9 @@ export const Route = createFileRoute("/_authenticated/clients/")({
       { name: "description", content: "Manage industry clients, opening balances, invoices, and weekly installment collections." },
       { property: "og:title", content: "Industry Clients — Ace Ledger" },
       { property: "og:description", content: "Manage industry clients, opening balances, invoices, and weekly installment collections." },
-      { property: "og:url", content: "https://aceledger.lovable.app/clients" },
+      { property: "og:url", content: "https://aceledger.top/clients" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/clients" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/clients" }],
   }),
 });
 

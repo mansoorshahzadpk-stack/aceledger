@@ -15,9 +15,9 @@ export const Route = createFileRoute("/_authenticated/amendments")({
       { name: "description", content: "Chronological audit trail of amendments to invoices, payments, and master records." },
       { property: "og:title", content: "Audit Log — Ace Ledger" },
       { property: "og:description", content: "Chronological audit trail of amendments to invoices, payments, and master records." },
-      { property: "og:url", content: "https://aceledger.lovable.app/amendments" },
+      { property: "og:url", content: "https://aceledger.top/amendments" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/amendments" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/amendments" }],
   }),
 });
 

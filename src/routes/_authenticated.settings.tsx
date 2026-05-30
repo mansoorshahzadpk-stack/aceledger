@@ -22,9 +22,9 @@ export const Route = createFileRoute("/_authenticated/settings")({
       { name: "description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
       { property: "og:title", content: "Settings — Ace Ledger" },
       { property: "og:description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
-      { property: "og:url", content: "https://aceledger.lovable.app/settings" },
+      { property: "og:url", content: "https://aceledger.top/settings" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/settings" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/settings" }],
   }),
 });
 

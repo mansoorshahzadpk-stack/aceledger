@@ -17,9 +17,9 @@ export const Route = createFileRoute("/_authenticated/")({
       { name: "description", content: "Executive dashboard for outstanding receivables, vendor payables, and weekly collections in your B2B ledger." },
       { property: "og:title", content: "Dashboard — Ace Ledger" },
       { property: "og:description", content: "Executive dashboard for outstanding receivables, vendor payables, and weekly collections in your B2B ledger." },
-      { property: "og:url", content: "https://aceledger.lovable.app/" },
+      { property: "og:url", content: "https://aceledger.top/" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/" }],
   }),
 });
 

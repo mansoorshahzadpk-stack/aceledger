@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,9 +18,9 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Sign in or create an account to manage vendors, industry clients, invoices, and weekly collections in Ace Ledger." },
       { property: "og:title", content: "Sign in — Ace Ledger" },
       { property: "og:description", content: "Sign in or create an account to manage vendors, industry clients, invoices, and weekly collections in Ace Ledger." },
-      { property: "og:url", content: "https://aceledger.lovable.app/login" },
+      { property: "og:url", content: "https://aceledger.top/login" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/login" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/login" }],
   }),
 });
 
@@ -66,14 +65,16 @@ function LoginPage() {
 
   const signInWithGoogle = async () => {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
     });
-    if (result.error) {
+    if (error) {
       setLoading(false);
-      toast.error(result.error.message || "Google sign-in failed");
+      toast.error(error.message || "Google sign-in failed");
     }
-    // If redirected, browser navigates away; if tokens returned, onAuthStateChange handles redirect.
   };
 
   const sendReset = async (e: React.FormEvent) => {

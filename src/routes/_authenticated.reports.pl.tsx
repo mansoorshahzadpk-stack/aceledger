@@ -20,9 +20,9 @@ export const Route = createFileRoute("/_authenticated/reports/pl")({
       { name: "description", content: "Profit and loss report grouped by day, week, month, quarter, or year." },
       { property: "og:title", content: "P&L Report — Ace Ledger" },
       { property: "og:description", content: "Profit and loss report grouped by day, week, month, quarter, or year." },
-      { property: "og:url", content: "https://aceledger.lovable.app/reports/pl" },
+      { property: "og:url", content: "https://aceledger.top/reports/pl" },
     ],
-    links: [{ rel: "canonical", href: "https://aceledger.lovable.app/reports/pl" }],
+    links: [{ rel: "canonical", href: "https://aceledger.top/reports/pl" }],
   }),
 });
 

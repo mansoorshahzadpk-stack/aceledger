@@ -140,8 +140,8 @@ function ClientDetail() {
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2 min-w-0 w-full">
+        <Card className="min-w-0">
           <CardHeader><CardTitle>Invoices</CardTitle><CardDescription>Click an invoice number to edit, amend or delete</CardDescription></CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
@@ -170,7 +170,7 @@ function ClientDetail() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader><CardTitle>Payment Received</CardTitle><CardDescription>Payments received from this client — amend / delete requires a reason</CardDescription></CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
@@ -198,7 +198,7 @@ function ClientDetail() {
       </div>
 
       {data.amends.length > 0 && (
-        <Card>
+        <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4" />Payment amendment history</CardTitle><CardDescription>Audit trail of edits and deletions</CardDescription></CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">

@@ -161,8 +161,8 @@ function VendorDetail() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-2 min-w-0 w-full">
+        <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div><CardTitle>Goods Received (GRNs)</CardTitle><CardDescription>Material logged from this vendor</CardDescription></div>
             <Button asChild size="sm"><Link to="/vendors/grn/new"><Plus className="mr-1 h-4 w-4" />New GRN</Link></Button>
@@ -194,7 +194,7 @@ function VendorDetail() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div><CardTitle>Payments to vendor</CardTitle><CardDescription>Money we have paid them</CardDescription></div>
             <Dialog open={payOpen} onOpenChange={setPayOpen}>
@@ -247,7 +247,7 @@ function VendorDetail() {
       </div>
 
       {vendorAmends.length > 0 && (
-        <Card>
+        <Card className="min-w-0">
           <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4" />GRN Amendments</CardTitle><CardDescription>Edits and deletions of posted GRNs</CardDescription></CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">

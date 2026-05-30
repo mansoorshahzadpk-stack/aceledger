@@ -17,20 +17,10 @@ jobs:
           node-version: 20
 
       - name: Install Dependencies
-        run: |
-          if [ -d "client" ]; then
-            cd client && npm install
-          else
-            npm install
-          fi
+        run: npm install
 
       - name: Build Vite App
-        run: |
-          if [ -d "client" ]; then
-            cd client && npm run build
-          else
-            npm run build
-          fi
+        run: npm run build
 
       - name: Sync built files to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -40,5 +30,5 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           protocol: ftp
-          local-dir: ./client/dist/
+          local-dir: ./dist/client/
           server-dir: ./

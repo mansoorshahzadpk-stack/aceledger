@@ -33,6 +33,8 @@ function NewGrnPage() {
     unit: "kg",
     unit_price: "0",
     discount: "0",
+    tax: "0",
+    shipping: "0",
     grn_date: new Date().toISOString().slice(0, 10),
     doc_template: settings.default_doc_template,
     notes: "",
@@ -82,8 +84,8 @@ function NewGrnPage() {
 
   const total = useMemo(() => {
     const sub = (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0);
-    return sub - (parseFloat(form.discount) || 0);
-  }, [form.quantity, form.unit_price, form.discount]);
+    return sub - (parseFloat(form.discount) || 0) + (parseFloat(form.tax) || 0) + (parseFloat(form.shipping) || 0);
+  }, [form.quantity, form.unit_price, form.discount, form.tax, form.shipping]);
 
   const handleSave = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
@@ -99,6 +101,8 @@ function NewGrnPage() {
       unit: form.unit,
       unit_price: parseFloat(form.unit_price) || 0,
       discount: parseFloat(form.discount) || 0,
+      tax: parseFloat(form.tax) || 0,
+      shipping: parseFloat(form.shipping) || 0,
       total_amount: total,
       grn_date: form.grn_date,
       doc_template: form.doc_template,
@@ -177,6 +181,8 @@ function NewGrnPage() {
               <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
               <Field label="Unit price"><Input type="number" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></Field>
               <Field label="Discount"><Input type="number" step="0.01" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} /></Field>
+              <Field label="Tax"><Input type="number" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} /></Field>
+              <Field label="Shipping / Freight"><Input type="number" step="0.01" value={form.shipping} onChange={(e) => setForm({ ...form, shipping: e.target.value })} /></Field>
             </div>
             <Field label="Notes"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">

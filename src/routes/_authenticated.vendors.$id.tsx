@@ -94,6 +94,8 @@ function VendorDetail() {
       grn_number: g.grn_number, grn_date: g.grn_date, material: g.material,
       quantity: String(g.quantity), unit: g.unit, unit_price: String(g.unit_price),
       discount: String(g.discount ?? 0),
+      tax: String(g.tax ?? 0),
+      shipping: String(g.shipping ?? 0),
       notes: g.notes ?? "",
     });
     setEditReason("");
@@ -104,7 +106,9 @@ function VendorDetail() {
     const qty = parseFloat(editForm.quantity) || 0;
     const price = parseFloat(editForm.unit_price) || 0;
     const discount = parseFloat(editForm.discount) || 0;
-    const newTotal = (qty * price) - discount;
+    const tax = parseFloat(editForm.tax) || 0;
+    const shipping = parseFloat(editForm.shipping) || 0;
+    const newTotal = (qty * price) - discount + tax + shipping;
     const isPosted = (editGrn.status || "posted") === "posted";
     if (isPosted) {
       if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
@@ -116,7 +120,7 @@ function VendorDetail() {
     await supabase.from("vendor_grns").update({
       grn_number: editForm.grn_number, grn_date: editForm.grn_date,
       material: editForm.material, quantity: qty, unit: editForm.unit,
-      unit_price: price, discount: discount, total_amount: newTotal, notes: editForm.notes || null,
+      unit_price: price, discount: discount, tax: tax, shipping: shipping, total_amount: newTotal, notes: editForm.notes || null,
     }).eq("id", editGrn.id);
     toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
@@ -167,7 +171,7 @@ function VendorDetail() {
       business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
       counterparty: { label: "Received From", name: data?.v?.name, address: data?.v?.address, phone: data?.v?.phone },
       items: [{ description: grn.material, quantity: grn.quantity, unit_price: grn.unit_price, line_total: grn.quantity * grn.unit_price, unit: grn.unit }],
-      subtotal: grn.quantity * grn.unit_price, tax: 0, shipping: 0, discount: grn.discount, total: grn.total_amount, notes: grn.notes,
+      subtotal: grn.quantity * grn.unit_price, tax: grn.tax || 0, shipping: grn.shipping || 0, discount: grn.discount, total: grn.total_amount, notes: grn.notes,
       showBalanceDue: false,
     });
   };
@@ -324,6 +328,10 @@ function VendorDetail() {
                 <Field label="Unit"><Input value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} /></Field>
                 <Field label="Unit price"><Input type="number" step="0.01" value={editForm.unit_price} onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })} /></Field>
                 <Field label="Discount"><Input type="number" step="0.01" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} /></Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Tax"><Input type="number" step="0.01" value={editForm.tax} onChange={(e) => setEditForm({ ...editForm, tax: e.target.value })} /></Field>
+                <Field label="Shipping / Freight"><Input type="number" step="0.01" value={editForm.shipping} onChange={(e) => setEditForm({ ...editForm, shipping: e.target.value })} /></Field>
               </div>
               <Field label="Notes"><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></Field>
               {(editGrn?.status || "posted") === "posted" && (

@@ -557,8 +557,10 @@ export type Database = {
           notes: string | null
           product_id: string | null
           quantity: number
+          shipping: number
           status: "draft" | "posted"
           posted_at: string | null
+          tax: number
           total_amount: number
           unit: string
           unit_price: number
@@ -577,8 +579,10 @@ export type Database = {
           notes?: string | null
           product_id?: string | null
           quantity?: number
+          shipping?: number
           status?: "draft" | "posted"
           posted_at?: string | null
+          tax?: number
           total_amount?: number
           unit?: string
           unit_price?: number
@@ -597,8 +601,10 @@ export type Database = {
           notes?: string | null
           product_id?: string | null
           quantity?: number
+          shipping?: number
           status?: "draft" | "posted"
           posted_at?: string | null
+          tax?: number
           total_amount?: number
           unit?: string
           unit_price?: number

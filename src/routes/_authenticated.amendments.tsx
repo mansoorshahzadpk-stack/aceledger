@@ -22,42 +22,48 @@ export const Route = createFileRoute("/_authenticated/amendments")({
 });
 
 function AuditLog() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
 
   const { data } = useQuery({
-    queryKey: ["amendments", user?.id],
+    queryKey: ["amendments", activeBusinessId],
+    enabled: !!activeBusinessId,
     queryFn: async () => {
       const [{ data: inv }, { data: grn }, { data: pay }, invDocs, grnDocs, payClients] = await Promise.all([
         supabase.from("invoice_amendments").select("*").order("created_at", { ascending: false }),
         supabase.from("grn_amendments").select("*").order("created_at", { ascending: false }),
         supabase.from("payment_amendments").select("*").order("created_at", { ascending: false }),
-        supabase.from("invoices").select("id, invoice_number"),
-        supabase.from("vendor_grns").select("id, grn_number"),
-        supabase.from("clients").select("id, name"),
+        supabase.from("invoices").select("id, invoice_number").eq("business_id", activeBusinessId),
+        supabase.from("vendor_grns").select("id, grn_number").eq("business_id", activeBusinessId),
+        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId),
       ]);
       const invMap = new Map((invDocs.data ?? []).map((r) => [r.id, r.invoice_number]));
       const grnMap = new Map((grnDocs.data ?? []).map((r) => [r.id, r.grn_number]));
       const clMap = new Map((payClients.data ?? []).map((r) => [r.id, r.name]));
       const rows = [
-        ...(inv ?? []).map((a: any) => ({
-          id: `i-${a.id}`, type: "Invoice", action: "edit", ref: invMap.get(a.invoice_id) ?? "—",
-          link: `/invoices/${a.invoice_id}`, prev: a.previous_total, next: a.new_total,
-          reason: a.reason, created_at: a.created_at,
-        })),
-        ...(grn ?? []).map((a: any) => ({
-          id: `g-${a.id}`, type: "GRN", action: a.action, ref: grnMap.get(a.grn_id) ?? "—",
-          link: null, prev: a.previous_total, next: a.new_total,
-          reason: a.reason, created_at: a.created_at,
-        })),
-        ...(pay ?? []).map((a: any) => ({
-          id: `p-${a.id}`, type: "Payment Received", action: a.action, ref: clMap.get(a.client_id) ?? "—",
-          link: `/clients/${a.client_id}`, prev: a.previous_amount, next: a.new_amount,
-          reason: a.reason, created_at: a.created_at,
-        })),
+        ...(inv ?? [])
+          .filter((a: any) => invMap.has(a.invoice_id))
+          .map((a: any) => ({
+            id: `i-${a.id}`, type: "Invoice", action: "edit", ref: invMap.get(a.invoice_id) ?? "—",
+            link: `/invoices/${a.invoice_id}`, prev: a.previous_total, next: a.new_total,
+            reason: a.reason, created_at: a.created_at,
+          })),
+        ...(grn ?? [])
+          .filter((a: any) => grnMap.has(a.grn_id))
+          .map((a: any) => ({
+            id: `g-${a.id}`, type: "GRN", action: a.action, ref: grnMap.get(a.grn_id) ?? "—",
+            link: null, prev: a.previous_total, next: a.new_total,
+            reason: a.reason, created_at: a.created_at,
+          })),
+        ...(pay ?? [])
+          .filter((a: any) => clMap.has(a.client_id))
+          .map((a: any) => ({
+            id: `p-${a.id}`, type: "Payment Received", action: a.action, ref: clMap.get(a.client_id) ?? "—",
+            link: `/clients/${a.client_id}`, prev: a.previous_amount, next: a.new_amount,
+            reason: a.reason, created_at: a.created_at,
+          })),
       ].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
       return rows;
     },
-    enabled: !!user,
   });
 
   return (

@@ -49,16 +49,17 @@ type MaterialRow = {
 const emptyForm = { id: "", name: "", sku: "", description: "", unit: "kg", default_price: "0", default_tax_rate: "0", active: true };
 
 function MaterialsPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: materials, isLoading } = useQuery({
-    queryKey: ["materials", user?.id],
+    queryKey: ["materials", user?.id, activeBusinessId],
     queryFn: async () => {
-      const { data } = await supabase.from("products" as any).select("*").order("created_at", { ascending: false });
+      if (!activeBusinessId) return [];
+      const { data } = await supabase.from("products" as any).select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false });
       return (data ?? []) as unknown as MaterialRow[];
     },
     enabled: !!user,
@@ -76,7 +77,7 @@ function MaterialsPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeBusinessId) return;
     const payload = {
       name: form.name,
       sku: form.sku || null,
@@ -88,7 +89,7 @@ function MaterialsPage() {
     };
     const res = form.id
       ? await supabase.from("products" as any).update(payload).eq("id", form.id)
-      : await supabase.from("products" as any).insert({ ...payload, user_id: user.id });
+      : await supabase.from("products" as any).insert({ ...payload, user_id: user.id, business_id: activeBusinessId });
     if (res.error) { toast.error(res.error.message); return; }
     toast.success(form.id ? "Material updated" : "Material added");
     setOpen(false);

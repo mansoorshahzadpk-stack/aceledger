@@ -31,19 +31,20 @@ const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
 
 function AnalyticsPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const [from, setFrom] = useState(daysAgo(90));
   const [to, setTo] = useState(today());
 
   const { data } = useQuery({
-    queryKey: ["analytics", user?.id, from, to],
+    queryKey: ["analytics", user?.id, activeBusinessId, from, to],
     queryFn: async () => {
+      if (!activeBusinessId) return { grns: [], invs: [], pays: [], vendors: [], clients: [] };
       const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] = await Promise.all([
-        supabase.from("vendor_grns").select("*").eq("status", "posted").gte("grn_date", from).lte("grn_date", to),
-        supabase.from("invoices").select("*").gte("issue_date", from).lte("issue_date", to),
-        supabase.from("client_payments").select("*").gte("payment_date", from).lte("payment_date", to),
-        supabase.from("vendors").select("id, name"),
-        supabase.from("clients").select("id, name"),
+        supabase.from("vendor_grns").select("*").eq("status", "posted").eq("business_id", activeBusinessId).gte("grn_date", from).lte("grn_date", to),
+        supabase.from("invoices").select("*").eq("business_id", activeBusinessId).gte("issue_date", from).lte("issue_date", to),
+        supabase.from("client_payments").select("*").eq("business_id", activeBusinessId).gte("payment_date", from).lte("payment_date", to),
+        supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId),
+        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId),
       ]);
       return { grns: grns ?? [], invs: invs ?? [], pays: pays ?? [], vendors: vendors ?? [], clients: clients ?? [] };
     },

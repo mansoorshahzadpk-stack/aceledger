@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/clients/")({
 });
 
 function ClientsPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -44,12 +44,13 @@ function ClientsPage() {
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "" });
 
   const { data: clients, isLoading } = useQuery({
-    queryKey: ["clients", user?.id],
+    queryKey: ["clients", user?.id, activeBusinessId],
     queryFn: async () => {
+      if (!activeBusinessId) return [];
       const [{ data: cs }, { data: invs }, { data: pays }] = await Promise.all([
-        supabase.from("clients").select("*").order("created_at", { ascending: false }),
-        supabase.from("invoices").select("client_id, total, status"),
-        supabase.from("client_payments").select("client_id, amount"),
+        supabase.from("clients").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false }),
+        supabase.from("invoices").select("client_id, total, status").eq("business_id", activeBusinessId),
+        supabase.from("client_payments").select("client_id, amount").eq("business_id", activeBusinessId),
       ]);
       return (cs ?? []).map((c) => {
         const posted = (invs ?? []).filter((i) => i.client_id === c.id && i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
@@ -75,9 +76,10 @@ function ClientsPage() {
 
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeBusinessId) return;
     const { error } = await supabase.from("clients").insert({
       user_id: user.id,
+      business_id: activeBusinessId,
       name: form.name,
       contact_person: form.contact_person || null,
       phone: form.phone || null,
@@ -91,9 +93,11 @@ function ClientsPage() {
 
   const logInstallment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !payOpen) return;
+    if (!user || !payOpen || !activeBusinessId) return;
     const { error } = await supabase.from("client_payments").insert({
-      user_id: user.id, client_id: payOpen,
+      user_id: user.id,
+      business_id: activeBusinessId,
+      client_id: payOpen,
       amount: parseFloat(pay.amount) || 0,
       payment_date: pay.payment_date,
       method: pay.method as any,

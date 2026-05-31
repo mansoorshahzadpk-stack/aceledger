@@ -26,12 +26,15 @@ export const Route = createFileRoute("/_authenticated/invoices/")({
 });
 
 function InvoicesPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const [filter, setFilter] = useState<"all" | "draft" | "posted">("all");
 
   const { data: invoices, isLoading } = useQuery({
-    queryKey: ["invoices", user?.id],
-    queryFn: async () => (await supabase.from("invoices").select("*, clients(name)").order("issue_date", { ascending: false })).data ?? [],
+    queryKey: ["invoices", user?.id, activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      return (await supabase.from("invoices").select("*, clients(name)").eq("business_id", activeBusinessId).order("issue_date", { ascending: false })).data ?? [];
+    },
     enabled: !!user,
   });
 

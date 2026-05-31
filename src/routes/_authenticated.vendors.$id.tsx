@@ -38,7 +38,7 @@ type GRN = {
 
 function VendorDetail() {
   const { id } = Route.useParams();
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "" });
@@ -51,12 +51,13 @@ function VendorDetail() {
   const [deleteReason, setDeleteReason] = useState("");
 
   const { data } = useQuery({
-    queryKey: ["vendor", id],
+    queryKey: ["vendor", id, activeBusinessId],
     queryFn: async () => {
+      if (!activeBusinessId) return { v: null, grns: [], pays: [], owed: 0, amends: [] };
       const [{ data: v }, { data: grns }, { data: pays }, { data: amends }] = await Promise.all([
-        supabase.from("vendors").select("*").eq("id", id).single(),
-        supabase.from("vendor_grns").select("*").eq("vendor_id", id).order("grn_date", { ascending: false }),
-        supabase.from("vendor_payments").select("*").eq("vendor_id", id).order("payment_date", { ascending: false }),
+        supabase.from("vendors").select("*").eq("id", id).eq("business_id", activeBusinessId).single(),
+        supabase.from("vendor_grns").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).order("grn_date", { ascending: false }),
+        supabase.from("vendor_payments").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).order("payment_date", { ascending: false }),
         supabase.from("grn_amendments" as any).select("*").order("created_at", { ascending: false }),
       ]);
       const owed = Number(v?.opening_balance ?? 0)
@@ -72,9 +73,11 @@ function VendorDetail() {
 
   const logPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeBusinessId) return;
     const { error } = await supabase.from("vendor_payments").insert({
-      user_id: user.id, vendor_id: id,
+      user_id: user.id,
+      business_id: activeBusinessId,
+      vendor_id: id,
       amount: parseFloat(pay.amount) || 0,
       payment_date: pay.payment_date,
       method: pay.method as any,

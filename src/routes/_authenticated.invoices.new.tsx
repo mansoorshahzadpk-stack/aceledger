@@ -28,7 +28,7 @@ type Material = { id: string; name: string; sku: string | null; unit: string; de
 
 function NewInvoice() {
   const navigate = useNavigate();
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const sp = Route.useSearch();
   const [clientId, setClientId] = useState<string>(sp.client ?? "");
   const [invNum, setInvNum] = useState("");
@@ -42,23 +42,27 @@ function NewInvoice() {
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user || invNum) return;
-    supabase.rpc("next_doc_number" as any, { _kind: "invoice" }).then(({ data }) => {
+    if (!user || !activeBusinessId || invNum) return;
+    supabase.rpc("next_doc_number" as any, { _business_id: activeBusinessId, _kind: "invoice" }).then(({ data }) => {
       if (typeof data === "string") setInvNum((v) => v || data);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, activeBusinessId]);
 
   const { data: clients } = useQuery({
-    queryKey: ["clients-list", user?.id],
-    queryFn: async () => (await supabase.from("clients").select("id, name").order("name")).data ?? [],
+    queryKey: ["clients-list", user?.id, activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      return (await supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).order("name")).data ?? [];
+    },
     enabled: !!user,
   });
 
   const { data: materials } = useQuery({
-    queryKey: ["materials-active", user?.id],
+    queryKey: ["materials-active", user?.id, activeBusinessId],
     queryFn: async () => {
-      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).order("name");
+      if (!activeBusinessId) return [];
+      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).eq("business_id", activeBusinessId).order("name");
       return (data ?? []) as unknown as Material[];
     },
     enabled: !!user,
@@ -84,10 +88,13 @@ function NewInvoice() {
   };
 
   const save = async (status: "draft" | "posted") => {
-    if (!user || !clientId) { toast.error("Choose a client"); return; }
+    if (!user || !activeBusinessId || !clientId) { toast.error("Choose a client"); return; }
     if (items.length === 0 || items.every((it) => !it.description)) { toast.error("Add at least one line item"); return; }
     const { data: inv, error } = await supabase.from("invoices").insert({
-      user_id: user.id, client_id: clientId, invoice_number: invNum,
+      user_id: user.id,
+      business_id: activeBusinessId,
+      client_id: clientId,
+      invoice_number: invNum,
       status, issue_date: issue, due_date: due || null,
       subtotal, tax: taxNum, shipping: shipNum, total,
       doc_template: settings.default_doc_template, notes: notes || null,

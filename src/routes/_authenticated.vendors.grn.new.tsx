@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
 type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
 
 function NewGrnPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     vendor_id: "",
@@ -42,23 +42,27 @@ function NewGrnPage() {
 
   // Auto-suggest next 4-digit GRN number
   useEffect(() => {
-    if (!user || form.grn_number) return;
-    supabase.rpc("next_doc_number" as any, { _kind: "grn" }).then(({ data }) => {
+    if (!user || !activeBusinessId || form.grn_number) return;
+    supabase.rpc("next_doc_number" as any, { _business_id: activeBusinessId, _kind: "grn" }).then(({ data }) => {
       if (typeof data === "string") setForm((f) => f.grn_number ? f : { ...f, grn_number: data });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, activeBusinessId]);
 
   const { data: vendors } = useQuery({
-    queryKey: ["vendors-list", user?.id],
-    queryFn: async () => (await supabase.from("vendors").select("id, name").order("name")).data ?? [],
+    queryKey: ["vendors-list", user?.id, activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      return (await supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId).order("name")).data ?? [];
+    },
     enabled: !!user,
   });
 
   const { data: materials } = useQuery({
-    queryKey: ["materials-active", user?.id],
+    queryKey: ["materials-active", user?.id, activeBusinessId],
     queryFn: async () => {
-      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).order("name");
+      if (!activeBusinessId) return [];
+      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).eq("business_id", activeBusinessId).order("name");
       return (data ?? []) as unknown as Material[];
     },
     enabled: !!user,
@@ -78,10 +82,11 @@ function NewGrnPage() {
   const total = useMemo(() => (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0), [form.quantity, form.unit_price]);
 
   const handleSave = async (status: "draft" | "posted") => {
-    if (!user || !form.vendor_id) { toast.error("Choose a vendor"); return; }
+    if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
     if (!form.material) { toast.error("Choose or enter a material"); return; }
     const { error } = await supabase.from("vendor_grns").insert({
       user_id: user.id,
+      business_id: activeBusinessId,
       vendor_id: form.vendor_id,
       grn_number: form.grn_number,
       material: form.material,

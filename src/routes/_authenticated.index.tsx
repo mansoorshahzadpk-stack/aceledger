@@ -24,19 +24,20 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 function Dashboard() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const c = settings.currency;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard", user?.id],
+    queryKey: ["dashboard", user?.id, activeBusinessId],
     queryFn: async () => {
+      if (!activeBusinessId) return { outstanding: 0, owed: 0, weekCollections: 0, recent: [], counts: { clients: 0, vendors: 0, invoices: 0 } };
       const [clients, invoices, cpay, vendors, grns, vpay] = await Promise.all([
-        supabase.from("clients").select("id, opening_balance"),
-        supabase.from("invoices").select("id, total, status, client_id"),
-        supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name)").order("payment_date", { ascending: false }).limit(20),
-        supabase.from("vendors").select("id, opening_balance"),
-        supabase.from("vendor_grns").select("id, total_amount, status"),
-        supabase.from("vendor_payments").select("id, amount"),
+        supabase.from("clients").select("id, opening_balance").eq("business_id", activeBusinessId),
+        supabase.from("invoices").select("id, total, status, client_id").eq("business_id", activeBusinessId),
+        supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name)").eq("business_id", activeBusinessId).order("payment_date", { ascending: false }).limit(20),
+        supabase.from("vendors").select("id, opening_balance").eq("business_id", activeBusinessId),
+        supabase.from("vendor_grns").select("id, total_amount, status").eq("business_id", activeBusinessId),
+        supabase.from("vendor_payments").select("id, amount").eq("business_id", activeBusinessId),
       ]);
       const clientOpening = (clients.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
       const postedTotal = (invoices.data ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);

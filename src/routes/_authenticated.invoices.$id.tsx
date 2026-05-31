@@ -25,7 +25,7 @@ type Item = { id?: string; description: string; quantity: string; unit_price: st
 
 function InvoiceDetail() {
   const { id } = Route.useParams();
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -38,10 +38,11 @@ function InvoiceDetail() {
   const [items, setItems] = useState<Item[]>([]);
 
   const { data } = useQuery({
-    queryKey: ["invoice", id],
+    queryKey: ["invoice", id, activeBusinessId],
     queryFn: async () => {
+      if (!activeBusinessId) return { inv: null, items: [], amendments: [], payments: [] };
       const [{ data: inv }, { data: its }, { data: amends }, { data: pays }] = await Promise.all([
-        supabase.from("invoices").select("*, clients(*)").eq("id", id).single(),
+        supabase.from("invoices").select("*, clients(*)").eq("id", id).eq("business_id", activeBusinessId).single(),
         supabase.from("invoice_items").select("*").eq("invoice_id", id).order("sort_order"),
         supabase.from("invoice_amendments").select("*").eq("invoice_id", id).order("created_at", { ascending: false }),
         supabase.from("client_payments").select("*").eq("invoice_id", id),

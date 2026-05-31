@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       app_settings: {
         Row: {
+          active_business_id: string | null
           business_address: string | null
           business_logo_url: string | null
           business_name: string | null
@@ -27,6 +28,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active_business_id?: string | null
           business_address?: string | null
           business_logo_url?: string | null
           business_name?: string | null
@@ -38,6 +40,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active_business_id?: string | null
           business_address?: string | null
           business_logo_url?: string | null
           business_name?: string | null
@@ -48,11 +51,62 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_active_business_id_fkey"
+            columns: ["active_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      businesses: {
+        Row: {
+          address: string | null
+          business_code: string | null
+          created_at: string
+          currency: Database["public"]["Enums"]["currency_code"]
+          id: string
+          logo_url: string | null
+          name: string
+          owner_name: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          business_code?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["currency_code"]
+          id?: string
+          logo_url?: string | null
+          name: string
+          owner_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          business_code?: string | null
+          created_at?: string
+          currency?: Database["public"]["Enums"]["currency_code"]
+          id?: string
+          logo_url?: string | null
+          name?: string
+          owner_name?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
         Relationships: []
       }
       client_payments: {
         Row: {
           amount: number
+          business_id: string
           client_id: string
           created_at: string
           id: string
@@ -65,6 +119,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          business_id: string
           client_id: string
           created_at?: string
           id?: string
@@ -77,6 +132,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          business_id?: string
           client_id?: string
           created_at?: string
           id?: string
@@ -107,6 +163,7 @@ export type Database = {
       clients: {
         Row: {
           address: string | null
+          business_id: string
           contact_person: string | null
           created_at: string
           email: string | null
@@ -120,6 +177,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_id: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
@@ -133,6 +191,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_id?: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
@@ -148,18 +207,21 @@ export type Database = {
       }
       doc_counters: {
         Row: {
+          business_id: string
           kind: string
           last_value: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          business_id: string
           kind: string
           last_value?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          business_id?: string
           kind?: string
           last_value?: number
           updated_at?: string
@@ -287,6 +349,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          business_id: string
           client_id: string
           created_at: string
           current_version: number
@@ -306,6 +369,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          business_id: string
           client_id: string
           created_at?: string
           current_version?: number
@@ -325,6 +389,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          business_id?: string
           client_id?: string
           created_at?: string
           current_version?: number
@@ -392,6 +457,7 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          business_id: string
           created_at: string
           default_price: number
           default_tax_rate: number
@@ -405,6 +471,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          business_id: string
           created_at?: string
           default_price?: number
           default_tax_rate?: number
@@ -418,6 +485,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          business_id?: string
           created_at?: string
           default_price?: number
           default_tax_rate?: number
@@ -475,6 +543,7 @@ export type Database = {
       }
       vendor_grns: {
         Row: {
+          business_id: string
           created_at: string
           doc_template: Database["public"]["Enums"]["doc_template"]
           grn_date: string
@@ -493,6 +562,7 @@ export type Database = {
           vendor_id: string
         }
         Insert: {
+          business_id: string
           created_at?: string
           doc_template?: Database["public"]["Enums"]["doc_template"]
           grn_date?: string
@@ -511,6 +581,7 @@ export type Database = {
           vendor_id: string
         }
         Update: {
+          business_id?: string
           created_at?: string
           doc_template?: Database["public"]["Enums"]["doc_template"]
           grn_date?: string
@@ -541,6 +612,7 @@ export type Database = {
       vendor_payments: {
         Row: {
           amount: number
+          business_id: string
           created_at: string
           id: string
           method: Database["public"]["Enums"]["payment_method"]
@@ -552,6 +624,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          business_id: string
           created_at?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
@@ -563,6 +636,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          business_id?: string
           created_at?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
@@ -585,6 +659,7 @@ export type Database = {
       vendors: {
         Row: {
           address: string | null
+          business_id: string
           contact_person: string | null
           created_at: string
           email: string | null
@@ -598,6 +673,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          business_id: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
@@ -611,6 +687,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          business_id?: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
@@ -636,7 +713,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      next_doc_number: { Args: { _kind: string }; Returns: string }
+      next_doc_number: { Args: { _business_id: string; _kind: string }; Returns: string }
     }
     Enums: {
       amend_action: "edit" | "delete"

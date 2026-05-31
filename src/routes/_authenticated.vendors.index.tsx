@@ -34,18 +34,19 @@ export const Route = createFileRoute("/_authenticated/vendors/")({
 });
 
 function VendorsPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
 
   const { data: vendors, isLoading } = useQuery({
-    queryKey: ["vendors", user?.id],
+    queryKey: ["vendors", user?.id, activeBusinessId],
     queryFn: async () => {
-      const { data: vs } = await supabase.from("vendors").select("*").order("created_at", { ascending: false });
-      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status");
-      const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount");
+      if (!activeBusinessId) return [];
+      const { data: vs } = await supabase.from("vendors").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false });
+      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status").eq("business_id", activeBusinessId);
+      const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId);
       return (vs ?? []).map((v) => {
         const owed = Number(v.opening_balance)
           + (grns ?? []).filter((g) => g.vendor_id === v.id && (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
@@ -69,9 +70,10 @@ function VendorsPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !activeBusinessId) return;
     const { error } = await supabase.from("vendors").insert({
       user_id: user.id,
+      business_id: activeBusinessId,
       name: form.name,
       contact_person: form.contact_person || null,
       phone: form.phone || null,

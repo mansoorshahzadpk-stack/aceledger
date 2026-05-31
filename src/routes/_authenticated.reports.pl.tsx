@@ -45,7 +45,7 @@ function todayISO() { return new Date().toISOString().slice(0, 10); }
 function isoDaysAgo(n: number) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); }
 
 function PLPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const c = settings.currency;
   const [from, setFrom] = useState(isoDaysAgo(90));
   const [to, setTo] = useState(todayISO());
@@ -67,11 +67,12 @@ function PLPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ["pl", user?.id, from, to],
+    queryKey: ["pl", user?.id, activeBusinessId, from, to],
     queryFn: async () => {
+      if (!activeBusinessId) return { invs: [], grns: [] };
       const [{ data: invs }, { data: grns }] = await Promise.all([
-        supabase.from("invoices").select("issue_date, total, status").eq("status", "posted").gte("issue_date", from).lte("issue_date", to),
-        supabase.from("vendor_grns").select("grn_date, total_amount, status").eq("status", "posted").gte("grn_date", from).lte("grn_date", to),
+        supabase.from("invoices").select("issue_date, total, status").eq("status", "posted").eq("business_id", activeBusinessId).gte("issue_date", from).lte("issue_date", to),
+        supabase.from("vendor_grns").select("grn_date, total_amount, status").eq("status", "posted").eq("business_id", activeBusinessId).gte("grn_date", from).lte("grn_date", to),
       ]);
       return { invs: invs ?? [], grns: grns ?? [] };
     },

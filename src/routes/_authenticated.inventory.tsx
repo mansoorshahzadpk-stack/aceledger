@@ -29,17 +29,22 @@ type InvItem = { id: string; product_id: string | null; quantity: number; descri
 type Inv = { id: string; status: string };
 
 function InventoryPage() {
-  const { settings, user } = useApp();
+  const { settings, user, activeBusinessId } = useApp();
   const c = settings.currency;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["inventory", user?.id],
+    queryKey: ["inventory", user?.id, activeBusinessId],
     queryFn: async () => {
-      const [{ data: materials }, { data: grns }, { data: items }, { data: invs }] = await Promise.all([
-        supabase.from("products" as any).select("id, name, sku, unit").order("name"),
-        supabase.from("vendor_grns").select("id, product_id, material, quantity, unit, unit_price, total_amount, status"),
-        supabase.from("invoice_items").select("id, product_id, quantity, description, invoice_id"),
-        supabase.from("invoices").select("id, status"),
+      if (!activeBusinessId) return { materials: [], grns: [], items: [], invs: [] };
+      const { data: invs } = await supabase.from("invoices").select("id, status").eq("business_id", activeBusinessId);
+      const invoiceIds = invs?.map((i) => i.id) || [];
+
+      const [{ data: materials }, { data: grns }, { data: items }] = await Promise.all([
+        supabase.from("products" as any).select("id, name, sku, unit").eq("business_id", activeBusinessId).order("name"),
+        supabase.from("vendor_grns").select("id, product_id, material, quantity, unit, unit_price, total_amount, status").eq("business_id", activeBusinessId),
+        invoiceIds.length > 0
+          ? supabase.from("invoice_items").select("id, product_id, quantity, description, invoice_id").in("invoice_id", invoiceIds)
+          : Promise.resolve({ data: [] }),
       ]);
       return {
         materials: (materials ?? []) as unknown as Material[],

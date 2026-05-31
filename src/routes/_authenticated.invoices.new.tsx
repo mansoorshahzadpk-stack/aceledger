@@ -37,6 +37,7 @@ function NewInvoice() {
   
   const [tax, setTax] = useState("0");
   const [shipping, setShipping] = useState("0");
+  const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
@@ -71,7 +72,8 @@ function NewInvoice() {
   const subtotal = useMemo(() => items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), [items]);
   const taxNum = parseFloat(tax) || 0;
   const shipNum = parseFloat(shipping) || 0;
-  const total = subtotal + taxNum + shipNum;
+  const discountNum = parseFloat(discount) || 0;
+  const total = subtotal + taxNum + shipNum - discountNum;
 
   const setItem = (idx: number, patch: Partial<Item>) => setItems(items.map((it, i) => i === idx ? { ...it, ...patch } : it));
 
@@ -96,7 +98,7 @@ function NewInvoice() {
       client_id: clientId,
       invoice_number: invNum,
       status, issue_date: issue, due_date: due || null,
-      subtotal, tax: taxNum, shipping: shipNum, total,
+      subtotal, tax: taxNum, shipping: shipNum, discount: discountNum, total,
       doc_template: settings.default_doc_template, notes: notes || null,
       posted_at: status === "posted" ? new Date().toISOString() : null,
     } as any).select().single();
@@ -213,7 +215,11 @@ function NewInvoice() {
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground">Shipping / Freight</span>
-              <Input type="number" step="0.01" value={shipping} onChange={(e) => setShipping(e.target.value)} className="h-8 w-32 text-right" placeholder="0 or negative" />
+              <Input type="number" step="0.01" value={shipping} onChange={(e) => setShipping(e.target.value)} className="h-8 w-32 text-right" />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">Discount</span>
+              <Input type="number" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} className="h-8 w-32 text-right" />
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>

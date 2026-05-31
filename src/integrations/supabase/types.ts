@@ -353,6 +353,7 @@ export type Database = {
           client_id: string
           created_at: string
           current_version: number
+          discount: number
           doc_template: Database["public"]["Enums"]["doc_template"]
           due_date: string | null
           id: string
@@ -373,6 +374,7 @@ export type Database = {
           client_id: string
           created_at?: string
           current_version?: number
+          discount?: number
           doc_template?: Database["public"]["Enums"]["doc_template"]
           due_date?: string | null
           id?: string
@@ -393,6 +395,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           current_version?: number
+          discount?: number
           doc_template?: Database["public"]["Enums"]["doc_template"]
           due_date?: string | null
           id?: string
@@ -545,6 +548,7 @@ export type Database = {
         Row: {
           business_id: string
           created_at: string
+          discount: number
           doc_template: Database["public"]["Enums"]["doc_template"]
           grn_date: string
           grn_number: string
@@ -564,6 +568,7 @@ export type Database = {
         Insert: {
           business_id: string
           created_at?: string
+          discount?: number
           doc_template?: Database["public"]["Enums"]["doc_template"]
           grn_date?: string
           grn_number: string
@@ -583,6 +588,7 @@ export type Database = {
         Update: {
           business_id?: string
           created_at?: string
+          discount?: number
           doc_template?: Database["public"]["Enums"]["doc_template"]
           grn_date?: string
           grn_number?: string

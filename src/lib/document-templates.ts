@@ -26,6 +26,7 @@ interface DocInput {
   subtotal: number | string;
   tax: number | string;
   shipping?: number | string;
+  discount?: number | string | null;
   total: number | string;
   notes?: string | null;
   status?: string;
@@ -78,6 +79,7 @@ function itemMeta(it: DocItem) {
 function acelogTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
+  const discount = num(d.discount);
   const items = d.items.map((it, idx) => {
     const meta = itemMeta(it);
     return `
@@ -172,6 +174,7 @@ function acelogTemplate(d: DocInput): string {
     <div class="row"><span>Sub Total</span><span>${money(d.subtotal, d.currency)}</span></div>
     ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
     ${ship !== 0 ? `<div class="row"><span>Shipping / Freight</span><span>${money(ship, d.currency)}</span></div>` : ""}
+    ${discount !== 0 ? `<div class="row"><span>Discount</span><span>${money(-discount, d.currency)}</span></div>` : ""}
     <div class="row grand"><span class="lbl">Total</span><span class="val">${money(d.total, d.currency)}</span></div>
   </div>
   ${d.notes ? `<div class="notes"><div class="label">Notes</div><div>${escapeHtml(d.notes)}</div></div>` : ""}
@@ -184,6 +187,7 @@ function acelogTemplate(d: DocInput): string {
 function classicTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
+  const discount = num(d.discount);
   const items = d.items.map((it, idx) => {
     const meta = itemMeta(it);
     return `<tr>
@@ -265,6 +269,7 @@ function classicTemplate(d: DocInput): string {
     <div class="row"><span>Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
     ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
     ${ship !== 0 ? `<div class="row"><span>Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
+    ${discount !== 0 ? `<div class="row"><span>Discount</span><span>${money(-discount, d.currency)}</span></div>` : ""}
     <div class="row grand"><span>Total</span><span>${money(d.total, d.currency)}</span></div>
   </div>
   ${d.notes ? `<div class="notes"><div class="lbl">Remarks</div>${escapeHtml(d.notes)}</div>` : ""}
@@ -278,6 +283,7 @@ function classicTemplate(d: DocInput): string {
 function modernTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
+  const discount = num(d.discount);
   const items = d.items.map((it) => {
     const meta = itemMeta(it);
     return `<tr>
@@ -376,6 +382,7 @@ function modernTemplate(d: DocInput): string {
       <div class="row"><span>Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
       ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
       ${ship !== 0 ? `<div class="row"><span>Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
+      ${discount !== 0 ? `<div class="row"><span>Discount</span><span>${money(-discount, d.currency)}</span></div>` : ""}
       <div class="grand"><span class="lbl">Total</span><span class="val">${money(d.total, d.currency)}</span></div>
     </div>
   </div>
@@ -391,6 +398,7 @@ function modernTemplate(d: DocInput): string {
 function compactTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
+  const discount = num(d.discount);
   const items = d.items.map((it, idx) => {
     const meta = itemMeta(it);
     return `<tr>
@@ -471,6 +479,7 @@ function compactTemplate(d: DocInput): string {
       <div class="lbl">Subtotal</div><div class="val">${money(d.subtotal, d.currency)}</div>
       ${tax !== 0 ? `<div class="lbl">Tax</div><div class="val">${money(tax, d.currency)}</div>` : ""}
       ${ship !== 0 ? `<div class="lbl">Shipping</div><div class="val">${money(ship, d.currency)}</div>` : ""}
+      ${discount !== 0 ? `<div class="lbl">Discount</div><div class="val">${money(-discount, d.currency)}</div>` : ""}
       <div class="grand-lbl">TOTAL</div><div class="grand-val">${money(d.total, d.currency)}</div>
     </div>
   </div>

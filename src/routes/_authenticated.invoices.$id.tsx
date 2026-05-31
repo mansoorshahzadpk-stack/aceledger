@@ -33,7 +33,7 @@ function InvoiceDetail() {
   const [amendReason, setAmendReason] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
-  const [pendingTotal, setPendingTotal] = useState<{ subtotal: number; tax: number; shipping: number; total: number; items: Item[]; meta: any } | null>(null);
+  const [pendingTotal, setPendingTotal] = useState<{ subtotal: number; tax: number; shipping: number; discount: number; total: number; items: Item[]; meta: any } | null>(null);
   const [form, setForm] = useState<any>(null);
   const [items, setItems] = useState<Item[]>([]);
 
@@ -58,6 +58,7 @@ function InvoiceDetail() {
       setForm({
         invoice_number: i.invoice_number, issue_date: i.issue_date,
         due_date: i.due_date ?? "", tax: String(i.tax), shipping: String(i.shipping ?? 0),
+        discount: String(i.discount ?? 0),
         notes: i.notes ?? "", doc_template: i.doc_template,
       });
       setItems(data.items.map((it: any) => ({
@@ -70,7 +71,8 @@ function InvoiceDetail() {
   const subtotal = useMemo(() => items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), [items]);
   const taxNum = parseFloat(form?.tax ?? "0") || 0;
   const shipNum = parseFloat(form?.shipping ?? "0") || 0;
-  const total = subtotal + taxNum + shipNum;
+  const discountNum = parseFloat(form?.discount ?? "0") || 0;
+  const total = subtotal + taxNum + shipNum - discountNum;
 
   if (!data?.inv || !form) return <p className="text-sm text-muted-foreground">Loading…</p>;
   const inv: any = data.inv;
@@ -91,7 +93,7 @@ function InvoiceDetail() {
   const saveDraftEdit = async () => {
     await supabase.from("invoices").update({
       invoice_number: form.invoice_number, issue_date: form.issue_date, due_date: form.due_date || null,
-      tax: taxNum, shipping: shipNum, subtotal, total, notes: form.notes || null, doc_template: form.doc_template,
+      tax: taxNum, shipping: shipNum, discount: discountNum, subtotal, total, notes: form.notes || null, doc_template: form.doc_template,
     } as any).eq("id", id);
     await writeItems();
     toast.success("Draft saved");
@@ -100,7 +102,7 @@ function InvoiceDetail() {
   };
 
   const requestPostedEdit = () => {
-    setPendingTotal({ subtotal, tax: taxNum, shipping: shipNum, total, items, meta: form });
+    setPendingTotal({ subtotal, tax: taxNum, shipping: shipNum, discount: discountNum, total, items, meta: form });
     setAmendOpen(true);
   };
 
@@ -114,7 +116,7 @@ function InvoiceDetail() {
     await supabase.from("invoices").update({
       invoice_number: pendingTotal.meta.invoice_number,
       issue_date: pendingTotal.meta.issue_date, due_date: pendingTotal.meta.due_date || null,
-      subtotal: pendingTotal.subtotal, tax: pendingTotal.tax, shipping: pendingTotal.shipping, total: pendingTotal.total,
+      subtotal: pendingTotal.subtotal, tax: pendingTotal.tax, shipping: pendingTotal.shipping, discount: pendingTotal.discount, total: pendingTotal.total,
       notes: pendingTotal.meta.notes || null, doc_template: pendingTotal.meta.doc_template,
       current_version: inv.current_version + 1,
     } as any).eq("id", id);
@@ -171,7 +173,7 @@ function InvoiceDetail() {
         line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
         unit: it.unit, grn_ref: it.grn_ref, vehicle_ref: it.vehicle_ref,
       })),
-      subtotal, tax: taxNum, shipping: shipNum, total, notes: form.notes, status: inv.status,
+      subtotal, tax: taxNum, shipping: shipNum, discount: discountNum, total, notes: form.notes, status: inv.status,
     });
   };
 
@@ -258,6 +260,7 @@ function InvoiceDetail() {
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="figure">{formatMoney(subtotal, settings.currency)}</span></div>
             <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Tax</span>{editing ? <Input type="number" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure">{formatMoney(taxNum, settings.currency)}</span>}</div>
             <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Shipping / Freight</span>{editing ? <Input type="number" step="0.01" value={form.shipping} onChange={(e) => setForm({ ...form, shipping: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure">{formatMoney(shipNum, settings.currency)}</span>}</div>
+            <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Discount</span>{editing ? <Input type="number" step="0.01" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure text-red-600 dark:text-red-500">-{formatMoney(discountNum, settings.currency)}</span>}</div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>
 

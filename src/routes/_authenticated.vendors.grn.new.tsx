@@ -32,6 +32,7 @@ function NewGrnPage() {
     quantity: "0",
     unit: "kg",
     unit_price: "0",
+    discount: "0",
     grn_date: new Date().toISOString().slice(0, 10),
     doc_template: settings.default_doc_template,
     notes: "",
@@ -79,7 +80,10 @@ function NewGrnPage() {
     setPickerOpen(false);
   };
 
-  const total = useMemo(() => (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0), [form.quantity, form.unit_price]);
+  const total = useMemo(() => {
+    const sub = (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0);
+    return sub - (parseFloat(form.discount) || 0);
+  }, [form.quantity, form.unit_price, form.discount]);
 
   const handleSave = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
@@ -94,6 +98,7 @@ function NewGrnPage() {
       quantity: parseFloat(form.quantity) || 0,
       unit: form.unit,
       unit_price: parseFloat(form.unit_price) || 0,
+      discount: parseFloat(form.discount) || 0,
       total_amount: total,
       grn_date: form.grn_date,
       doc_template: form.doc_template,
@@ -171,6 +176,7 @@ function NewGrnPage() {
               <Field label="Quantity"><Input type="number" step="0.001" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></Field>
               <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
               <Field label="Unit price"><Input type="number" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></Field>
+              <Field label="Discount"><Input type="number" step="0.01" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} /></Field>
             </div>
             <Field label="Notes"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">

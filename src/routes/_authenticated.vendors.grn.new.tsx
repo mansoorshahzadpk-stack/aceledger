@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { parseMath, parsePercentageOrMath } from "@/lib/math-parser";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -82,10 +83,17 @@ function NewGrnPage() {
     setPickerOpen(false);
   };
 
+  const subtotal = useMemo(() => {
+    return (parseMath(form.quantity) || 0) * (parseMath(form.unit_price) || 0);
+  }, [form.quantity, form.unit_price]);
+
+  const discountNum = useMemo(() => parsePercentageOrMath(form.discount, subtotal), [form.discount, subtotal]);
+  const taxNum = useMemo(() => parsePercentageOrMath(form.tax, subtotal), [form.tax, subtotal]);
+  const shipNum = useMemo(() => parsePercentageOrMath(form.shipping, subtotal), [form.shipping, subtotal]);
+
   const total = useMemo(() => {
-    const sub = (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price) || 0);
-    return sub - (parseFloat(form.discount) || 0) + (parseFloat(form.tax) || 0) + (parseFloat(form.shipping) || 0);
-  }, [form.quantity, form.unit_price, form.discount, form.tax, form.shipping]);
+    return subtotal - discountNum + taxNum + shipNum;
+  }, [subtotal, discountNum, taxNum, shipNum]);
 
   const handleSave = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
@@ -97,12 +105,12 @@ function NewGrnPage() {
       grn_number: form.grn_number,
       material: form.material,
       product_id: form.product_id || null,
-      quantity: parseFloat(form.quantity) || 0,
+      quantity: parseMath(form.quantity) || 0,
       unit: form.unit,
-      unit_price: parseFloat(form.unit_price) || 0,
-      discount: parseFloat(form.discount) || 0,
-      tax: parseFloat(form.tax) || 0,
-      shipping: parseFloat(form.shipping) || 0,
+      unit_price: parseMath(form.unit_price) || 0,
+      discount: discountNum,
+      tax: taxNum,
+      shipping: shipNum,
       total_amount: total,
       grn_date: form.grn_date,
       doc_template: form.doc_template,
@@ -177,12 +185,100 @@ function NewGrnPage() {
                 </div>
               </Field>
 
-              <Field label="Quantity"><Input type="number" step="0.001" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></Field>
+              <Field label="Quantity" helper="supports math, e.g. 50/2">
+                <Input
+                  type="text"
+                  required
+                  value={form.quantity}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                  onBlur={() => setForm((f) => ({ ...f, quantity: String(parseMath(f.quantity)) }))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setForm((f) => ({ ...f, quantity: String(parseMath(f.quantity)) }));
+                    }
+                  }}
+                  placeholder="e.g. 10 or 20*5"
+                />
+              </Field>
               <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
-              <Field label="Unit price"><Input type="number" step="0.01" required value={form.unit_price} onChange={(e) => setForm({ ...form, unit_price: e.target.value })} /></Field>
-              <Field label="Discount"><Input type="number" step="0.01" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} /></Field>
-              <Field label="Tax"><Input type="number" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} /></Field>
-              <Field label="Shipping / Freight"><Input type="number" step="0.01" value={form.shipping} onChange={(e) => setForm({ ...form, shipping: e.target.value })} /></Field>
+              <Field label="Unit price" helper="supports math, e.g. 200/2">
+                <Input
+                  type="text"
+                  required
+                  value={form.unit_price}
+                  onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
+                  onBlur={() => setForm((f) => ({ ...f, unit_price: String(parseMath(f.unit_price)) }))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setForm((f) => ({ ...f, unit_price: String(parseMath(f.unit_price)) }));
+                    }
+                  }}
+                  placeholder="e.g. 100 or 200/2"
+                />
+              </Field>
+              <Field
+                label="Discount"
+                helper={form.discount.trim().endsWith("%") ? `(${formatMoney(discountNum, settings.currency)})` : "flat or %, e.g., 2%"}
+              >
+                <Input
+                  type="text"
+                  value={form.discount}
+                  onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                  onBlur={() => {
+                    if (!form.discount.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, discount: String(parseMath(f.discount)) }));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.discount.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, discount: String(parseMath(f.discount)) }));
+                    }
+                  }}
+                  placeholder="e.g. 500 or 2%"
+                />
+              </Field>
+              <Field
+                label="Tax"
+                helper={form.tax.trim().endsWith("%") ? `(${formatMoney(taxNum, settings.currency)})` : "flat or %, e.g., 5%"}
+              >
+                <Input
+                  type="text"
+                  value={form.tax}
+                  onChange={(e) => setForm({ ...form, tax: e.target.value })}
+                  onBlur={() => {
+                    if (!form.tax.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, tax: String(parseMath(f.tax)) }));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.tax.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, tax: String(parseMath(f.tax)) }));
+                    }
+                  }}
+                  placeholder="e.g. 500 or 5%"
+                />
+              </Field>
+              <Field
+                label="Shipping / Freight"
+                helper={form.shipping.trim().endsWith("%") ? `(${formatMoney(shipNum, settings.currency)})` : "flat or %, e.g., 1.5%"}
+              >
+                <Input
+                  type="text"
+                  value={form.shipping}
+                  onChange={(e) => setForm({ ...form, shipping: e.target.value })}
+                  onBlur={() => {
+                    if (!form.shipping.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, shipping: String(parseMath(f.shipping)) }));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.shipping.trim().endsWith("%")) {
+                      setForm((f) => ({ ...f, shipping: String(parseMath(f.shipping)) }));
+                    }
+                  }}
+                  placeholder="e.g. 1000 or 1.5%"
+                />
+              </Field>
             </div>
             <Field label="Notes"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">
@@ -201,6 +297,14 @@ function NewGrnPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>{children}</div>;
+function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+        {helper && <span className="text-[10px] text-muted-foreground font-normal lowercase">{helper}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }

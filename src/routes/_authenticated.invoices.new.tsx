@@ -15,6 +15,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { formatMoney } from "@/lib/format";
 import { Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
+import { parseMath, parsePercentageOrMath } from "@/lib/math-parser";
 
 const search = z.object({ client: z.string().optional() });
 
@@ -69,11 +70,11 @@ function NewInvoice() {
     enabled: !!user,
   });
 
-  const subtotal = useMemo(() => items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), [items]);
-  const taxNum = parseFloat(tax) || 0;
-  const shipNum = parseFloat(shipping) || 0;
-  const discountNum = parseFloat(discount) || 0;
-  const total = subtotal + taxNum + shipNum - discountNum;
+  const subtotal = useMemo(() => items.reduce((s, i) => s + (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0), 0), [items]);
+  const taxNum = useMemo(() => parsePercentageOrMath(tax, subtotal), [tax, subtotal]);
+  const shipNum = useMemo(() => parsePercentageOrMath(shipping, subtotal), [shipping, subtotal]);
+  const discountNum = useMemo(() => parsePercentageOrMath(discount, subtotal), [discount, subtotal]);
+  const total = useMemo(() => subtotal + taxNum + shipNum - discountNum, [subtotal, taxNum, shipNum, discountNum]);
 
   const setItem = (idx: number, patch: Partial<Item>) => setItems(items.map((it, i) => i === idx ? { ...it, ...patch } : it));
 
@@ -105,9 +106,9 @@ function NewInvoice() {
     if (error) { toast.error(error.message); return; }
     const itemRows = items.filter((it) => it.description).map((it, idx) => ({
       invoice_id: inv.id, description: it.description,
-      quantity: parseFloat(it.quantity) || 0,
-      unit_price: parseFloat(it.unit_price) || 0,
-      line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
+      quantity: parseMath(it.quantity) || 0,
+      unit_price: parseMath(it.unit_price) || 0,
+      line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
       sort_order: idx,
       product_id: it.product_id || null,
       grn_ref: it.grn_ref || null,
@@ -188,9 +189,9 @@ function NewInvoice() {
               </div>
               <div className="grid gap-2 md:grid-cols-[1fr_100px_140px_140px] md:items-end">
                 <Field label="Description"><Input value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} placeholder="Material / service" /></Field>
-                <Field label="Qty"><Input type="number" step="0.001" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} /></Field>
-                <Field label="Unit price"><Input type="number" step="0.01" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} /></Field>
-                <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), settings.currency)}</div></Field>
+                <Field label="Qty" helper="supports math, e.g. 10/2"><Input type="text" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} onBlur={() => setItem(idx, { quantity: String(parseMath(it.quantity)) })} onKeyDown={(e) => { if (e.key === "Enter") setItem(idx, { quantity: String(parseMath(it.quantity)) }); }} placeholder="e.g. 5 or 10/2" /></Field>
+                <Field label="Unit price" helper="supports math, e.g. 200/2"><Input type="text" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} onBlur={() => setItem(idx, { unit_price: String(parseMath(it.unit_price)) })} onKeyDown={(e) => { if (e.key === "Enter") setItem(idx, { unit_price: String(parseMath(it.unit_price)) }); }} placeholder="e.g. 100 or 200/2" /></Field>
+                <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0), settings.currency)}</div></Field>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
                 <Field label="GRN reference (optional)"><Input value={it.grn_ref ?? ""} onChange={(e) => setItem(idx, { grn_ref: e.target.value })} placeholder="e.g. 03345" /></Field>
@@ -210,16 +211,25 @@ function NewInvoice() {
           <div className="ml-auto w-full max-w-xs space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="figure">{formatMoney(subtotal, settings.currency)}</span></div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Tax</span>
-              <Input type="number" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} className="h-8 w-32 text-right" />
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Tax</span>
+                {tax.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(taxNum, settings.currency)})</span>}
+              </span>
+              <Input type="text" value={tax} onChange={(e) => setTax(e.target.value)} onBlur={() => { if (!tax.trim().endsWith("%")) setTax(String(parseMath(tax))); }} onKeyDown={(e) => { if (e.key === "Enter" && !tax.trim().endsWith("%")) setTax(String(parseMath(tax))); }} placeholder="e.g. 500 or 5%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Shipping / Freight</span>
-              <Input type="number" step="0.01" value={shipping} onChange={(e) => setShipping(e.target.value)} className="h-8 w-32 text-right" />
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Shipping / Freight</span>
+                {shipping.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(shipNum, settings.currency)})</span>}
+              </span>
+              <Input type="text" value={shipping} onChange={(e) => setShipping(e.target.value)} onBlur={() => { if (!shipping.trim().endsWith("%")) setShipping(String(parseMath(shipping))); }} onKeyDown={(e) => { if (e.key === "Enter" && !shipping.trim().endsWith("%")) setShipping(String(parseMath(shipping))); }} placeholder="e.g. 1000 or 1.5%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Discount</span>
-              <Input type="number" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} className="h-8 w-32 text-right" />
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Discount</span>
+                {discount.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(discountNum, settings.currency)})</span>}
+              </span>
+              <Input type="text" value={discount} onChange={(e) => setDiscount(e.target.value)} onBlur={() => { if (!discount.trim().endsWith("%")) setDiscount(String(parseMath(discount))); }} onKeyDown={(e) => { if (e.key === "Enter" && !discount.trim().endsWith("%")) setDiscount(String(parseMath(discount))); }} placeholder="e.g. 500 or 2%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>
@@ -235,6 +245,14 @@ function NewInvoice() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>{children}</div>;
+function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+        {helper && <span className="text-[10px] text-muted-foreground font-normal lowercase">{helper}</span>}
+      </div>
+      {children}
+    </div>
+  );
 }

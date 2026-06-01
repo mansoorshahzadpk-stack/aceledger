@@ -16,6 +16,19 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { renderDocument } from "@/lib/document-templates";
 import { ArrowLeft, Plus, Printer, Send, Trash2, History } from "lucide-react";
 import { toast } from "sonner";
+import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
+
+function formatMoneyFormula(val: string, currency: any) {
+  if (val.includes("=")) {
+    const parts = val.split("=");
+    const expr = parts[0].trim();
+    const res = parts[1].trim();
+    return `${expr} = ${formatMoney(res, currency)}`;
+  }
+  return formatMoney(val, currency);
+}
+
+const valHasFormula = (val: string) => val.includes("=") || /[+\-*/()]/.test(val);
 
 export const Route = createFileRoute("/_authenticated/invoices/$id")({
   component: InvoiceDetail,
@@ -57,22 +70,26 @@ function InvoiceDetail() {
       const i = data.inv as any;
       setForm({
         invoice_number: i.invoice_number, issue_date: i.issue_date,
-        due_date: i.due_date ?? "", tax: String(i.tax), shipping: String(i.shipping ?? 0),
-        discount: String(i.discount ?? 0),
+        due_date: i.due_date ?? "",
+        tax: i.tax_formula ? (i.tax_formula.endsWith("%") ? i.tax_formula : `${i.tax_formula} = ${i.tax}`) : String(i.tax),
+        shipping: i.shipping_formula ? (i.shipping_formula.endsWith("%") ? i.shipping_formula : `${i.shipping_formula} = ${i.shipping}`) : String(i.shipping ?? 0),
+        discount: i.discount_formula ? (i.discount_formula.endsWith("%") ? i.discount_formula : `${i.discount_formula} = ${i.discount}`) : String(i.discount ?? 0),
         notes: i.notes ?? "", doc_template: i.doc_template,
       });
       setItems(data.items.map((it: any) => ({
-        id: it.id, description: it.description, quantity: String(it.quantity), unit_price: String(it.unit_price),
+        id: it.id, description: it.description,
+        quantity: it.quantity_formula ? `${it.quantity_formula} = ${it.quantity}` : String(it.quantity),
+        unit_price: it.unit_price_formula ? `${it.unit_price_formula} = ${it.unit_price}` : String(it.unit_price),
         unit: it.unit ?? null, grn_ref: it.grn_ref ?? null, vehicle_ref: it.vehicle_ref ?? null,
       })));
     }
   }, [data, form]);
 
-  const subtotal = useMemo(() => items.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_price) || 0), 0), [items]);
-  const taxNum = parseFloat(form?.tax ?? "0") || 0;
-  const shipNum = parseFloat(form?.shipping ?? "0") || 0;
-  const discountNum = parseFloat(form?.discount ?? "0") || 0;
-  const total = subtotal + taxNum + shipNum - discountNum;
+  const subtotal = useMemo(() => items.reduce((s, i) => s + (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0), 0), [items]);
+  const taxNum = useMemo(() => parsePercentageOrMath(form?.tax ?? "0", subtotal), [form?.tax, subtotal]);
+  const shipNum = useMemo(() => parsePercentageOrMath(form?.shipping ?? "0", subtotal), [form?.shipping, subtotal]);
+  const discountNum = useMemo(() => parsePercentageOrMath(form?.discount ?? "0", subtotal), [form?.discount, subtotal]);
+  const total = useMemo(() => subtotal + taxNum + shipNum - discountNum, [subtotal, taxNum, shipNum, discountNum]);
 
   if (!data?.inv || !form) return <p className="text-sm text-muted-foreground">Loading…</p>;
   const inv: any = data.inv;
@@ -84,9 +101,11 @@ function InvoiceDetail() {
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
     await supabase.from("invoice_items").insert(items.filter((it) => it.description).map((it, idx) => ({
       invoice_id: id, description: it.description,
-      quantity: parseFloat(it.quantity) || 0, unit_price: parseFloat(it.unit_price) || 0,
-      line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
+      quantity: parseMath(it.quantity) || 0, unit_price: parseMath(it.unit_price) || 0,
+      line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
       sort_order: idx, grn_ref: it.grn_ref || null, vehicle_ref: it.vehicle_ref || null,
+      quantity_formula: getFormulaPart(it.quantity),
+      unit_price_formula: getFormulaPart(it.unit_price),
     })) as any);
   };
 
@@ -94,6 +113,9 @@ function InvoiceDetail() {
     await supabase.from("invoices").update({
       invoice_number: form.invoice_number, issue_date: form.issue_date, due_date: form.due_date || null,
       tax: taxNum, shipping: shipNum, discount: discountNum, subtotal, total, notes: form.notes || null, doc_template: form.doc_template,
+      tax_formula: getFormulaPart(form.tax),
+      shipping_formula: getFormulaPart(form.shipping),
+      discount_formula: getFormulaPart(form.discount),
     } as any).eq("id", id);
     await writeItems();
     toast.success("Draft saved");
@@ -119,13 +141,18 @@ function InvoiceDetail() {
       subtotal: pendingTotal.subtotal, tax: pendingTotal.tax, shipping: pendingTotal.shipping, discount: pendingTotal.discount, total: pendingTotal.total,
       notes: pendingTotal.meta.notes || null, doc_template: pendingTotal.meta.doc_template,
       current_version: inv.current_version + 1,
+      tax_formula: getFormulaPart(pendingTotal.meta.tax),
+      shipping_formula: getFormulaPart(pendingTotal.meta.shipping),
+      discount_formula: getFormulaPart(pendingTotal.meta.discount),
     } as any).eq("id", id);
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
     await supabase.from("invoice_items").insert(pendingTotal.items.filter((it) => it.description).map((it, idx) => ({
       invoice_id: id, description: it.description,
-      quantity: parseFloat(it.quantity) || 0, unit_price: parseFloat(it.unit_price) || 0,
-      line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
+      quantity: parseMath(it.quantity) || 0, unit_price: parseMath(it.unit_price) || 0,
+      line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
       sort_order: idx, grn_ref: it.grn_ref || null, vehicle_ref: it.vehicle_ref || null,
+      quantity_formula: getFormulaPart(it.quantity),
+      unit_price_formula: getFormulaPart(it.unit_price),
     })) as any);
     toast.success("Amendment logged · client balance updated");
     setAmendOpen(false); setAmendReason(""); setPendingTotal(null); setEditing(false);
@@ -244,9 +271,47 @@ function InvoiceDetail() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">{editing ? <Input type="number" step="0.001" value={it.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} className="text-right" /> : <span className="figure">{it.quantity}</span>}</TableCell>
-                      <TableCell className="text-right">{editing ? <Input type="number" step="0.01" value={it.unit_price} onChange={(e) => updateLine(idx, { unit_price: e.target.value })} className="text-right" /> : <span className="figure">{formatMoney(it.unit_price, settings.currency)}</span>}</TableCell>
-                      <TableCell className="text-right figure">{formatMoney((parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0), settings.currency)}</TableCell>
+                      <TableCell className="text-right">
+                        {editing ? (
+                          <Input
+                            type="text"
+                            value={it.quantity}
+                            onChange={(e) => updateLine(idx, { quantity: e.target.value })}
+                            onFocus={() => updateLine(idx, { quantity: formatOnFocus(it.quantity) })}
+                            onBlur={() => updateLine(idx, { quantity: formatOnBlur(it.quantity) })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateLine(idx, { quantity: formatOnBlur(it.quantity) });
+                                e.preventDefault();
+                              }
+                            }}
+                            className="text-right"
+                          />
+                        ) : (
+                          <span className="figure">{it.quantity}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {editing ? (
+                          <Input
+                            type="text"
+                            value={it.unit_price}
+                            onChange={(e) => updateLine(idx, { unit_price: e.target.value })}
+                            onFocus={() => updateLine(idx, { unit_price: formatOnFocus(it.unit_price) })}
+                            onBlur={() => updateLine(idx, { unit_price: formatOnBlur(it.unit_price) })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateLine(idx, { unit_price: formatOnBlur(it.unit_price) });
+                                e.preventDefault();
+                              }
+                            }}
+                            className="text-right"
+                          />
+                        ) : (
+                          <span className="figure">{formatMoneyFormula(it.unit_price, settings.currency)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right figure">{formatMoney((parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0), settings.currency)}</TableCell>
                       {editing && <TableCell><Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== idx))}><Trash2 className="h-4 w-4" /></Button></TableCell>}
                     </TableRow>
                   ))}
@@ -258,9 +323,108 @@ function InvoiceDetail() {
 
           <div className="ml-auto w-full max-w-xs space-y-1.5 text-sm">
             <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="figure">{formatMoney(subtotal, settings.currency)}</span></div>
-            <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Tax</span>{editing ? <Input type="number" step="0.01" value={form.tax} onChange={(e) => setForm({ ...form, tax: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure">{formatMoney(taxNum, settings.currency)}</span>}</div>
-            <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Shipping / Freight</span>{editing ? <Input type="number" step="0.01" value={form.shipping} onChange={(e) => setForm({ ...form, shipping: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure">{formatMoney(shipNum, settings.currency)}</span>}</div>
-            <div className="flex items-center justify-between gap-2"><span className="text-muted-foreground">Discount</span>{editing ? <Input type="number" step="0.01" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} className="h-8 w-28 text-right" /> : <span className="figure text-red-600 dark:text-red-500">-{formatMoney(discountNum, settings.currency)}</span>}</div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Tax</span>
+                {form.tax.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(taxNum, settings.currency)})</span>}
+              </span>
+              {editing ? (
+                <Input
+                  type="text"
+                  value={form.tax}
+                  onChange={(e) => setForm({ ...form, tax: e.target.value })}
+                  onFocus={() => setForm({ ...form, tax: formatOnFocus(form.tax) })}
+                  onBlur={() => {
+                    if (!form.tax.trim().endsWith("%")) {
+                      setForm({ ...form, tax: formatOnBlur(form.tax) });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.tax.trim().endsWith("%")) {
+                      setForm({ ...form, tax: formatOnBlur(form.tax) });
+                      e.preventDefault();
+                    }
+                  }}
+                  className="h-8 w-28 text-right text-xs"
+                />
+              ) : (
+                <span className="figure">
+                  {form.tax.trim().endsWith("%") ? (
+                    <>{form.tax} = {formatMoney(taxNum, settings.currency)}</>
+                  ) : (
+                    formatMoneyFormula(form.tax, settings.currency)
+                  )}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Shipping / Freight</span>
+                {form.shipping.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(shipNum, settings.currency)})</span>}
+              </span>
+              {editing ? (
+                <Input
+                  type="text"
+                  value={form.shipping}
+                  onChange={(e) => setForm({ ...form, shipping: e.target.value })}
+                  onFocus={() => setForm({ ...form, shipping: formatOnFocus(form.shipping) })}
+                  onBlur={() => {
+                    if (!form.shipping.trim().endsWith("%")) {
+                      setForm({ ...form, shipping: formatOnBlur(form.shipping) });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.shipping.trim().endsWith("%")) {
+                      setForm({ ...form, shipping: formatOnBlur(form.shipping) });
+                      e.preventDefault();
+                    }
+                  }}
+                  className="h-8 w-28 text-right text-xs"
+                />
+              ) : (
+                <span className="figure">
+                  {form.shipping.trim().endsWith("%") ? (
+                    <>{form.shipping} = {formatMoney(shipNum, settings.currency)}</>
+                  ) : (
+                    formatMoneyFormula(form.shipping, settings.currency)
+                  )}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground flex flex-col items-start">
+                <span>Discount</span>
+                {form.discount.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(discountNum, settings.currency)})</span>}
+              </span>
+              {editing ? (
+                <Input
+                  type="text"
+                  value={form.discount}
+                  onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                  onFocus={() => setForm({ ...form, discount: formatOnFocus(form.discount) })}
+                  onBlur={() => {
+                    if (!form.discount.trim().endsWith("%")) {
+                      setForm({ ...form, discount: formatOnBlur(form.discount) });
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !form.discount.trim().endsWith("%")) {
+                      setForm({ ...form, discount: formatOnBlur(form.discount) });
+                      e.preventDefault();
+                    }
+                  }}
+                  className="h-8 w-28 text-right text-xs"
+                />
+              ) : (
+                <span className="figure text-red-600 dark:text-red-500">
+                  {form.discount.trim().endsWith("%") ? (
+                    <>-{form.discount} = {formatMoney(discountNum, settings.currency)}</>
+                  ) : (
+                    valHasFormula(form.discount) ? `-${formatMoneyFormula(form.discount, settings.currency)}` : `-${formatMoney(discountNum, settings.currency)}`
+                  )}
+                </span>
+              )}
+            </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>
 

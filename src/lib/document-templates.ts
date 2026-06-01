@@ -56,12 +56,30 @@ function fmtDate(d: string | null | undefined) {
 function escapeHtml(s?: string | null) {
   return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
+function formatPrintMath(val: number | string): string {
+  const sVal = String(val).trim();
+  if (sVal.includes("=")) {
+    const parts = sVal.split("=");
+    const expr = parts[0].trim();
+    const resVal = parseFloat(parts[parts.length - 1].trim());
+    const formattedRes = isNaN(resVal)
+      ? parts[parts.length - 1].trim()
+      : resVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    return `<span style="font-size: 0.85em; color: #6b7280; font-weight: normal; font-family: monospace;">${escapeHtml(expr)}</span> <span style="color: #9ca3af; font-family: monospace;">=</span> <span style="font-weight: 500;">${formattedRes}</span>`;
+  }
+
+  const numericVal = num(val);
+  const formattedRes = numericVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `<span>${formattedRes}</span>`;
+}
+
 function qtyStr(it: DocItem) {
-  const q = num(it.quantity).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return it.unit ? `${q} ${escapeHtml(it.unit)}` : q;
+  const qStr = formatPrintMath(it.quantity);
+  return it.unit ? `${qStr} ${escapeHtml(it.unit)}` : qStr;
 }
 function rateStr(it: DocItem) {
-  return num(it.unit_price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return formatPrintMath(it.unit_price);
 }
 function amtStr(it: DocItem) {
   return num(it.line_total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

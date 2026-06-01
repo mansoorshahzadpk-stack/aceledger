@@ -372,6 +372,8 @@ export type Database = {
           sort_order: number
           unit_price: number
           vehicle_ref: string | null
+          quantity_formula: string | null
+          unit_price_formula: string | null
         }
         Insert: {
           description: string
@@ -384,6 +386,8 @@ export type Database = {
           sort_order?: number
           unit_price?: number
           vehicle_ref?: string | null
+          quantity_formula?: string | null
+          unit_price_formula?: string | null
         }
         Update: {
           description?: string
@@ -396,6 +400,8 @@ export type Database = {
           sort_order?: number
           unit_price?: number
           vehicle_ref?: string | null
+          quantity_formula?: string | null
+          unit_price_formula?: string | null
         }
         Relationships: [
           {
@@ -428,6 +434,9 @@ export type Database = {
           total: number
           updated_at: string
           user_id: string
+          discount_formula: string | null
+          tax_formula: string | null
+          shipping_formula: string | null
         }
         Insert: {
           business_id: string
@@ -449,6 +458,9 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id: string
+          discount_formula?: string | null
+          tax_formula?: string | null
+          shipping_formula?: string | null
         }
         Update: {
           business_id?: string
@@ -470,6 +482,9 @@ export type Database = {
           total?: number
           updated_at?: string
           user_id?: string
+          discount_formula?: string | null
+          tax_formula?: string | null
+          shipping_formula?: string | null
         }
         Relationships: [
           {
@@ -686,6 +701,11 @@ export type Database = {
           unit_price: number
           user_id: string
           vendor_id: string
+          quantity_formula: string | null
+          unit_price_formula: string | null
+          discount_formula: string | null
+          tax_formula: string | null
+          shipping_formula: string | null
         }
         Insert: {
           business_id: string
@@ -708,6 +728,11 @@ export type Database = {
           unit_price?: number
           user_id: string
           vendor_id: string
+          quantity_formula?: string | null
+          unit_price_formula?: string | null
+          discount_formula?: string | null
+          tax_formula?: string | null
+          shipping_formula?: string | null
         }
         Update: {
           business_id?: string
@@ -730,6 +755,11 @@ export type Database = {
           unit_price?: number
           user_id?: string
           vendor_id?: string
+          quantity_formula?: string | null
+          unit_price_formula?: string | null
+          discount_formula?: string | null
+          tax_formula?: string | null
+          shipping_formula?: string | null
         }
         Relationships: [
           {

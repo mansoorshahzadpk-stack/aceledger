@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { parseMath, parsePercentageOrMath } from "@/lib/math-parser";
+import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -117,6 +117,11 @@ function NewGrnPage() {
       notes: form.notes || null,
       status,
       posted_at: status === "posted" ? new Date().toISOString() : null,
+      quantity_formula: getFormulaPart(form.quantity),
+      unit_price_formula: getFormulaPart(form.unit_price),
+      discount_formula: getFormulaPart(form.discount),
+      tax_formula: getFormulaPart(form.tax),
+      shipping_formula: getFormulaPart(form.shipping),
     } as any);
     if (error) toast.error(error.message);
     else {
@@ -191,10 +196,12 @@ function NewGrnPage() {
                   required
                   value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                  onBlur={() => setForm((f) => ({ ...f, quantity: String(parseMath(f.quantity)) }))}
+                  onFocus={() => setForm((f) => ({ ...f, quantity: formatOnFocus(f.quantity) }))}
+                  onBlur={() => setForm((f) => ({ ...f, quantity: formatOnBlur(f.quantity) }))}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      setForm((f) => ({ ...f, quantity: String(parseMath(f.quantity)) }));
+                      setForm((f) => ({ ...f, quantity: formatOnBlur(f.quantity) }));
+                      e.preventDefault();
                     }
                   }}
                   placeholder="e.g. 10 or 20*5"
@@ -207,10 +214,12 @@ function NewGrnPage() {
                   required
                   value={form.unit_price}
                   onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
-                  onBlur={() => setForm((f) => ({ ...f, unit_price: String(parseMath(f.unit_price)) }))}
+                  onFocus={() => setForm((f) => ({ ...f, unit_price: formatOnFocus(f.unit_price) }))}
+                  onBlur={() => setForm((f) => ({ ...f, unit_price: formatOnBlur(f.unit_price) }))}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      setForm((f) => ({ ...f, unit_price: String(parseMath(f.unit_price)) }));
+                      setForm((f) => ({ ...f, unit_price: formatOnBlur(f.unit_price) }));
+                      e.preventDefault();
                     }
                   }}
                   placeholder="e.g. 100 or 200/2"
@@ -224,14 +233,16 @@ function NewGrnPage() {
                   type="text"
                   value={form.discount}
                   onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                  onFocus={() => setForm((f) => ({ ...f, discount: formatOnFocus(f.discount) }))}
                   onBlur={() => {
                     if (!form.discount.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, discount: String(parseMath(f.discount)) }));
+                      setForm((f) => ({ ...f, discount: formatOnBlur(f.discount) }));
                     }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !form.discount.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, discount: String(parseMath(f.discount)) }));
+                      setForm((f) => ({ ...f, discount: formatOnBlur(f.discount) }));
+                      e.preventDefault();
                     }
                   }}
                   placeholder="e.g. 500 or 2%"
@@ -245,14 +256,16 @@ function NewGrnPage() {
                   type="text"
                   value={form.tax}
                   onChange={(e) => setForm({ ...form, tax: e.target.value })}
+                  onFocus={() => setForm((f) => ({ ...f, tax: formatOnFocus(f.tax) }))}
                   onBlur={() => {
                     if (!form.tax.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, tax: String(parseMath(f.tax)) }));
+                      setForm((f) => ({ ...f, tax: formatOnBlur(f.tax) }));
                     }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !form.tax.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, tax: String(parseMath(f.tax)) }));
+                      setForm((f) => ({ ...f, tax: formatOnBlur(f.tax) }));
+                      e.preventDefault();
                     }
                   }}
                   placeholder="e.g. 500 or 5%"
@@ -266,14 +279,16 @@ function NewGrnPage() {
                   type="text"
                   value={form.shipping}
                   onChange={(e) => setForm({ ...form, shipping: e.target.value })}
+                  onFocus={() => setForm((f) => ({ ...f, shipping: formatOnFocus(f.shipping) }))}
                   onBlur={() => {
                     if (!form.shipping.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, shipping: String(parseMath(f.shipping)) }));
+                      setForm((f) => ({ ...f, shipping: formatOnBlur(f.shipping) }));
                     }
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !form.shipping.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, shipping: String(parseMath(f.shipping)) }));
+                      setForm((f) => ({ ...f, shipping: formatOnBlur(f.shipping) }));
+                      e.preventDefault();
                     }
                   }}
                   placeholder="e.g. 1000 or 1.5%"

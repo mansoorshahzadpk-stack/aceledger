@@ -16,6 +16,7 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send } from "lucide-react";
 import { renderDocument } from "@/lib/document-templates";
+import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
 
 export const Route = createFileRoute("/_authenticated/vendors/$id")({
   component: VendorDetail,
@@ -34,6 +35,14 @@ type GRN = {
   notes: string | null;
   status?: "draft" | "posted";
   posted_at?: string | null;
+  tax?: number;
+  shipping?: number;
+  discount?: number;
+  quantity_formula?: string | null;
+  unit_price_formula?: string | null;
+  discount_formula?: string | null;
+  tax_formula?: string | null;
+  shipping_formula?: string | null;
 };
 
 function VendorDetail() {
@@ -114,10 +123,12 @@ function VendorDetail() {
     setEditGrn(g);
     setEditForm({
       grn_number: g.grn_number, grn_date: g.grn_date, material: g.material,
-      quantity: String(g.quantity), unit: g.unit, unit_price: String(g.unit_price),
-      discount: String(g.discount ?? 0),
-      tax: String(g.tax ?? 0),
-      shipping: String(g.shipping ?? 0),
+      quantity: g.quantity_formula ? `${g.quantity_formula} = ${g.quantity}` : String(g.quantity),
+      unit: g.unit,
+      unit_price: g.unit_price_formula ? `${g.unit_price_formula} = ${g.unit_price}` : String(g.unit_price),
+      discount: g.discount_formula ? (g.discount_formula.endsWith("%") ? g.discount_formula : `${g.discount_formula} = ${g.discount}`) : String(g.discount ?? 0),
+      tax: g.tax_formula ? (g.tax_formula.endsWith("%") ? g.tax_formula : `${g.tax_formula} = ${g.tax}`) : String(g.tax ?? 0),
+      shipping: g.shipping_formula ? (g.shipping_formula.endsWith("%") ? g.shipping_formula : `${g.shipping_formula} = ${g.shipping}`) : String(g.shipping ?? 0),
       notes: g.notes ?? "",
     });
     setEditReason("");
@@ -125,12 +136,13 @@ function VendorDetail() {
 
   const saveEdit = async () => {
     if (!editGrn || !user || !editForm) return;
-    const qty = parseFloat(editForm.quantity) || 0;
-    const price = parseFloat(editForm.unit_price) || 0;
-    const discount = parseFloat(editForm.discount) || 0;
-    const tax = parseFloat(editForm.tax) || 0;
-    const shipping = parseFloat(editForm.shipping) || 0;
-    const newTotal = (qty * price) - discount + tax + shipping;
+    const qty = parseMath(editForm.quantity) || 0;
+    const price = parseMath(editForm.unit_price) || 0;
+    const subtotal = qty * price;
+    const discount = parsePercentageOrMath(editForm.discount, subtotal);
+    const tax = parsePercentageOrMath(editForm.tax, subtotal);
+    const shipping = parsePercentageOrMath(editForm.shipping, subtotal);
+    const newTotal = subtotal - discount + tax + shipping;
     const isPosted = (editGrn.status || "posted") === "posted";
     if (isPosted) {
       if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
@@ -143,7 +155,12 @@ function VendorDetail() {
       grn_number: editForm.grn_number, grn_date: editForm.grn_date,
       material: editForm.material, quantity: qty, unit: editForm.unit,
       unit_price: price, discount: discount, tax: tax, shipping: shipping, total_amount: newTotal, notes: editForm.notes || null,
-    }).eq("id", editGrn.id);
+      quantity_formula: getFormulaPart(editForm.quantity),
+      unit_price_formula: getFormulaPart(editForm.unit_price),
+      discount_formula: getFormulaPart(editForm.discount),
+      tax_formula: getFormulaPart(editForm.tax),
+      shipping_formula: getFormulaPart(editForm.shipping),
+    } as any).eq("id", editGrn.id);
     toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
     setEditReason("");
@@ -184,6 +201,13 @@ function VendorDetail() {
   };
 
   const printGrn = (grn: GRN) => {
+    const displayQty = grn.quantity_formula
+      ? `${grn.quantity_formula} = ${grn.quantity}`
+      : grn.quantity;
+    const displayUnitPrice = grn.unit_price_formula
+      ? `${grn.unit_price_formula} = ${grn.unit_price}`
+      : grn.unit_price;
+
     renderDocument({
       template: settings.default_doc_template as any,
       title: "Goods Received Note",
@@ -192,7 +216,7 @@ function VendorDetail() {
       currency: settings.currency,
       business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
       counterparty: { label: "Received From", name: data?.v?.name, address: data?.v?.address, phone: data?.v?.phone },
-      items: [{ description: grn.material, quantity: grn.quantity, unit_price: grn.unit_price, line_total: grn.quantity * grn.unit_price, unit: grn.unit }],
+      items: [{ description: grn.material, quantity: displayQty, unit_price: displayUnitPrice, line_total: grn.quantity * grn.unit_price, unit: grn.unit }],
       subtotal: grn.quantity * grn.unit_price, tax: grn.tax || 0, shipping: grn.shipping || 0, discount: grn.discount, total: grn.total_amount, notes: grn.notes,
       showBalanceDue: false,
     });
@@ -358,14 +382,96 @@ function VendorDetail() {
               </div>
               <Field label="Material"><Input value={editForm.material} onChange={(e) => setEditForm({ ...editForm, material: e.target.value })} /></Field>
               <div className="grid grid-cols-4 gap-3">
-                <Field label="Qty"><Input type="number" step="0.001" value={editForm.quantity} onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })} /></Field>
+                <Field label="Qty">
+                  <Input
+                    type="text"
+                    value={editForm.quantity}
+                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                    onFocus={() => setEditForm({ ...editForm, quantity: formatOnFocus(editForm.quantity) })}
+                    onBlur={() => setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) });
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </Field>
                 <Field label="Unit"><Input value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} /></Field>
-                <Field label="Unit price"><Input type="number" step="0.01" value={editForm.unit_price} onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })} /></Field>
-                <Field label="Discount"><Input type="number" step="0.01" value={editForm.discount} onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })} /></Field>
+                <Field label="Unit price">
+                  <Input
+                    type="text"
+                    value={editForm.unit_price}
+                    onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })}
+                    onFocus={() => setEditForm({ ...editForm, unit_price: formatOnFocus(editForm.unit_price) })}
+                    onBlur={() => setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) });
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </Field>
+                <Field label="Discount">
+                  <Input
+                    type="text"
+                    value={editForm.discount}
+                    onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })}
+                    onFocus={() => setEditForm({ ...editForm, discount: formatOnFocus(editForm.discount) })}
+                    onBlur={() => {
+                      if (!editForm.discount.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount) });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !editForm.discount.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount) });
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Tax"><Input type="number" step="0.01" value={editForm.tax} onChange={(e) => setEditForm({ ...editForm, tax: e.target.value })} /></Field>
-                <Field label="Shipping / Freight"><Input type="number" step="0.01" value={editForm.shipping} onChange={(e) => setEditForm({ ...editForm, shipping: e.target.value })} /></Field>
+                <Field label="Tax">
+                  <Input
+                    type="text"
+                    value={editForm.tax}
+                    onChange={(e) => setEditForm({ ...editForm, tax: e.target.value })}
+                    onFocus={() => setEditForm({ ...editForm, tax: formatOnFocus(editForm.tax) })}
+                    onBlur={() => {
+                      if (!editForm.tax.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax) });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !editForm.tax.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax) });
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </Field>
+                <Field label="Shipping / Freight">
+                  <Input
+                    type="text"
+                    value={editForm.shipping}
+                    onChange={(e) => setEditForm({ ...editForm, shipping: e.target.value })}
+                    onFocus={() => setEditForm({ ...editForm, shipping: formatOnFocus(editForm.shipping) })}
+                    onBlur={() => {
+                      if (!editForm.shipping.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, shipping: formatOnBlur(editForm.shipping) });
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !editForm.shipping.trim().endsWith("%")) {
+                        setEditForm({ ...editForm, shipping: formatOnBlur(editForm.shipping) });
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </Field>
               </div>
               <Field label="Notes"><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></Field>
               {(editGrn?.status || "posted") === "posted" && (

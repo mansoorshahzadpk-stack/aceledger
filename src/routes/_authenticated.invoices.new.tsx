@@ -15,7 +15,7 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { formatMoney } from "@/lib/format";
 import { Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
-import { parseMath, parsePercentageOrMath } from "@/lib/math-parser";
+import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
 
 const search = z.object({ client: z.string().optional() });
 
@@ -102,6 +102,9 @@ function NewInvoice() {
       subtotal, tax: taxNum, shipping: shipNum, discount: discountNum, total,
       doc_template: settings.default_doc_template, notes: notes || null,
       posted_at: status === "posted" ? new Date().toISOString() : null,
+      discount_formula: getFormulaPart(discount),
+      tax_formula: getFormulaPart(tax),
+      shipping_formula: getFormulaPart(shipping),
     } as any).select().single();
     if (error) { toast.error(error.message); return; }
     const itemRows = items.filter((it) => it.description).map((it, idx) => ({
@@ -113,6 +116,8 @@ function NewInvoice() {
       product_id: it.product_id || null,
       grn_ref: it.grn_ref || null,
       vehicle_ref: it.vehicle_ref || null,
+      quantity_formula: getFormulaPart(it.quantity),
+      unit_price_formula: getFormulaPart(it.unit_price),
     }));
     await supabase.from("invoice_items").insert(itemRows as any);
     toast.success(status === "draft" ? "Draft saved" : "Invoice posted");
@@ -189,8 +194,8 @@ function NewInvoice() {
               </div>
               <div className="grid gap-2 md:grid-cols-[1fr_100px_140px_140px] md:items-end">
                 <Field label="Description"><Input value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })} placeholder="Material / service" /></Field>
-                <Field label="Qty" helper="supports math, e.g. 10/2"><Input type="text" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} onBlur={() => setItem(idx, { quantity: String(parseMath(it.quantity)) })} onKeyDown={(e) => { if (e.key === "Enter") setItem(idx, { quantity: String(parseMath(it.quantity)) }); }} placeholder="e.g. 5 or 10/2" /></Field>
-                <Field label="Unit price" helper="supports math, e.g. 200/2"><Input type="text" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} onBlur={() => setItem(idx, { unit_price: String(parseMath(it.unit_price)) })} onKeyDown={(e) => { if (e.key === "Enter") setItem(idx, { unit_price: String(parseMath(it.unit_price)) }); }} placeholder="e.g. 100 or 200/2" /></Field>
+                <Field label="Qty" helper="supports math, e.g. 10/2"><Input type="text" value={it.quantity} onChange={(e) => setItem(idx, { quantity: e.target.value })} onFocus={() => setItem(idx, { quantity: formatOnFocus(it.quantity) })} onBlur={() => setItem(idx, { quantity: formatOnBlur(it.quantity) })} onKeyDown={(e) => { if (e.key === "Enter") { setItem(idx, { quantity: formatOnBlur(it.quantity) }); e.preventDefault(); } }} placeholder="e.g. 5 or 10/2" /></Field>
+                <Field label="Unit price" helper="supports math, e.g. 200/2"><Input type="text" value={it.unit_price} onChange={(e) => setItem(idx, { unit_price: e.target.value })} onFocus={() => setItem(idx, { unit_price: formatOnFocus(it.unit_price) })} onBlur={() => setItem(idx, { unit_price: formatOnBlur(it.unit_price) })} onKeyDown={(e) => { if (e.key === "Enter") { setItem(idx, { unit_price: formatOnBlur(it.unit_price) }); e.preventDefault(); } }} placeholder="e.g. 100 or 200/2" /></Field>
                 <Field label="Amount"><div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">{formatMoney((parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0), settings.currency)}</div></Field>
               </div>
               <div className="grid gap-2 md:grid-cols-2">
@@ -215,21 +220,21 @@ function NewInvoice() {
                 <span>Tax</span>
                 {tax.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(taxNum, settings.currency)})</span>}
               </span>
-              <Input type="text" value={tax} onChange={(e) => setTax(e.target.value)} onBlur={() => { if (!tax.trim().endsWith("%")) setTax(String(parseMath(tax))); }} onKeyDown={(e) => { if (e.key === "Enter" && !tax.trim().endsWith("%")) setTax(String(parseMath(tax))); }} placeholder="e.g. 500 or 5%" className="h-8 w-36 text-right text-xs" />
+              <Input type="text" value={tax} onChange={(e) => setTax(e.target.value)} onFocus={() => setTax(formatOnFocus(tax))} onBlur={() => { if (!tax.trim().endsWith("%")) setTax(formatOnBlur(tax)); }} onKeyDown={(e) => { if (e.key === "Enter" && !tax.trim().endsWith("%")) { setTax(formatOnBlur(tax)); e.preventDefault(); } }} placeholder="e.g. 500 or 5%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground flex flex-col items-start">
                 <span>Shipping / Freight</span>
                 {shipping.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(shipNum, settings.currency)})</span>}
               </span>
-              <Input type="text" value={shipping} onChange={(e) => setShipping(e.target.value)} onBlur={() => { if (!shipping.trim().endsWith("%")) setShipping(String(parseMath(shipping))); }} onKeyDown={(e) => { if (e.key === "Enter" && !shipping.trim().endsWith("%")) setShipping(String(parseMath(shipping))); }} placeholder="e.g. 1000 or 1.5%" className="h-8 w-36 text-right text-xs" />
+              <Input type="text" value={shipping} onChange={(e) => setShipping(e.target.value)} onFocus={() => setShipping(formatOnFocus(shipping))} onBlur={() => { if (!shipping.trim().endsWith("%")) setShipping(formatOnBlur(shipping)); }} onKeyDown={(e) => { if (e.key === "Enter" && !shipping.trim().endsWith("%")) { setShipping(formatOnBlur(shipping)); e.preventDefault(); } }} placeholder="e.g. 1000 or 1.5%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground flex flex-col items-start">
                 <span>Discount</span>
                 {discount.trim().endsWith("%") && <span className="text-[10px] text-muted-foreground font-mono">({formatMoney(discountNum, settings.currency)})</span>}
               </span>
-              <Input type="text" value={discount} onChange={(e) => setDiscount(e.target.value)} onBlur={() => { if (!discount.trim().endsWith("%")) setDiscount(String(parseMath(discount))); }} onKeyDown={(e) => { if (e.key === "Enter" && !discount.trim().endsWith("%")) setDiscount(String(parseMath(discount))); }} placeholder="e.g. 500 or 2%" className="h-8 w-36 text-right text-xs" />
+              <Input type="text" value={discount} onChange={(e) => setDiscount(e.target.value)} onFocus={() => setDiscount(formatOnFocus(discount))} onBlur={() => { if (!discount.trim().endsWith("%")) setDiscount(formatOnBlur(discount)); }} onKeyDown={(e) => { if (e.key === "Enter" && !discount.trim().endsWith("%")) { setDiscount(formatOnBlur(discount)); e.preventDefault(); } }} placeholder="e.g. 500 or 2%" className="h-8 w-36 text-right text-xs" />
             </div>
             <div className="flex justify-between border-t pt-2 text-lg font-semibold"><span>Total</span><span className="figure">{formatMoney(total, settings.currency)}</span></div>
           </div>

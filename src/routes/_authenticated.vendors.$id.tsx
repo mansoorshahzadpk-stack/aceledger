@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,28 @@ function VendorDetail() {
   const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
-  const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "" });
+  const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: "" });
+
+  const { data: bankCashAssets = [] } = useQuery({
+    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      const { data, error } = await supabase
+        .from("assets" as any)
+        .select("id, name, type")
+        .eq("business_id", activeBusinessId)
+        .in("type", ["bank_account", "petty_cash"]);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeBusinessId,
+  });
+
+  useEffect(() => {
+    if (bankCashAssets.length > 0 && !pay.asset_id) {
+      setPay(prev => ({ ...prev, asset_id: bankCashAssets[0].id }));
+    }
+  }, [bankCashAssets, pay.asset_id]);
 
   const [editGrn, setEditGrn] = useState<GRN | null>(null);
   const [editForm, setEditForm] = useState<any>(null);
@@ -83,9 +104,10 @@ function VendorDetail() {
       method: pay.method as any,
       reference: pay.reference || null,
       notes: pay.notes || null,
+      asset_id: pay.asset_id === "" ? null : pay.asset_id,
     });
     if (error) toast.error(error.message);
-    else { toast.success("Payment logged"); setPayOpen(false); setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "" }); qc.invalidateQueries({ queryKey: ["vendor", id] }); }
+    else { toast.success("Payment logged"); setPayOpen(false); setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: bankCashAssets[0]?.id || "" }); qc.invalidateQueries({ queryKey: ["vendor", id] }); }
   };
 
   const openEdit = (g: GRN) => {
@@ -260,6 +282,18 @@ function VendorDetail() {
                       </Select>
                     </Field>
                   </div>
+                  <Field label="Withdrawal Account">
+                    <Select value={pay.asset_id} onValueChange={(v) => setPay({ ...pay, asset_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                      <SelectContent>
+                        {bankCashAssets.map((asset) => (
+                          <SelectItem key={asset.id} value={asset.id}>
+                            {asset.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <Field label="Reference"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} placeholder="Cheque # / Txn ID" /></Field>
                   <Field label="Notes"><Textarea value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} /></Field>
                   <DialogFooter><Button type="submit">Save payment</Button></DialogFooter>

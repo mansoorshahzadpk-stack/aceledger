@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,28 @@ function ClientsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
   const [payOpen, setPayOpen] = useState<string | null>(null);
-  const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "" });
+  const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: "" });
+
+  const { data: bankCashAssets = [] } = useQuery({
+    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      const { data, error } = await supabase
+        .from("assets" as any)
+        .select("id, name, type")
+        .eq("business_id", activeBusinessId)
+        .in("type", ["bank_account", "petty_cash"]);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeBusinessId,
+  });
+
+  useEffect(() => {
+    if (bankCashAssets.length > 0 && !pay.asset_id) {
+      setPay(prev => ({ ...prev, asset_id: bankCashAssets[0].id }));
+    }
+  }, [bankCashAssets, pay.asset_id]);
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients", user?.id, activeBusinessId],
@@ -102,12 +123,13 @@ function ClientsPage() {
       payment_date: pay.payment_date,
       method: pay.method as any,
       reference: pay.reference || null,
+      asset_id: pay.asset_id === "" ? null : pay.asset_id,
     });
     if (error) toast.error(error.message);
     else {
       toast.success("Payment Received recorded — balance updated");
       setPayOpen(null);
-      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "" });
+      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: bankCashAssets[0]?.id || "" });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
     }
@@ -240,6 +262,18 @@ function ClientsPage() {
                 </Select>
               </Field>
             </div>
+            <Field label="Deposit Account">
+              <Select value={pay.asset_id} onValueChange={(v) => setPay({ ...pay, asset_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectContent>
+                  {bankCashAssets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
             <Field label="Reference (optional)"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></Field>
             <DialogFooter><Button type="submit">Subtract from balance</Button></DialogFooter>
           </form>

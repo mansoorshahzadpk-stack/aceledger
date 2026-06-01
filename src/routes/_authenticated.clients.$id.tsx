@@ -20,14 +20,36 @@ export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetail,
 });
 
-interface PayForm { amount: string; payment_date: string; method: string; reference: string; invoice_id: string }
+interface PayForm { amount: string; payment_date: string; method: string; reference: string; invoice_id: string; asset_id: string }
 
 function ClientDetail() {
   const { id } = Route.useParams();
   const { settings, user, activeBusinessId } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
-  const [pay, setPay] = useState<PayForm>({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "" });
+  const [pay, setPay] = useState<PayForm>({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: "" });
+
+  const { data: bankCashAssets = [] } = useQuery({
+    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId) return [];
+      const { data, error } = await supabase
+        .from("assets" as any)
+        .select("id, name, type")
+        .eq("business_id", activeBusinessId)
+        .in("type", ["bank_account", "petty_cash"]);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeBusinessId,
+  });
+
+  const [lastSelectedAsset, setLastSelectedAsset] = useState("");
+  useEffect(() => {
+    if (bankCashAssets.length > 0 && !pay.asset_id) {
+      setPay(prev => ({ ...prev, asset_id: bankCashAssets[0].id }));
+    }
+  }, [bankCashAssets, pay.asset_id]);
 
   const [editPay, setEditPay] = useState<any | null>(null);
   const [editReason, setEditReason] = useState("");
@@ -66,12 +88,13 @@ function ClientDetail() {
       payment_date: pay.payment_date,
       method: pay.method as any,
       reference: pay.reference || null,
+      asset_id: pay.asset_id === "" ? null : pay.asset_id,
     });
     if (error) toast.error(error.message);
     else {
       toast.success("Payment Received recorded");
       setPayOpen(false);
-      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "" });
+      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: bankCashAssets[0]?.id || "" });
       qc.invalidateQueries({ queryKey: ["client", id] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -250,6 +273,18 @@ function ClientDetail() {
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
                   {postedInvoices.map((i) => <SelectItem key={i.id} value={i.id}>{i.invoice_number} · {formatMoney(i.total, settings.currency)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Deposit Account">
+              <Select value={pay.asset_id} onValueChange={(v) => setPay({ ...pay, asset_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectContent>
+                  {bankCashAssets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>

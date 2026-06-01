@@ -19,6 +19,10 @@ import {
   ShieldAlert,
   ChevronsUpDown,
   Plus,
+  BookOpen,
+  Coins,
+  Scale,
+  ClipboardCheck,
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -46,7 +50,11 @@ const NAV: NavItem[] = [
   { to: "/invoices", label: "Invoices", icon: FileText },
   { to: "/materials", label: "Materials", icon: Package },
   { to: "/inventory", label: "Inventory", icon: Warehouse },
-  { to: "/reports/pl", label: "P&L", icon: LineChart },
+  { to: "/ledger", label: "Ledger", icon: BookOpen },
+  { to: "/assets", label: "Assets", icon: Coins },
+  { to: "/reconciliation", label: "Reconciliation", icon: ClipboardCheck },
+  { to: "/reports/pl", label: "P&L Report", icon: LineChart },
+  { to: "/reports/balance", label: "Balance Sheet", icon: Scale },
   { to: "/reports/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/amendments", label: "Audit Log", icon: ShieldAlert },
   { to: "/settings", label: "Settings", icon: Settings },
@@ -263,42 +271,17 @@ export function AppShell() {
               More
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link to="/materials">
-                  <Package className="mr-2 h-4 w-4" />
-                  Materials
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/inventory">
-                  <Warehouse className="mr-2 h-4 w-4" />
-                  Inventory
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/reports/pl">
-                  <LineChart className="mr-2 h-4 w-4" />
-                  P&L
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/reports/analytics">
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Analytics
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/amendments">
-                  <ShieldAlert className="mr-2 h-4 w-4" />
-                  Audit Log
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
+              {NAV.slice(4).map((item) => {
+                const Icon = item.icon;
+                return (
+                  <DropdownMenuItem key={item.to} asChild>
+                    <Link to={item.to}>
+                      <Icon className="mr-2 h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  </DropdownMenuItem>
+                );
+              })}
               <DropdownMenuItem onClick={cycleTheme}>
                 <ThemeIcon className="mr-2 h-4 w-4" />
                 Theme: {settings.theme}

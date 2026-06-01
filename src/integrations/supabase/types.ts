@@ -103,9 +103,57 @@ export type Database = {
         }
         Relationships: []
       }
+      assets: {
+        Row: {
+          id: string
+          user_id: string
+          business_id: string
+          name: string
+          type: "bank_account" | "petty_cash" | "property_equipment"
+          initial_balance: number
+          current_valuation: number
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_id: string
+          name: string
+          type: "bank_account" | "petty_cash" | "property_equipment"
+          initial_balance?: number
+          current_valuation?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_id?: string
+          name?: string
+          type?: "bank_account" | "petty_cash" | "property_equipment"
+          initial_balance?: number
+          current_valuation?: number
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       client_payments: {
         Row: {
           amount: number
+          asset_id: string | null
           business_id: string
           client_id: string
           created_at: string
@@ -114,11 +162,13 @@ export type Database = {
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
           payment_date: string
+          reconciled: boolean
           reference: string | null
           user_id: string
         }
         Insert: {
           amount: number
+          asset_id?: string | null
           business_id: string
           client_id: string
           created_at?: string
@@ -127,11 +177,13 @@ export type Database = {
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string
+          reconciled?: boolean
           reference?: string | null
           user_id: string
         }
         Update: {
           amount?: number
+          asset_id?: string | null
           business_id?: string
           client_id?: string
           created_at?: string
@@ -140,10 +192,18 @@ export type Database = {
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string
+          reconciled?: boolean
           reference?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "client_payments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_payments_client_id_fkey"
             columns: ["client_id"]
@@ -421,6 +481,66 @@ export type Database = {
           },
         ]
       }
+      ledger_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          business_id: string
+          transaction_date: string
+          category: string
+          description: string | null
+          type: "debit" | "credit"
+          amount: number
+          asset_id: string | null
+          reconciled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_id: string
+          transaction_date?: string
+          category: string
+          description?: string | null
+          type: "debit" | "credit"
+          amount: number
+          asset_id?: string | null
+          reconciled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_id?: string
+          transaction_date?: string
+          category?: string
+          description?: string | null
+          type?: "debit" | "credit"
+          amount?: number
+          asset_id?: string | null
+          reconciled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_transactions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_transactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       payment_amendments: {
         Row: {
           action: Database["public"]["Enums"]["amend_action"]
@@ -624,41 +744,54 @@ export type Database = {
       vendor_payments: {
         Row: {
           amount: number
+          asset_id: string | null
           business_id: string
           created_at: string
           id: string
           method: Database["public"]["Enums"]["payment_method"]
           notes: string | null
           payment_date: string
+          reconciled: boolean
           reference: string | null
           user_id: string
           vendor_id: string
         }
         Insert: {
           amount: number
+          asset_id?: string | null
           business_id: string
           created_at?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string
+          reconciled?: boolean
           reference?: string | null
           user_id: string
           vendor_id: string
         }
         Update: {
           amount?: number
+          asset_id?: string | null
           business_id?: string
           created_at?: string
           id?: string
           method?: Database["public"]["Enums"]["payment_method"]
           notes?: string | null
           payment_date?: string
+          reconciled?: boolean
           reference?: string | null
           user_id?: string
           vendor_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vendor_payments_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vendor_payments_vendor_id_fkey"
             columns: ["vendor_id"]

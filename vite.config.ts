@@ -13,4 +13,9 @@ export default defineConfig({
       enabled: true,
     },
   },
+  vite: {
+    build: {
+      assetsDir: "app-assets",
+    },
+  },
 });

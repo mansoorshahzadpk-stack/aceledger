@@ -50,7 +50,8 @@ jobs:
             chmod 644 robots.txt;
             chmod 644 sitemap.xml;
             chmod 644 llms.txt;
-            chmod -R 755 assets;
+            chmod -R 755 app-assets || true;
+            chmod -R 755 assets || true;
             quit;
           "
 

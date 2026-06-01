@@ -628,12 +628,12 @@ function BalanceTab() {
             </Card>
 
             {isBalanced && (
-              <Card className="border-success/30 bg-success/5">
+              <Card className="border-emerald-500/20 bg-emerald-50/70 dark:bg-emerald-950/20">
                 <CardContent className="p-4 flex items-center gap-3">
-                  <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
-                  <div className="text-xs text-success-foreground">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="text-xs text-emerald-800 dark:text-emerald-200">
                     <span className="font-bold">Ledger Balanced.</span> The balance sheet matches standard accounting
-                    formula: <code className="bg-success/10 px-1 py-0.5 rounded">Assets ({formatMoney(data.totalAssets, c)}) = Liabilities + Equity ({formatMoney(data.totalLiabilities + data.equity, c)})</code>.
+                    formula: <code className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 px-1.5 py-0.5 rounded font-mono font-semibold">Assets ({formatMoney(data.totalAssets, c)}) = Liabilities + Equity ({formatMoney(data.totalLiabilities + data.equity, c)})</code>.
                   </div>
                 </CardContent>
               </Card>

@@ -131,9 +131,9 @@ function VendorsPage() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button asChild variant="outline"><Link to="/vendors/grn/new"><Truck className="mr-2 h-4 w-4" />Log GRN</Link></Button>
+          <Button asChild><Link to="/vendors/grn/new"><Truck className="mr-2 h-4 w-4" />Log GRN</Link></Button>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Vendor</Button></DialogTrigger>
+            <DialogTrigger asChild><Button variant="outline"><Plus className="mr-2 h-4 w-4" />New Vendor</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add Vendor</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-3">

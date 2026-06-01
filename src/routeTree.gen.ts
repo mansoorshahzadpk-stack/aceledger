@@ -14,7 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated.index'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated.settings'
-import { Route as AuthenticatedReconciliationRouteImport } from './routes/_authenticated.reconciliation'
+import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated.reports'
 import { Route as AuthenticatedLedgerRouteImport } from './routes/_authenticated.ledger'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated.inventory'
 import { Route as AuthenticatedAssetsRouteImport } from './routes/_authenticated.assets'
@@ -24,9 +24,6 @@ import { Route as AuthenticatedMaterialsIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
-import { Route as AuthenticatedReportsPlRouteImport } from './routes/_authenticated.reports.pl'
-import { Route as AuthenticatedReportsBalanceRouteImport } from './routes/_authenticated.reports.balance'
-import { Route as AuthenticatedReportsAnalyticsRouteImport } from './routes/_authenticated.reports.analytics'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated.invoices.new'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated.invoices.$id'
 import { Route as AuthenticatedClientsIdRouteImport } from './routes/_authenticated.clients.$id'
@@ -56,12 +53,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedReconciliationRoute =
-  AuthenticatedReconciliationRouteImport.update({
-    id: '/reconciliation',
-    path: '/reconciliation',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
+const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedLedgerRoute = AuthenticatedLedgerRouteImport.update({
   id: '/ledger',
   path: '/ledger',
@@ -111,23 +107,6 @@ const AuthenticatedVendorsIdRoute = AuthenticatedVendorsIdRouteImport.update({
   path: '/vendors/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedReportsPlRoute = AuthenticatedReportsPlRouteImport.update({
-  id: '/reports/pl',
-  path: '/reports/pl',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedReportsBalanceRoute =
-  AuthenticatedReportsBalanceRouteImport.update({
-    id: '/reports/balance',
-    path: '/reports/balance',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedReportsAnalyticsRoute =
-  AuthenticatedReportsAnalyticsRouteImport.update({
-    id: '/reports/analytics',
-    path: '/reports/analytics',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedInvoicesNewRoute =
   AuthenticatedInvoicesNewRouteImport.update({
     id: '/invoices/new',
@@ -159,14 +138,11 @@ export interface FileRoutesByFullPath {
   '/assets': typeof AuthenticatedAssetsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/ledger': typeof AuthenticatedLedgerRoute
-  '/reconciliation': typeof AuthenticatedReconciliationRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
-  '/reports/balance': typeof AuthenticatedReportsBalanceRoute
-  '/reports/pl': typeof AuthenticatedReportsPlRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
@@ -181,15 +157,12 @@ export interface FileRoutesByTo {
   '/assets': typeof AuthenticatedAssetsRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/ledger': typeof AuthenticatedLedgerRoute
-  '/reconciliation': typeof AuthenticatedReconciliationRoute
+  '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/': typeof AuthenticatedIndexRoute
   '/clients/$id': typeof AuthenticatedClientsIdRoute
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
-  '/reports/balance': typeof AuthenticatedReportsBalanceRoute
-  '/reports/pl': typeof AuthenticatedReportsPlRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
@@ -206,15 +179,12 @@ export interface FileRoutesById {
   '/_authenticated/assets': typeof AuthenticatedAssetsRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/ledger': typeof AuthenticatedLedgerRoute
-  '/_authenticated/reconciliation': typeof AuthenticatedReconciliationRoute
+  '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/clients/$id': typeof AuthenticatedClientsIdRoute
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
-  '/_authenticated/reports/analytics': typeof AuthenticatedReportsAnalyticsRoute
-  '/_authenticated/reports/balance': typeof AuthenticatedReportsBalanceRoute
-  '/_authenticated/reports/pl': typeof AuthenticatedReportsPlRoute
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
@@ -232,14 +202,11 @@ export interface FileRouteTypes {
     | '/assets'
     | '/inventory'
     | '/ledger'
-    | '/reconciliation'
+    | '/reports'
     | '/settings'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
-    | '/reports/analytics'
-    | '/reports/balance'
-    | '/reports/pl'
     | '/vendors/$id'
     | '/clients/'
     | '/invoices/'
@@ -254,15 +221,12 @@ export interface FileRouteTypes {
     | '/assets'
     | '/inventory'
     | '/ledger'
-    | '/reconciliation'
+    | '/reports'
     | '/settings'
     | '/'
     | '/clients/$id'
     | '/invoices/$id'
     | '/invoices/new'
-    | '/reports/analytics'
-    | '/reports/balance'
-    | '/reports/pl'
     | '/vendors/$id'
     | '/clients'
     | '/invoices'
@@ -278,15 +242,12 @@ export interface FileRouteTypes {
     | '/_authenticated/assets'
     | '/_authenticated/inventory'
     | '/_authenticated/ledger'
-    | '/_authenticated/reconciliation'
+    | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/'
     | '/_authenticated/clients/$id'
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/new'
-    | '/_authenticated/reports/analytics'
-    | '/_authenticated/reports/balance'
-    | '/_authenticated/reports/pl'
     | '/_authenticated/vendors/$id'
     | '/_authenticated/clients/'
     | '/_authenticated/invoices/'
@@ -338,11 +299,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/reconciliation': {
-      id: '/_authenticated/reconciliation'
-      path: '/reconciliation'
-      fullPath: '/reconciliation'
-      preLoaderRoute: typeof AuthenticatedReconciliationRouteImport
+    '/_authenticated/reports': {
+      id: '/_authenticated/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AuthenticatedReportsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/ledger': {
@@ -408,27 +369,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVendorsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/reports/pl': {
-      id: '/_authenticated/reports/pl'
-      path: '/reports/pl'
-      fullPath: '/reports/pl'
-      preLoaderRoute: typeof AuthenticatedReportsPlRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/reports/balance': {
-      id: '/_authenticated/reports/balance'
-      path: '/reports/balance'
-      fullPath: '/reports/balance'
-      preLoaderRoute: typeof AuthenticatedReportsBalanceRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/reports/analytics': {
-      id: '/_authenticated/reports/analytics'
-      path: '/reports/analytics'
-      fullPath: '/reports/analytics'
-      preLoaderRoute: typeof AuthenticatedReportsAnalyticsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/invoices/new': {
       id: '/_authenticated/invoices/new'
       path: '/invoices/new'
@@ -465,15 +405,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAssetsRoute: typeof AuthenticatedAssetsRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedLedgerRoute: typeof AuthenticatedLedgerRoute
-  AuthenticatedReconciliationRoute: typeof AuthenticatedReconciliationRoute
+  AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedClientsIdRoute: typeof AuthenticatedClientsIdRoute
   AuthenticatedInvoicesIdRoute: typeof AuthenticatedInvoicesIdRoute
   AuthenticatedInvoicesNewRoute: typeof AuthenticatedInvoicesNewRoute
-  AuthenticatedReportsAnalyticsRoute: typeof AuthenticatedReportsAnalyticsRoute
-  AuthenticatedReportsBalanceRoute: typeof AuthenticatedReportsBalanceRoute
-  AuthenticatedReportsPlRoute: typeof AuthenticatedReportsPlRoute
   AuthenticatedVendorsIdRoute: typeof AuthenticatedVendorsIdRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedInvoicesIndexRoute: typeof AuthenticatedInvoicesIndexRoute
@@ -487,15 +424,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAssetsRoute: AuthenticatedAssetsRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedLedgerRoute: AuthenticatedLedgerRoute,
-  AuthenticatedReconciliationRoute: AuthenticatedReconciliationRoute,
+  AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedClientsIdRoute: AuthenticatedClientsIdRoute,
   AuthenticatedInvoicesIdRoute: AuthenticatedInvoicesIdRoute,
   AuthenticatedInvoicesNewRoute: AuthenticatedInvoicesNewRoute,
-  AuthenticatedReportsAnalyticsRoute: AuthenticatedReportsAnalyticsRoute,
-  AuthenticatedReportsBalanceRoute: AuthenticatedReportsBalanceRoute,
-  AuthenticatedReportsPlRoute: AuthenticatedReportsPlRoute,
   AuthenticatedVendorsIdRoute: AuthenticatedVendorsIdRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedInvoicesIndexRoute: AuthenticatedInvoicesIndexRoute,

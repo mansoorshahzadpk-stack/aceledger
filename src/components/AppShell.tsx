@@ -52,10 +52,7 @@ const NAV: NavItem[] = [
   { to: "/inventory", label: "Inventory", icon: Warehouse },
   { to: "/ledger", label: "Ledger", icon: BookOpen },
   { to: "/assets", label: "Assets", icon: Coins },
-  { to: "/reconciliation", label: "Reconciliation", icon: ClipboardCheck },
-  { to: "/reports/pl", label: "P&L Report", icon: LineChart },
-  { to: "/reports/balance", label: "Balance Sheet", icon: Scale },
-  { to: "/reports/analytics", label: "Analytics", icon: BarChart3 },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/amendments", label: "Audit Log", icon: ShieldAlert },
   { to: "/settings", label: "Settings", icon: Settings },
 ];

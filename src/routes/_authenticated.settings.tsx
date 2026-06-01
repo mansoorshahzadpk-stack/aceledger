@@ -32,8 +32,8 @@ export const Route = createFileRoute("/_authenticated/settings")({
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [
   { id: "acelog", name: "Ace Design (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
   { id: "classic", name: "Classic", desc: "Formal serif masthead, centered title, ruled tables — traditional letterhead feel" },
-  { id: "modern", name: "Modern", desc: "Bold editorial layout with a full-bleed emerald header band and generous whitespace" },
-  { id: "compact", name: "Compact", desc: "Dense single-page receipt with zebra rows and tight typography" },
+  { id: "modern", name: "Modern", desc: "Bold layout with a blue and red header band, logo alignment, and clean tables" },
+  { id: "compact", name: "Simple", desc: "Elegant single-column layout with grouped metadata and payment info" },
 ];
 
 function SettingsPage() {
@@ -322,8 +322,8 @@ function SettingsPage() {
                   <div className="mt-3 h-16 rounded border bg-muted/40 px-2 py-1 text-[8px] leading-tight overflow-hidden">
                     {t.id === "acelog" && <div className="text-right text-xs font-light">Invoice <span className="text-[#4a90c2]">INV-0001</span></div>}
                     {t.id === "classic" && <div className="border-b-2 border-current pb-1 mb-1 font-serif font-bold">INVOICE</div>}
-                    {t.id === "modern" && <div className="text-lg font-extralight">Invoice</div>}
-                    {t.id === "compact" && <div className="border-b-2 border-current pb-0.5 mb-0.5 text-[10px] font-bold">INVOICE</div>}
+                    {t.id === "modern" && <div className="bg-[#1e3a8a] text-white p-1 mb-1 text-[10px] font-bold text-center rounded">INVOICE</div>}
+                    {t.id === "compact" && <div className="border-l-2 border-black pl-1 mb-1 text-[10px] font-bold">INVOICE</div>}
                     <div>Line · Line · Line</div>
                     <div>Line · Line · Line</div>
                   </div>

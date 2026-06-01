@@ -1,13 +1,31 @@
 async function run() {
-  const res = await fetch('https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs/26736132357/jobs');
-  const json = await res.json();
-  const job = json.jobs[0];
-  console.log(`Job Name: ${job.name}`);
-  console.log(`Job Status: ${job.status}`);
-  console.log(`Job Conclusion: ${job.conclusion}`);
-  console.log('\nSteps:');
-  for (const step of job.steps) {
-    console.log(`- ${step.name}: ${step.status} - ${step.conclusion}`);
+  const resRuns = await fetch('https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs?per_page=1');
+  const jsonRuns = await resRuns.json();
+  const latestRun = jsonRuns.workflow_runs[0];
+  if (!latestRun) {
+    console.log("No runs found.");
+    return;
+  }
+  
+  console.log(`Run ID: ${latestRun.id}`);
+  console.log(`Commit Message: ${latestRun.display_title}`);
+  console.log(`Status: ${latestRun.status}`);
+  console.log(`Conclusion: ${latestRun.conclusion}`);
+  console.log('---');
+
+  const resJobs = await fetch(`https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs/${latestRun.id}/jobs`);
+  const jsonJobs = await resJobs.json();
+  if (jsonJobs.jobs && jsonJobs.jobs.length > 0) {
+    const job = jsonJobs.jobs[0];
+    console.log(`Job Name: ${job.name}`);
+    console.log(`Job Status: ${job.status}`);
+    console.log(`Job Conclusion: ${job.conclusion}`);
+    console.log('\nSteps:');
+    for (const step of job.steps) {
+      console.log(`- ${step.name}: ${step.status} - ${step.conclusion}`);
+    }
+  } else {
+    console.log("No jobs found yet.");
   }
 }
 run();

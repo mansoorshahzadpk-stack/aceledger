@@ -402,8 +402,8 @@ export function AppShell() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant="default"
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
+                variant="outline"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
               >
                 <span className="flex items-center gap-2">
                   <Plus className="h-4 w-4 shrink-0" />

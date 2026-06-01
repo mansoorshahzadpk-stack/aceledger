@@ -509,14 +509,9 @@ function compactTemplate(d: DocInput): string {
   .totals-table td.val { text-align: right; font-variant-numeric: tabular-nums; }
   .totals-table tr.grand { border-top: 1.5px solid #000; border-bottom: 3px double #000; font-weight: bold; font-size: 13px; }
   .totals-table tr.grand td { padding: 8px 8px; color: #000; }
-  .bottom-container { display: flex; justify-content: space-between; align-items: flex-start; gap: 40px; margin-top: 20px; }
-  .bottom-left { flex: 1; }
-  .bottom-left .lbl { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 6px; }
-  .bottom-left .notes-body { font-size: 10.5px; color: #333; line-height: 1.45; white-space: pre-wrap; }
-  .bottom-right { width: 240px; text-align: right; }
-  .signature-block { display: inline-block; text-align: center; }
-  .signature-line { font-family: 'Brush Script MT', cursive, 'Courier New', sans-serif; font-size: 26px; color: #000; font-style: italic; line-height: 1; min-height: 28px; }
-  .signature-label { border-top: 1.5px solid #000; width: 200px; margin: 8px auto 0; padding-top: 4px; font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: #555; }
+  .notes-container { margin-top: 20px; }
+  .notes-container .lbl { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 6px; }
+  .notes-container .notes-body { font-size: 10.5px; color: #333; line-height: 1.45; white-space: pre-wrap; }
   @media print { @page { margin: 12mm; } body { padding: 0; } }
 </style></head>
 <body>
@@ -575,20 +570,12 @@ function compactTemplate(d: DocInput): string {
     </table>
   </div>
 
-  <div class="bottom-container">
-    <div class="bottom-left">
-      ${d.notes ? `
-        <div class="lbl">Payment Info / Notes</div>
-        <div class="notes-body">${escapeHtml(d.notes)}</div>
-      ` : ""}
+  ${d.notes ? `
+    <div class="notes-container">
+      <div class="lbl">Payment Info / Notes</div>
+      <div class="notes-body">${escapeHtml(d.notes)}</div>
     </div>
-    <div class="bottom-right">
-      <div class="signature-block">
-        <div class="signature-line">${escapeHtml(d.business.name || "Authorized Signature")}</div>
-        <div class="signature-label">Authorized Signature</div>
-      </div>
-    </div>
-  </div>
+  ` : ""}
 </body></html>`;
 }
 

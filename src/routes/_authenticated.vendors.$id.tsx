@@ -48,7 +48,7 @@ function VendorDetail() {
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
-        .from("assets" as any)
+        .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
         .in("type", ["bank_account", "petty_cash"]);

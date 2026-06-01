@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
-import { getIncomeStatementFn, getBalanceSheetFn } from "@/lib/financial-functions.server";
+import { getIncomeStatementFn, getBalanceSheetFn } from "@/lib/financial-functions";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -673,7 +673,7 @@ function ReconciliationTab() {
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
-        .from("assets" as any)
+        .from("assets")
         .select("id, name, type, initial_balance")
         .eq("business_id", activeBusinessId)
         .in("type", ["bank_account", "petty_cash"]);
@@ -728,7 +728,7 @@ function ReconciliationTab() {
   const reconcileMutation = useMutation({
     mutationFn: async ({ sourceTable, id, reconciled }: { sourceTable: string; id: string; reconciled: boolean }) => {
       const { error } = await supabase
-        .from(sourceTable)
+        .from(sourceTable as any)
         .update({ reconciled })
         .eq("id", id);
       if (error) throw error;
@@ -1124,8 +1124,8 @@ function AnalyticsTab() {
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgo(30)); setTo(todayISO()); }}>Last 30 days</Button>
-            <Button variant="outline" size="sm" onClick={() => { setFrom(daysAgo(90)); setTo(todayISO()); }}>Last 90 days</Button>
+            <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(30)); setTo(todayISO()); }}>Last 30 days</Button>
+            <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(90)); setTo(todayISO()); }}>Last 90 days</Button>
             <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)); setTo(todayISO()); }}>This month</Button>
             <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10)); setTo(todayISO()); }}>This year</Button>
           </div>

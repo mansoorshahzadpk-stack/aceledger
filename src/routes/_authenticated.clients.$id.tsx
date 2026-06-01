@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,7 @@ function ClientDetail() {
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
-        .from("assets" as any)
+        .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
         .in("type", ["bank_account", "petty_cash"]);

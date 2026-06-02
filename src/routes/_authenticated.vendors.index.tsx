@@ -43,10 +43,10 @@ function VendorsPage() {
   const { data: vendors, isLoading } = useQuery({
     queryKey: ["vendors", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
-      const { data: vs } = await supabase.from("vendors").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false });
-      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status").eq("business_id", activeBusinessId);
-      const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId);
+      if (!activeBusinessId || !user) return [];
+      const { data: vs } = await supabase.from("vendors").select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false });
+      const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
       return (vs ?? []).map((v) => {
         const owed = Number(v.opening_balance)
           + (grns ?? []).filter((g) => g.vendor_id === v.id && (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
@@ -93,10 +93,10 @@ function VendorsPage() {
 
   const deleteSelected = async () => {
     const ids = Array.from(selected);
-    if (ids.length === 0) return;
-    const { error: e1 } = await supabase.from("vendor_payments").delete().in("vendor_id", ids);
-    const { error: e2 } = await supabase.from("vendor_grns").delete().in("vendor_id", ids);
-    const { error: e3 } = await supabase.from("vendors").delete().in("id", ids);
+    if (ids.length === 0 || !user) return;
+    const { error: e1 } = await supabase.from("vendor_payments").delete().in("vendor_id", ids).eq("user_id", user.id);
+    const { error: e2 } = await supabase.from("vendor_grns").delete().in("vendor_id", ids).eq("user_id", user.id);
+    const { error: e3 } = await supabase.from("vendors").delete().in("id", ids).eq("user_id", user.id);
     if (e1 || e2 || e3) { toast.error((e1 || e2 || e3)!.message); return; }
     toast.success(`Deleted ${ids.length} vendor${ids.length === 1 ? "" : "s"}`);
     setSelected(new Set());

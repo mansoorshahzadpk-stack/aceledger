@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface IncomeStatementInput {
   businessId: string;
+  userId: string;
   fromDate: string;
   toDate: string;
 }
@@ -20,7 +21,7 @@ export interface IncomeStatementResult {
 }
 
 export async function getIncomeStatementFn(input: IncomeStatementInput): Promise<IncomeStatementResult> {
-  const { businessId, fromDate, toDate } = input;
+  const { businessId, userId, fromDate, toDate } = input;
 
   // Fetch posted invoices in date range
   const { data: invoices, error: invError } = await supabase
@@ -28,6 +29,7 @@ export async function getIncomeStatementFn(input: IncomeStatementInput): Promise
     .select("id, total, status, issue_date")
     .eq("status", "posted")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .gte("issue_date", fromDate)
     .lte("issue_date", toDate);
 
@@ -39,6 +41,7 @@ export async function getIncomeStatementFn(input: IncomeStatementInput): Promise
     .select("id, total_amount, status, grn_date")
     .eq("status", "posted")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .gte("grn_date", fromDate)
     .lte("grn_date", toDate);
 
@@ -49,6 +52,7 @@ export async function getIncomeStatementFn(input: IncomeStatementInput): Promise
     .from("ledger_transactions")
     .select("id, amount, category, type, transaction_date")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .gte("transaction_date", fromDate)
     .lte("transaction_date", toDate);
 
@@ -94,6 +98,7 @@ export async function getIncomeStatementFn(input: IncomeStatementInput): Promise
 
 export interface BalanceSheetInput {
   businessId: string;
+  userId: string;
   asOfDate: string;
 }
 
@@ -112,13 +117,14 @@ export interface BalanceSheetResult {
 }
 
 export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<BalanceSheetResult> {
-  const { businessId, asOfDate } = input;
+  const { businessId, userId, asOfDate } = input;
 
   // 1. Fetch Assets
   const { data: assets, error: assetsError } = await supabase
     .from("assets")
     .select("*")
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("user_id", userId);
 
   if (assetsError) throw assetsError;
 
@@ -127,6 +133,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     .from("client_payments")
     .select("amount, asset_id, payment_date, client_id")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .lte("payment_date", asOfDate);
 
   if (clientPaysError) throw clientPaysError;
@@ -136,6 +143,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     .from("vendor_payments")
     .select("amount, asset_id, payment_date, vendor_id")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .lte("payment_date", asOfDate);
 
   if (vendorPaysError) throw vendorPaysError;
@@ -145,6 +153,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     .from("ledger_transactions")
     .select("amount, asset_id, type, transaction_date")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .lte("transaction_date", asOfDate);
 
   if (ledgerError) throw ledgerError;
@@ -182,7 +191,8 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   const { data: clients, error: clientsError } = await supabase
     .from("clients")
     .select("id, name, opening_balance")
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("user_id", userId);
 
   if (clientsError) throw clientsError;
 
@@ -191,6 +201,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     .select("id, total, status, issue_date, client_id")
     .eq("status", "posted")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .lte("issue_date", asOfDate);
 
   if (clientInvsError) throw clientInvsError;
@@ -216,7 +227,8 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   const { data: vendors, error: vendorsError } = await supabase
     .from("vendors")
     .select("id, name, opening_balance")
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("user_id", userId);
 
   if (vendorsError) throw vendorsError;
 
@@ -225,6 +237,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     .select("id, total_amount, status, grn_date, vendor_id, product_id, material, quantity, unit, unit_price")
     .eq("status", "posted")
     .eq("business_id", businessId)
+    .eq("user_id", userId)
     .lte("grn_date", asOfDate);
 
   if (vendorGrnsError) throw vendorGrnsError;
@@ -255,7 +268,8 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   const { data: products, error: productsError } = await supabase
     .from("products")
     .select("id, name, sku, unit")
-    .eq("business_id", businessId);
+    .eq("business_id", businessId)
+    .eq("user_id", userId);
 
   if (productsError) throw productsError;
 

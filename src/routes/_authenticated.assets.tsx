@@ -53,29 +53,30 @@ function AssetsPage() {
 
   // Query assets
   const { data: assets = [], isLoading, isSuccess } = useQuery({
-    queryKey: ["assets", activeBusinessId],
+    queryKey: ["assets", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("assets" as any)
         .select("*")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .order("name");
       if (error) throw error;
       return (data || []) as unknown as Asset[];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Query related flows to compute balances on the client dynamically
   const { data: flows } = useQuery({
-    queryKey: ["asset_flows", activeBusinessId],
+    queryKey: ["asset_flows", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
+      if (!activeBusinessId || !user) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
       const [{ data: clientPays }, { data: vendorPays }, { data: ledgerTxs }] = await Promise.all([
-        supabase.from("client_payments").select("amount, asset_id").eq("business_id", activeBusinessId),
-        supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId),
-        supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId),
+        supabase.from("client_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
       return {
         clientPays: clientPays || [],
@@ -83,7 +84,7 @@ function AssetsPage() {
         ledgerTxs: ledgerTxs || [],
       };
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Provision defaults mutation
@@ -135,7 +136,8 @@ function AssetsPage() {
         const { error } = await supabase
           .from("assets" as any)
           .update(payload)
-          .eq("id", editingAsset.id);
+          .eq("id", editingAsset.id)
+          .eq("user_id", user.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -164,10 +166,12 @@ function AssetsPage() {
   // Delete Asset
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!user) return;
       const { error } = await supabase
         .from("assets" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {

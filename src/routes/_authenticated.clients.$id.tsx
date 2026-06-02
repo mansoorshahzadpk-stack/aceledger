@@ -30,18 +30,19 @@ function ClientDetail() {
   const [pay, setPay] = useState<PayForm>({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: "" });
 
   const { data: bankCashAssets = [] } = useQuery({
-    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   const [lastSelectedAsset, setLastSelectedAsset] = useState("");
@@ -59,14 +60,14 @@ function ClientDetail() {
   const [delReason, setDelReason] = useState("");
 
   const { data } = useQuery({
-    queryKey: ["client", id, activeBusinessId],
+    queryKey: ["client", user?.id, id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return { c: null, invs: [], pays: [], amends: [], outstanding: 0, posted: 0 };
+      if (!activeBusinessId || !user) return { c: null, invs: [], pays: [], amends: [], outstanding: 0, posted: 0 };
       const [{ data: c }, { data: invs }, { data: pays }, { data: amends }] = await Promise.all([
-        supabase.from("clients").select("*").eq("id", id).eq("business_id", activeBusinessId).single(),
-        supabase.from("invoices").select("*").eq("client_id", id).eq("business_id", activeBusinessId).order("issue_date", { ascending: false }),
-        supabase.from("client_payments").select("*").eq("client_id", id).eq("business_id", activeBusinessId).order("payment_date", { ascending: false }),
-        supabase.from("payment_amendments").select("*").eq("client_id", id).order("created_at", { ascending: false }),
+        supabase.from("clients").select("*").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
+        supabase.from("invoices").select("*").eq("client_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("issue_date", { ascending: false }),
+        supabase.from("client_payments").select("*").eq("client_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
+        supabase.from("payment_amendments").select("*").eq("client_id", id).eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       const posted = (invs ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
       const paid = (pays ?? []).reduce((s, x) => s + Number(x.amount), 0);
@@ -116,7 +117,7 @@ function ClientDetail() {
       action: "edit", previous_amount: editPay.amount, new_amount: newAmt,
       reason: editReason.trim(),
     });
-    await supabase.from("client_payments").update({ amount: newAmt }).eq("id", editPay.id);
+    await supabase.from("client_payments").update({ amount: newAmt }).eq("id", editPay.id).eq("user_id", user.id);
     toast.success("Payment Received amended");
     setEditPay(null);
     qc.invalidateQueries({ queryKey: ["client", id] });
@@ -132,7 +133,7 @@ function ClientDetail() {
       action: "delete", previous_amount: delPay.amount, new_amount: 0,
       reason: delReason.trim(),
     });
-    await supabase.from("client_payments").delete().eq("id", delPay.id);
+    await supabase.from("client_payments").delete().eq("id", delPay.id).eq("user_id", user.id);
     toast.success("Payment Received deleted");
     setDelPay(null); setDelReason("");
     qc.invalidateQueries({ queryKey: ["client", id] });

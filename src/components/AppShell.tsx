@@ -127,48 +127,51 @@ export function AppShell() {
 
   // Fetch supporting collections for shortcuts
   const { data: bankCashAssets = [] } = useQuery({
-    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "")
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   const { data: clients = [] } = useQuery({
-    queryKey: ["clients_list", activeBusinessId],
+    queryKey: ["clients_list", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
         .from("clients")
         .select("id, name")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "")
         .order("name", { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   const { data: vendors = [] } = useQuery({
-    queryKey: ["vendors_list", activeBusinessId],
+    queryKey: ["vendors_list", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
         .from("vendors")
         .select("id, name")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "")
         .order("name", { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Synced select defaults

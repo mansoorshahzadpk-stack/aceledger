@@ -53,18 +53,19 @@ function VendorDetail() {
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: "" });
 
   const { data: bankCashAssets = [] } = useQuery({
-    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   useEffect(() => {
@@ -81,14 +82,14 @@ function VendorDetail() {
   const [deleteReason, setDeleteReason] = useState("");
 
   const { data } = useQuery({
-    queryKey: ["vendor", id, activeBusinessId],
+    queryKey: ["vendor", user?.id, id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return { v: null, grns: [], pays: [], owed: 0, amends: [] };
+      if (!activeBusinessId || !user) return { v: null, grns: [], pays: [], owed: 0, amends: [] };
       const [{ data: v }, { data: grns }, { data: pays }, { data: amends }] = await Promise.all([
-        supabase.from("vendors").select("*").eq("id", id).eq("business_id", activeBusinessId).single(),
-        supabase.from("vendor_grns").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).order("grn_date", { ascending: false }),
-        supabase.from("vendor_payments").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).order("payment_date", { ascending: false }),
-        supabase.from("grn_amendments" as any).select("*").order("created_at", { ascending: false }),
+        supabase.from("vendors").select("*").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
+        supabase.from("vendor_grns").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("grn_date", { ascending: false }),
+        supabase.from("vendor_payments").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
+        supabase.from("grn_amendments" as any).select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       const owed = Number(v?.opening_balance ?? 0)
         + (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
@@ -160,7 +161,7 @@ function VendorDetail() {
       discount_formula: getFormulaPart(editForm.discount),
       tax_formula: getFormulaPart(editForm.tax),
       shipping_formula: getFormulaPart(editForm.shipping),
-    } as any).eq("id", editGrn.id);
+    } as any).eq("id", editGrn.id).eq("user_id", user.id);
     toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
     setEditReason("");
@@ -178,7 +179,7 @@ function VendorDetail() {
         previous_total: deleteGrn.total_amount, new_total: 0, action: "delete",
       });
     }
-    await supabase.from("vendor_grns").delete().eq("id", deleteGrn.id);
+    await supabase.from("vendor_grns").delete().eq("id", deleteGrn.id).eq("user_id", user.id);
     toast.success("GRN deleted");
     setDeleteGrn(null); setDeleteReason("");
     qc.invalidateQueries({ queryKey: ["vendor", id] });
@@ -190,7 +191,7 @@ function VendorDetail() {
     const { error } = await supabase.from("vendor_grns").update({
       status: "posted",
       posted_at: new Date().toISOString()
-    } as any).eq("id", grn.id);
+    } as any).eq("id", grn.id).eq("user_id", user.id);
     if (error) {
       toast.error(error.message);
     } else {

@@ -135,7 +135,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .from("app_settings")
           .update({ active_business_id: defaultBiz.id })
           .eq("user_id", user.id);
-        appSettingsData.active_business_id = defaultBiz.id;
+        if (appSettingsData) {
+          appSettingsData.active_business_id = defaultBiz.id;
+        }
       }
     }
 
@@ -155,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     setActiveBusiness(activeBiz);
-    setActiveBusinessId(activeId);
+    setActiveBusinessId(activeId || null);
 
     if (appSettingsData) {
       const themeVal = appSettingsData.theme as UiTheme;
@@ -234,7 +236,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .eq("user_id", user.id);
     }
 
-    const { error } = await supabase.from("businesses").delete().eq("id", id);
+    const { error } = await supabase
+      .from("businesses")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
     if (error) throw error;
     await refreshSettings();
   };
@@ -246,7 +252,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase
       .from("businesses")
       .update(patch)
-      .eq("id", activeBusinessId);
+      .eq("id", activeBusinessId)
+      .eq("user_id", user.id);
     if (error) throw error;
     await refreshSettings();
   };

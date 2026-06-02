@@ -44,18 +44,19 @@ function ClientsPage() {
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: "" });
 
   const { data: bankCashAssets = [] } = useQuery({
-    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   useEffect(() => {
@@ -67,11 +68,11 @@ function ClientsPage() {
   const { data: clients, isLoading } = useQuery({
     queryKey: ["clients", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const [{ data: cs }, { data: invs }, { data: pays }] = await Promise.all([
-        supabase.from("clients").select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false }),
-        supabase.from("invoices").select("client_id, total, status").eq("business_id", activeBusinessId),
-        supabase.from("client_payments").select("client_id, amount").eq("business_id", activeBusinessId),
+        supabase.from("clients").select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("invoices").select("client_id, total, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("client_payments").select("client_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
       return (cs ?? []).map((c) => {
         const posted = (invs ?? []).filter((i) => i.client_id === c.id && i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
@@ -137,17 +138,17 @@ function ClientsPage() {
 
   const deleteSelected = async () => {
     const ids = Array.from(selected);
-    if (ids.length === 0) return;
+    if (ids.length === 0 || !user) return;
     // payments → amendments → items → invoices → clients
-    const { data: invs } = await supabase.from("invoices").select("id").in("client_id", ids);
+    const { data: invs } = await supabase.from("invoices").select("id").in("client_id", ids).eq("user_id", user.id);
     const invIds = (invs ?? []).map((i) => i.id);
-    await supabase.from("client_payments").delete().in("client_id", ids);
+    await supabase.from("client_payments").delete().in("client_id", ids).eq("user_id", user.id);
     if (invIds.length) {
-      await supabase.from("invoice_amendments").delete().in("invoice_id", invIds);
+      await supabase.from("invoice_amendments").delete().in("invoice_id", invIds).eq("user_id", user.id);
       await supabase.from("invoice_items").delete().in("invoice_id", invIds);
-      await supabase.from("invoices").delete().in("id", invIds);
+      await supabase.from("invoices").delete().in("id", invIds).eq("user_id", user.id);
     }
-    const { error } = await supabase.from("clients").delete().in("id", ids);
+    const { error } = await supabase.from("clients").delete().in("id", ids).eq("user_id", user.id);
     if (error) { toast.error(error.message); return; }
     toast.success(`Deleted ${ids.length} client${ids.length === 1 ? "" : "s"}`);
     setSelected(new Set());

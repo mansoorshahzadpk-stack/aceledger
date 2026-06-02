@@ -32,8 +32,15 @@ function InvoicesPage() {
   const { data: invoices, isLoading } = useQuery({
     queryKey: ["invoices", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
-      return (await supabase.from("invoices").select("*, clients(name)").eq("business_id", activeBusinessId).order("issue_date", { ascending: false })).data ?? [];
+      if (!activeBusinessId || !user) return [];
+      return (
+        await supabase
+          .from("invoices")
+          .select("*, clients(name)")
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("issue_date", { ascending: false })
+      ).data ?? [];
     },
     enabled: !!user,
   });

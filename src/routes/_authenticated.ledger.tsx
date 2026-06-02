@@ -69,34 +69,36 @@ function LedgerPage() {
 
   // Fetch ledger transactions
   const { data: transactions = [], isLoading } = useQuery({
-    queryKey: ["ledger_transactions", activeBusinessId],
+    queryKey: ["ledger_transactions", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("ledger_transactions" as any)
         .select("*, assets:assets(name)")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .order("transaction_date", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as LedgerTransaction[];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Fetch assets (only bank and cash accounts to link with transactions)
   const { data: bankCashAssets = [] } = useQuery({
-    queryKey: ["bank_cash_assets", activeBusinessId],
+    queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
+      if (!activeBusinessId || !user) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Log new transaction or save edited
@@ -107,7 +109,8 @@ function LedgerPage() {
         const { error } = await supabase
           .from("ledger_transactions" as any)
           .update(payload)
-          .eq("id", editingTx.id);
+          .eq("id", editingTx.id)
+          .eq("user_id", user.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
@@ -145,10 +148,12 @@ function LedgerPage() {
   // Delete transaction
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      if (!user) return;
       const { error } = await supabase
         .from("ledger_transactions" as any)
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user.id);
       if (error) throw error;
     },
     onSuccess: () => {

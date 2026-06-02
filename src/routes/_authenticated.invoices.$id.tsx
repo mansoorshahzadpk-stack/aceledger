@@ -51,14 +51,14 @@ function InvoiceDetail() {
   const [items, setItems] = useState<Item[]>([]);
 
   const { data } = useQuery({
-    queryKey: ["invoice", id, activeBusinessId],
+    queryKey: ["invoice", user?.id, id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return { inv: null, items: [], amendments: [], payments: [] };
+      if (!activeBusinessId || !user) return { inv: null, items: [], amendments: [], payments: [] };
       const [{ data: inv }, { data: its }, { data: amends }, { data: pays }] = await Promise.all([
-        supabase.from("invoices").select("*, clients(*)").eq("id", id).eq("business_id", activeBusinessId).single(),
+        supabase.from("invoices").select("*, clients(*)").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
         supabase.from("invoice_items").select("*").eq("invoice_id", id).order("sort_order"),
-        supabase.from("invoice_amendments").select("*").eq("invoice_id", id).order("created_at", { ascending: false }),
-        supabase.from("client_payments").select("*").eq("invoice_id", id),
+        supabase.from("invoice_amendments").select("*").eq("invoice_id", id).eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("client_payments").select("*").eq("invoice_id", id).eq("user_id", user.id),
       ]);
       return { inv, items: its ?? [], amendments: amends ?? [], payments: pays ?? [] };
     },
@@ -110,13 +110,14 @@ function InvoiceDetail() {
   };
 
   const saveDraftEdit = async () => {
+    if (!user) return;
     await supabase.from("invoices").update({
       invoice_number: form.invoice_number, issue_date: form.issue_date, due_date: form.due_date || null,
       tax: taxNum, shipping: shipNum, discount: discountNum, subtotal, total, notes: form.notes || null, doc_template: form.doc_template,
       tax_formula: getFormulaPart(form.tax),
       shipping_formula: getFormulaPart(form.shipping),
       discount_formula: getFormulaPart(form.discount),
-    } as any).eq("id", id);
+    } as any).eq("id", id).eq("user_id", user.id);
     await writeItems();
     toast.success("Draft saved");
     setEditing(false);
@@ -144,7 +145,7 @@ function InvoiceDetail() {
       tax_formula: getFormulaPart(pendingTotal.meta.tax),
       shipping_formula: getFormulaPart(pendingTotal.meta.shipping),
       discount_formula: getFormulaPart(pendingTotal.meta.discount),
-    } as any).eq("id", id);
+    } as any).eq("id", id).eq("user_id", user.id);
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
     await supabase.from("invoice_items").insert(pendingTotal.items.filter((it) => it.description).map((it, idx) => ({
       invoice_id: id, description: it.description,
@@ -163,16 +164,17 @@ function InvoiceDetail() {
 
   const deleteInvoice = async () => {
     if (isPosted && deleteReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
-    if (isPosted && user) {
+    if (!user) return;
+    if (isPosted) {
       await supabase.from("invoice_amendments").insert({
         invoice_id: id, user_id: user.id, reason: `[DELETED] ${deleteReason.trim()}`,
         previous_total: inv.total, new_total: 0,
       });
     }
-    await supabase.from("client_payments").delete().eq("invoice_id", id);
+    await supabase.from("client_payments").delete().eq("invoice_id", id).eq("user_id", user.id);
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
-    await supabase.from("invoice_amendments").delete().eq("invoice_id", id);
-    await supabase.from("invoices").delete().eq("id", id);
+    await supabase.from("invoice_amendments").delete().eq("invoice_id", id).eq("user_id", user.id);
+    await supabase.from("invoices").delete().eq("id", id).eq("user_id", user.id);
     toast.success("Invoice deleted");
     qc.invalidateQueries({ queryKey: ["invoices"] });
     qc.invalidateQueries({ queryKey: ["clients"] });
@@ -181,7 +183,8 @@ function InvoiceDetail() {
   };
 
   const postInvoice = async () => {
-    await supabase.from("invoices").update({ status: "posted", posted_at: new Date().toISOString() }).eq("id", id);
+    if (!user) return;
+    await supabase.from("invoices").update({ status: "posted", posted_at: new Date().toISOString() }).eq("id", id).eq("user_id", user.id);
     toast.success("Invoice posted — added to client balance");
     qc.invalidateQueries({ queryKey: ["invoice", id] });
     qc.invalidateQueries({ queryKey: ["clients"] });

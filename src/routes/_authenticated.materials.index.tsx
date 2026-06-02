@@ -58,8 +58,8 @@ function MaterialsPage() {
   const { data: materials, isLoading } = useQuery({
     queryKey: ["materials", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
-      const { data } = await supabase.from("products" as any).select("*").eq("business_id", activeBusinessId).order("created_at", { ascending: false });
+      if (!activeBusinessId || !user) return [];
+      const { data } = await supabase.from("products" as any).select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false });
       return (data ?? []) as unknown as MaterialRow[];
     },
     enabled: !!user,
@@ -88,7 +88,7 @@ function MaterialsPage() {
       active: form.active,
     };
     const res = form.id
-      ? await supabase.from("products" as any).update(payload).eq("id", form.id)
+      ? await supabase.from("products" as any).update(payload).eq("id", form.id).eq("user_id", user.id)
       : await supabase.from("products" as any).insert({ ...payload, user_id: user.id, business_id: activeBusinessId });
     if (res.error) { toast.error(res.error.message); return; }
     toast.success(form.id ? "Material updated" : "Material added");
@@ -98,7 +98,8 @@ function MaterialsPage() {
   };
 
   const toggleActive = async (p: MaterialRow) => {
-    await supabase.from("products" as any).update({ active: !p.active }).eq("id", p.id);
+    if (!user) return;
+    await supabase.from("products" as any).update({ active: !p.active }).eq("id", p.id).eq("user_id", user.id);
     qc.invalidateQueries({ queryKey: ["materials"] });
     qc.invalidateQueries({ queryKey: ["materials-active"] });
   };
@@ -116,8 +117,8 @@ function MaterialsPage() {
 
   const deleteSelected = async () => {
     const ids = Array.from(selected);
-    if (ids.length === 0) return;
-    const { error } = await supabase.from("products" as any).delete().in("id", ids);
+    if (ids.length === 0 || !user) return;
+    const { error } = await supabase.from("products" as any).delete().in("id", ids).eq("user_id", user.id);
     if (error) { toast.error(error.message); return; }
     toast.success(`Deleted ${ids.length} material${ids.length === 1 ? "" : "s"}`);
     setSelected(new Set());

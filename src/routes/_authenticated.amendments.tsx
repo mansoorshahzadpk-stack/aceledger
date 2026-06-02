@@ -25,16 +25,16 @@ function AuditLog() {
   const { settings, user, activeBusinessId } = useApp();
 
   const { data } = useQuery({
-    queryKey: ["amendments", activeBusinessId],
-    enabled: !!activeBusinessId,
+    queryKey: ["amendments", user?.id, activeBusinessId],
+    enabled: !!activeBusinessId && !!user,
     queryFn: async () => {
       const [{ data: inv }, { data: grn }, { data: pay }, invDocs, grnDocs, payClients] = await Promise.all([
-        supabase.from("invoice_amendments").select("*").order("created_at", { ascending: false }),
-        supabase.from("grn_amendments").select("*").order("created_at", { ascending: false }),
-        supabase.from("payment_amendments").select("*").order("created_at", { ascending: false }),
-        supabase.from("invoices").select("id, invoice_number").eq("business_id", activeBusinessId),
-        supabase.from("vendor_grns").select("id, grn_number").eq("business_id", activeBusinessId),
-        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId),
+        supabase.from("invoice_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
+        supabase.from("grn_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
+        supabase.from("payment_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
+        supabase.from("invoices").select("id, invoice_number").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
+        supabase.from("vendor_grns").select("id, grn_number").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
+        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
       ]);
       const invMap = new Map((invDocs.data ?? []).map((r) => [r.id, r.invoice_number]));
       const grnMap = new Map((grnDocs.data ?? []).map((r) => [r.id, r.grn_number]));

@@ -54,8 +54,8 @@ function NewInvoice() {
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
-      return (await supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).order("name")).data ?? [];
+      if (!activeBusinessId || !user) return [];
+      return (await supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user.id).order("name")).data ?? [];
     },
     enabled: !!user,
   });
@@ -63,8 +63,8 @@ function NewInvoice() {
   const { data: materials } = useQuery({
     queryKey: ["materials-active", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId) return [];
-      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).eq("business_id", activeBusinessId).order("name");
+      if (!activeBusinessId || !user) return [];
+      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).eq("business_id", activeBusinessId).eq("user_id", user.id).order("name");
       return (data ?? []) as unknown as Material[];
     },
     enabled: !!user,

@@ -128,6 +128,7 @@ function SettingsPage() {
         .from("vendors")
         .select("id")
         .eq("business_id", activeBusiness.id)
+        .eq("user_id", user.id)
         .limit(1);
       if (existing && existing.length > 0) {
         toast.info("Demo data already loaded for this business — skipping");

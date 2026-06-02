@@ -146,11 +146,12 @@ function PLTab() {
   };
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["income_statement", activeBusinessId, from, to],
+    queryKey: ["income_statement", user?.id, activeBusinessId, from, to],
     queryFn: () => {
-      if (!activeBusinessId) return null;
+      if (!activeBusinessId || !user) return null;
       return getIncomeStatementFn({
         businessId: activeBusinessId,
+        userId: user.id,
         fromDate: from,
         toDate: to,
       });
@@ -423,11 +424,12 @@ function BalanceTab() {
   const [asOfDate, setAsOfDate] = useState(todayISO());
 
   const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["balance_sheet", activeBusinessId, asOfDate],
+    queryKey: ["balance_sheet", user?.id, activeBusinessId, asOfDate],
     queryFn: () => {
-      if (!activeBusinessId) return null;
+      if (!activeBusinessId || !user) return null;
       return getBalanceSheetFn({
         businessId: activeBusinessId,
+        userId: user.id,
         asOfDate,
       });
     },
@@ -661,7 +663,7 @@ interface ReconcilableTransaction {
 }
 
 function ReconciliationTab() {
-  const { settings, activeBusinessId } = useApp();
+  const { settings, activeBusinessId, user } = useApp();
   const c = settings.currency;
   const qc = useQueryClient();
 
@@ -669,40 +671,44 @@ function ReconciliationTab() {
 
   // Query assets (only bank/cash)
   const { data: assets = [] } = useQuery({
-    queryKey: ["bank_cash_reconciliation_assets", activeBusinessId],
+    queryKey: ["bank_cash_reconciliation_assets", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId) return [];
       const { data, error } = await supabase
         .from("assets")
         .select("id, name, type, initial_balance")
         .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "")
         .in("type", ["bank_account", "petty_cash"]);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!activeBusinessId,
+    enabled: !!activeBusinessId && !!user,
   });
 
   // Query transactions linked to the selected asset
   const { data: rawTransactions, isLoading, refetch } = useQuery({
-    queryKey: ["reconciliation_transactions", activeBusinessId, selectedAssetId],
+    queryKey: ["reconciliation_transactions", user?.id, activeBusinessId, selectedAssetId],
     queryFn: async () => {
       if (!activeBusinessId) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
 
       const clientQuery = supabase
         .from("client_payments")
         .select("id, amount, payment_date, method, reference, client_id, clients(name), asset_id, reconciled")
-        .eq("business_id", activeBusinessId);
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "");
 
       const vendorQuery = supabase
         .from("vendor_payments")
         .select("id, amount, payment_date, method, reference, vendor_id, vendors(name), asset_id, reconciled")
-        .eq("business_id", activeBusinessId);
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "");
 
       const ledgerQuery = supabase
         .from("ledger_transactions" as any)
         .select("id, amount, transaction_date, category, type, description, asset_id, reconciled")
-        .eq("business_id", activeBusinessId);
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user?.id || "");
 
       if (selectedAssetId !== "all") {
         clientQuery.eq("asset_id", selectedAssetId);
@@ -730,7 +736,8 @@ function ReconciliationTab() {
       const { error } = await supabase
         .from(sourceTable as any)
         .update({ reconciled })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", user?.id || "");
       if (error) throw error;
     },
     onSuccess: () => {
@@ -1020,11 +1027,11 @@ function AnalyticsTab() {
     queryFn: async () => {
       if (!activeBusinessId) return { grns: [], invs: [], pays: [], vendors: [], clients: [] };
       const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] = await Promise.all([
-        supabase.from("vendor_grns").select("*").eq("status", "posted").eq("business_id", activeBusinessId).gte("grn_date", from).lte("grn_date", to),
-        supabase.from("invoices").select("*").eq("business_id", activeBusinessId).gte("issue_date", from).lte("issue_date", to),
-        supabase.from("client_payments").select("*").eq("business_id", activeBusinessId).gte("payment_date", from).lte("payment_date", to),
-        supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId),
-        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId),
+        supabase.from("vendor_grns").select("*").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("grn_date", from).lte("grn_date", to),
+        supabase.from("invoices").select("*").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("issue_date", from).lte("issue_date", to),
+        supabase.from("client_payments").select("*").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("payment_date", from).lte("payment_date", to),
+        supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
+        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
       ]);
       return { grns: grns ?? [], invs: invs ?? [], pays: pays ?? [], vendors: vendors ?? [], clients: clients ?? [] };
     },

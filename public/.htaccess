@@ -1,3 +1,5 @@
+Options -Indexes
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -10,4 +12,3 @@
   # Rewrite all other requests to index.html to enable client-side routing
   RewriteRule ^ index.html [L]
 </IfModule>
-

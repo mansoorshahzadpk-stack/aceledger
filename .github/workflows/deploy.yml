@@ -47,6 +47,7 @@ jobs:
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             chmod 755 .;
             chmod 644 index.html;
+            chmod 644 .htaccess;
             chmod 644 robots.txt;
             chmod 644 sitemap.xml;
             chmod 644 llms.txt;

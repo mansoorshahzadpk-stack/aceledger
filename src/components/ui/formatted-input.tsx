@@ -38,7 +38,7 @@ export interface FormattedInputProps
     // We replace these with our own controlled props
     "type" | "value" | "defaultValue" | "onChange" | "onBlur"
   > {
-  /** "currency" – always 2dp, forces .00 on blur.  "quantity" – up to 2dp, no forced zeros. */
+  /** "currency" – always 2dp, forces .00 on blur.  "quantity" | "units" – up to 2dp, no forced zeros. */
   mode: InputMode;
   /**
    * The raw, unformatted numeric string stored in parent state (e.g. "1000.5").

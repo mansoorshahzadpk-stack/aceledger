@@ -19,7 +19,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
-export type InputMode = "currency" | "quantity";
+export type InputMode = "currency" | "quantity" | "units";
 
 // ── Internal helpers ───────────────────────────────────────────────────────────
 

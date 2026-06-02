@@ -12,8 +12,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Shield, Search, RefreshCw, Users, Activity, AlertTriangle, CalendarDays } from "lucide-react";
+import { Shield, Search, RefreshCw, Users, Activity, AlertTriangle, CalendarDays, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/format";
+import { deleteUserAccount } from "@/lib/admin-actions";
 
 export const Route = createFileRoute("/_authenticated/super-admin")({
   component: SuperAdminPage,
@@ -109,6 +110,33 @@ function SuperAdminPage() {
       return;
     }
     extendTrialMutation.mutate({ userId: extendUser.user_id, days });
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ userId, email }: { userId: string; email: string }) => {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error("No active session available");
+      
+      const res = await deleteUserAccount({
+        data: {
+          userId,
+          email,
+          accessToken: session.access_token
+        }
+      });
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("User account and associated records deleted successfully");
+      refetch();
+    },
+    onError: (err: any) => {
+      toast.error("Failed to delete user account: " + err.message);
+    }
+  });
+
+  const handleDeleteUser = (userId: string, email: string) => {
+    deleteMutation.mutate({ userId, email });
   };
 
   // Compute stats
@@ -313,6 +341,20 @@ function SuperAdminPage() {
                             title="Enable for Selected Days"
                           >
                             <CalendarDays className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 cursor-pointer shrink-0"
+                            onClick={() => {
+                              if (confirm(`Are you absolutely sure you want to completely delete the account for ${u.email}? This action is permanent and will delete all their data.`)) {
+                                handleDeleteUser(u.user_id, u.email);
+                              }
+                            }}
+                            title="Delete Account"
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>

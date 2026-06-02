@@ -223,7 +223,7 @@ function SuperAdminPage() {
                 <TableRow>
                   <TableHead>User Email</TableHead>
                   <TableHead>Account Created</TableHead>
-                  <TableHead className="text-center">Trial Days Remaining</TableHead>
+                  <TableHead className="text-center">Access Days Remaining</TableHead>
                   <TableHead className="text-center">Database Status</TableHead>
                   <TableHead className="w-48 text-center">Actions</TableHead>
                 </TableRow>
@@ -254,9 +254,17 @@ function SuperAdminPage() {
                       <TableCell className="tabular">{formatDate(u.created_at)}</TableCell>
                       <TableCell className="text-center tabular">
                         {u.status === "active" ? (
-                          <Badge variant="outline" className="border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
-                            Unlimited (Paid)
-                          </Badge>
+                          new Date(u.trial_ends_at).getFullYear() >= 2090 ? (
+                            <Badge variant="outline" className="border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+                              Unlimited (Paid)
+                            </Badge>
+                          ) : isTrialExpired ? (
+                            <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10">
+                              Expired (0 days)
+                            </Badge>
+                          ) : (
+                            <span className="font-semibold text-emerald-600">{trialDays} days</span>
+                          )
                         ) : isTrialExpired ? (
                           <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10">
                             Expired (0 days)
@@ -325,7 +333,7 @@ function SuperAdminPage() {
               <DialogTitle>Enable for Selected Days</DialogTitle>
               <DialogDescription>
                 Set a specific number of access days for <span className="font-semibold text-foreground text-sm">{extendUser?.email}</span>.
-                This will set their status to trialing and update their expiration date.
+                This will set their status to active and update their expiration date.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

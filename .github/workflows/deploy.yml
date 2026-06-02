@@ -23,7 +23,69 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Sync Live Files to Hostinger
+      - name: Prepare Deployment Package
+        run: |
+          # 1. Zip the client build outputs
+          cd dist/client
+          zip -r ../../dist.zip .
+          cd ../..
+
+          # 2. Dynamically generate the secure unzip.php script
+          cat << 'EOF' > unzip.php
+          <?php
+          // Prevent unauthorized execution
+          if (!isset($_GET['key']) || $_GET['key'] !== 'GITHUB_RUN_ID') {
+              header('HTTP/1.0 403 Forbidden');
+              echo 'Forbidden';
+              exit;
+          }
+
+          $zipFile = 'dist.zip';
+          if (!file_exists($zipFile)) {
+              header('HTTP/1.0 404 Not Found');
+              echo 'Zip file not found';
+              exit;
+          }
+
+          // Helper to recursively delete directories (to clean old build assets)
+          function deleteDir($dirPath) {
+              if (!is_dir($dirPath)) return;
+              $files = array_diff(scandir($dirPath), array('.', '..'));
+              foreach ($files as $file) {
+                  $path = $dirPath . '/' . $file;
+                  is_dir($path) ? deleteDir($path) : unlink($path);
+              }
+              return rmdir($dirPath);
+          }
+
+          // Clear old build assets to save disk space and prevent mixups
+          deleteDir(__DIR__ . '/assets');
+          deleteDir(__DIR__ . '/app-assets');
+
+          // Extract the new deployment bundle
+          try {
+              $zip = new ZipArchive;
+              if ($zip->open($zipFile) === TRUE) {
+                  $zip->extractTo(__DIR__);
+                  $zip->close();
+                  unlink($zipFile);
+                  unlink(__FILE__);
+                  echo 'Success';
+              } else {
+                  header('HTTP/1.0 500 Internal Server Error');
+                  echo 'Failed to open zip';
+              }
+          } catch (Exception $e) {
+              header('HTTP/1.0 500 Internal Server Error');
+              echo 'Error: ' . $e->getMessage();
+          }
+          ?>
+          EOF
+
+          # 3. Insert the actual github run ID as the security token
+          sed -i "s/GITHUB_RUN_ID/${{ github.run_id }}/g" unzip.php
+
+      - name: Upload Deployment Package to Hostinger
         run: |
           sudo apt-get update && sudo apt-get install -y lftp
           lftp -c "
@@ -32,26 +94,27 @@ jobs:
             set net:timeout 15;
             set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            mirror -R ./dist/client/ ./;
+            set cmd:fail-exit no;
+            rm .htaccess;
+            rm index.html;
+            set cmd:fail-exit yes;
+            put dist.zip;
+            put unzip.php;
             quit;
           "
 
-      - name: Fix File Permissions on Hostinger
-        continue-on-error: true
+      - name: Trigger Remote Unzip and Verify
         run: |
-          lftp -c "
-            set ssl:verify-certificate no;
-            set ftp:ssl-allow no;
-            set net:timeout 15;
-            set net:max-retries 2;
-            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            chmod 755 .;
-            chmod 644 index.html;
-            chmod 644 .htaccess;
-            chmod 644 robots.txt;
-            chmod 644 sitemap.xml;
-            chmod 644 llms.txt;
-            chmod -R 755 app-assets;
-            chmod -R 755 assets;
-            quit;
-          "
+          echo "Triggering remote unzip..."
+          RESPONSE=$(curl -s -w "%{http_code}" -L "https://aceledger.top/unzip.php?key=${{ github.run_id }}")
+          HTTP_CODE="${RESPONSE:${#RESPONSE}-3}"
+          BODY="${RESPONSE:0:${#RESPONSE}-3}"
+
+          echo "HTTP Response Code: $HTTP_CODE"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_CODE" -ne 200 ] || [ "$BODY" != "Success" ]; then
+            echo "Deployment extraction failed!"
+            exit 1
+          fi
+          echo "Deployment succeeded!"

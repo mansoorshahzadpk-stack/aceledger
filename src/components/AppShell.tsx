@@ -401,7 +401,18 @@ export function AppShell() {
       {isReadOnly && (
         <div className="bg-amber-500 dark:bg-amber-600 text-white px-4 py-2 text-center text-xs md:text-sm font-medium flex items-center justify-center gap-2 border-b border-amber-600 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>Upgrade your account to continue adding records. You still retain unlimited access to view, customize themes, and print your past records/PDFs.</span>
+          <span>
+            Upgrade your account to continue adding records. You still retain unlimited access to view, customize themes, and print your past records/PDFs. Contact on{" "}
+            <a
+              href="https://wa.me/923210081414"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-bold hover:text-amber-100 transition-colors"
+            >
+              WhatsApp (+92 321 0081414)
+            </a>{" "}
+            to upgrade.
+          </span>
         </div>
       )}
       <div className="flex flex-1 min-w-0 w-full bg-background">

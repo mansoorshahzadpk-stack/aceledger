@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "sonner";
 import { Shield, Search, RefreshCw, Users, Activity, AlertTriangle, CalendarDays, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/format";
-import { deleteUserAccount } from "@/lib/admin-actions";
 
 export const Route = createFileRoute("/_authenticated/super-admin")({
   component: SuperAdminPage,
@@ -113,18 +112,12 @@ function SuperAdminPage() {
   };
 
   const deleteMutation = useMutation({
-    mutationFn: async ({ userId, email }: { userId: string; email: string }) => {
-      const session = (await supabase.auth.getSession()).data.session;
-      if (!session) throw new Error("No active session available");
-      
-      const res = await deleteUserAccount({
-        data: {
-          userId,
-          email,
-          accessToken: session.access_token
-        }
+    mutationFn: async ({ userId }: { userId: string; email: string }) => {
+      const { error } = await supabase.rpc("admin_delete_user" as any, {
+        _target_user_id: userId,
       });
-      return res;
+      if (error) throw error;
+      return { success: true };
     },
     onSuccess: () => {
       toast.success("User account and associated records deleted successfully");

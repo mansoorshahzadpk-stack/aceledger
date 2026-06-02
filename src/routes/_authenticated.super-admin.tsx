@@ -111,6 +111,11 @@ function SuperAdminPage() {
     extendTrialMutation.mutate({ userId: extendUser.user_id, days });
   };
 
+  const handlePermanentAccess = () => {
+    if (!extendUser) return;
+    extendTrialMutation.mutate({ userId: extendUser.user_id, days: 30000 });
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async ({ userId }: { userId: string; email: string }) => {
       const { error } = await supabase.rpc("admin_delete_user" as any, {
@@ -389,13 +394,24 @@ function SuperAdminPage() {
                 />
               </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setExtendUser(null)}>
-                Cancel
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 justify-between items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 sm:mb-0 mb-2 w-full sm:w-auto"
+                onClick={handlePermanentAccess}
+                disabled={extendTrialMutation.isPending}
+              >
+                Grant Permanent Access
               </Button>
-              <Button type="submit" disabled={extendTrialMutation.isPending}>
-                {extendTrialMutation.isPending ? "Updating..." : "Grant Access"}
-              </Button>
+              <div className="flex gap-2 w-full sm:w-auto justify-end">
+                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setExtendUser(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="w-full sm:w-auto" disabled={extendTrialMutation.isPending}>
+                  {extendTrialMutation.isPending ? "Updating..." : "Grant Access"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

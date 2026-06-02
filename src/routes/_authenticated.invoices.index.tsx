@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/invoices/")({
 });
 
 function InvoicesPage() {
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const [filter, setFilter] = useState<"all" | "draft" | "posted">("all");
 
   const { data: invoices, isLoading } = useQuery({
@@ -54,7 +54,11 @@ function InvoicesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Invoices</h1>
           <p className="text-sm text-muted-foreground">Drafts and posted invoices</p>
         </div>
-        <Button asChild><Link to="/invoices/new"><Plus className="mr-2 h-4 w-4" />New Invoice</Link></Button>
+        <Button asChild className={isReadOnly ? "pointer-events-none opacity-50" : ""} disabled={isReadOnly}>
+          <Link to="/invoices/new">
+            <Plus className="mr-2 h-4 w-4" />New Invoice
+          </Link>
+        </Button>
       </div>
 
       <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>

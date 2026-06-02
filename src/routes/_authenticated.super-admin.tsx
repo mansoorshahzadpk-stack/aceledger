@@ -128,7 +128,7 @@ function SuperAdminPage() {
     },
     onSuccess: () => {
       toast.success("User account and associated records deleted successfully");
-      refetch();
+      qc.invalidateQueries({ queryKey: ["admin_tenant_profiles"] });
     },
     onError: (err: any) => {
       toast.error("Failed to delete user account: " + err.message);

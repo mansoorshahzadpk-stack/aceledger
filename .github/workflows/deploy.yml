@@ -24,28 +24,20 @@ jobs:
         run: npm run build
 
       - name: Sync Live Files to Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/client/        # Upload only client assets (index.html, assets, .htaccess)
-          server-dir: ./                   # Upload directly to the web root
-          timeout: 180000                  # Increase timeout to 3 minutes to prevent socket timeouts
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            .htaccess
-            **/.htaccess
-
-      - name: Fix File Permissions on Hostinger
-        continue-on-error: true
         run: |
           sudo apt-get update && sudo apt-get install -y lftp
           lftp -c "
             set ssl:verify-certificate no;
-            set cmd:fail-exit no;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            mirror -R --delete --parallel=10 ./dist/client/ ./;
+            quit;
+          "
+
+      - name: Fix File Permissions on Hostinger
+        continue-on-error: true
+        run: |
+          lftp -c "
+            set ssl:verify-certificate no;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             chmod 755 .;
             chmod 644 index.html;
@@ -55,4 +47,4 @@ jobs:
             chmod -R 755 app-assets;
             chmod -R 755 assets;
             quit;
-          " || echo "Permissions step completed (some chmod errors are expected and ignored)"
+          "

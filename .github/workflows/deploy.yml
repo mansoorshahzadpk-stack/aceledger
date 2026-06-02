@@ -28,6 +28,9 @@ jobs:
           sudo apt-get update && sudo apt-get install -y lftp
           lftp -c "
             set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set net:timeout 15;
+            set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             mirror -R --delete --parallel=10 ./dist/client/ ./;
             quit;
@@ -38,6 +41,9 @@ jobs:
         run: |
           lftp -c "
             set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set net:timeout 15;
+            set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             chmod 755 .;
             chmod 644 index.html;

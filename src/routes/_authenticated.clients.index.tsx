@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -196,7 +197,7 @@ function ClientsPage() {
                 </div>
                 <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-                <Field label="Opening balance (owes us)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
+                <Field label="Opening balance (owes us)"><FormattedInput mode="currency" rawValue={form.opening_balance} onRawChange={(raw) => setForm({ ...form, opening_balance: raw })} placeholder="0.00" /></Field>
                 <DialogFooter><Button type="submit" disabled={isReadOnly}>Save client</Button></DialogFooter>
               </form>
             </DialogContent>
@@ -248,7 +249,7 @@ function ClientsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Log Payment Received</DialogTitle></DialogHeader>
           <form onSubmit={logInstallment} className="space-y-3">
-            <Field label="Amount"><Input type="number" step="0.01" required value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} autoFocus /></Field>
+            <Field label="Amount"><FormattedInput mode="currency" required rawValue={pay.amount} onRawChange={(raw) => setPay({ ...pay, amount: raw })} autoFocus placeholder="0.00" /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date"><Input type="date" required value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} /></Field>
               <Field label="Method">

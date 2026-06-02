@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -144,7 +145,7 @@ function VendorsPage() {
                 </div>
                 <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-                <Field label="Opening balance (we owe them)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
+                <Field label="Opening balance (we owe them)"><FormattedInput mode="currency" rawValue={form.opening_balance} onRawChange={(raw) => setForm({ ...form, opening_balance: raw })} placeholder="0.00" /></Field>
                 <DialogFooter><Button type="submit" disabled={isReadOnly}>Save vendor</Button></DialogFooter>
               </form>
             </DialogContent>

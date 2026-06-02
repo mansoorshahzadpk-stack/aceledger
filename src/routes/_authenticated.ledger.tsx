@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -494,15 +495,13 @@ function LedgerPage() {
                 <Label htmlFor="amount" className="text-right">
                   Amount
                 </Label>
-                <Input
+                <FormattedInput
                   id="amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  mode="currency"
+                  rawValue={form.amount}
+                  onRawChange={(raw) => setForm({ ...form, amount: raw })}
                   className="col-span-3"
-                  placeholder="e.g. 5000"
+                  placeholder="e.g. 5,000.00"
                   required
                 />
               </div>

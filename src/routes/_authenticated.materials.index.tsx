@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -221,8 +222,8 @@ function MaterialsPage() {
               <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg / pcs / bag" /></Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Default price"><Input type="number" step="0.01" required value={form.default_price} onChange={(e) => setForm({ ...form, default_price: e.target.value })} /></Field>
-              <Field label="Default tax rate (%)"><Input type="number" step="0.01" value={form.default_tax_rate} onChange={(e) => setForm({ ...form, default_tax_rate: e.target.value })} /></Field>
+              <Field label="Default price"><FormattedInput mode="currency" required rawValue={form.default_price} onRawChange={(raw) => setForm({ ...form, default_price: raw })} placeholder="0.00" /></Field>
+              <Field label="Default tax rate (%)"><FormattedInput mode="quantity" rawValue={form.default_tax_rate} onRawChange={(raw) => setForm({ ...form, default_tax_rate: raw })} placeholder="e.g. 5" /></Field>
             </div>
             <Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
             <div className="flex items-center justify-between rounded-md border p-3">

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -253,7 +254,7 @@ function ClientDetail() {
         <DialogContent>
           <DialogHeader><DialogTitle>Log Payment Received</DialogTitle></DialogHeader>
           <form onSubmit={logInstallment} className="space-y-3">
-            <Field label="Amount"><Input type="number" step="0.01" required value={pay.amount} onChange={(e) => setPay({ ...pay, amount: e.target.value })} autoFocus /></Field>
+            <Field label="Amount"><FormattedInput mode="currency" required rawValue={pay.amount} onRawChange={(raw) => setPay({ ...pay, amount: raw })} autoFocus placeholder="0.00" /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date"><Input type="date" required value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} /></Field>
               <Field label="Method">
@@ -300,7 +301,7 @@ function ClientDetail() {
         <DialogContent>
           <DialogHeader><DialogTitle>Amend Payment Received</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">A reason is required for the audit trail. The client balance will be recalculated.</p>
-          <Field label="Amount"><Input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} /></Field>
+          <Field label="Amount"><FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" /></Field>
           <Field label="Reason"><Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" /></Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>

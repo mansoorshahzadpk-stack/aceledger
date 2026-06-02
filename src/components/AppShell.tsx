@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -948,14 +949,12 @@ export function AppShell() {
                 </Select>
               </Field>
               <Field label="Amount">
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                <FormattedInput
+                  mode="currency"
                   required
-                  value={clientPay.amount}
-                  onChange={(e) => setClientPay({ ...clientPay, amount: e.target.value })}
-                  placeholder="e.g. 25000"
+                  rawValue={clientPay.amount}
+                  onRawChange={(raw) => setClientPay({ ...clientPay, amount: raw })}
+                  placeholder="e.g. 25,000.00"
                   autoFocus
                 />
               </Field>
@@ -1051,14 +1050,12 @@ export function AppShell() {
                 </Select>
               </Field>
               <Field label="Amount">
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                <FormattedInput
+                  mode="currency"
                   required
-                  value={vendorPay.amount}
-                  onChange={(e) => setVendorPay({ ...vendorPay, amount: e.target.value })}
-                  placeholder="e.g. 50000"
+                  rawValue={vendorPay.amount}
+                  onRawChange={(raw) => setVendorPay({ ...vendorPay, amount: raw })}
+                  placeholder="e.g. 50,000.00"
                   autoFocus
                 />
               </Field>
@@ -1187,14 +1184,12 @@ export function AppShell() {
                   </Select>
                 </Field>
                 <Field label="Amount">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
+                  <FormattedInput
+                    mode="currency"
                     required
-                    value={ledgerForm.amount}
-                    onChange={(e) => setLedgerForm({ ...ledgerForm, amount: e.target.value })}
-                    placeholder="e.g. 5000"
+                    rawValue={ledgerForm.amount}
+                    onRawChange={(raw) => setLedgerForm({ ...ledgerForm, amount: raw })}
+                    placeholder="e.g. 5,000.00"
                   />
                 </Field>
               </div>

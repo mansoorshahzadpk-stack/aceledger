@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -472,12 +473,11 @@ function AssetsPage() {
                   <Label htmlFor="initial_balance" className="text-right">
                     Initial balance
                   </Label>
-                  <Input
+                  <FormattedInput
                     id="initial_balance"
-                    type="number"
-                    step="0.01"
-                    value={form.initial_balance}
-                    onChange={(e) => setForm({ ...form, initial_balance: e.target.value })}
+                    mode="currency"
+                    rawValue={form.initial_balance}
+                    onRawChange={(raw) => setForm({ ...form, initial_balance: raw })}
                     className="col-span-3"
                     required
                   />
@@ -487,12 +487,11 @@ function AssetsPage() {
                   <Label htmlFor="current_valuation" className="text-right">
                     Current valuation
                   </Label>
-                  <Input
+                  <FormattedInput
                     id="current_valuation"
-                    type="number"
-                    step="0.01"
-                    value={form.current_valuation}
-                    onChange={(e) => setForm({ ...form, current_valuation: e.target.value })}
+                    mode="currency"
+                    rawValue={form.current_valuation}
+                    onRawChange={(raw) => setForm({ ...form, current_valuation: raw })}
                     className="col-span-3"
                     required
                   />

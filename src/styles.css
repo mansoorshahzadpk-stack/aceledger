@@ -191,6 +191,13 @@
     radial-gradient(at 80% 92%, oklch(0.85 0.12 200 / 0.30) 0px, transparent 55%),
     radial-gradient(at 12% 88%, oklch(0.88 0.10 320 / 0.25) 0px, transparent 50%);
   background-attachment: fixed;
+  background-size: 100% 100%;
+}
+@media (max-width: 767px) {
+  [data-theme="lavender"] body {
+    background-attachment: scroll;
+    background-size: cover;
+  }
 }
 [data-theme="lavender"] .bg-card,
 [data-theme="lavender"] [data-slot="card"] {
@@ -238,6 +245,13 @@
     radial-gradient(at 92% 10%, oklch(0.85 0.13 80 / 0.28) 0px, transparent 55%),
     radial-gradient(at 88% 90%, oklch(0.82 0.10 50 / 0.25) 0px, transparent 55%);
   background-attachment: fixed;
+  background-size: 100% 100%;
+}
+@media (max-width: 767px) {
+  [data-theme="maroon"] body {
+    background-attachment: scroll;
+    background-size: cover;
+  }
 }
 [data-theme="maroon"] .bg-card,
 [data-theme="maroon"] [data-slot="card"] {
@@ -285,6 +299,13 @@
     radial-gradient(at 92% 14%, oklch(0.86 0.12 165 / 0.28) 0px, transparent 55%),
     radial-gradient(at 80% 90%, oklch(0.84 0.10 140 / 0.25) 0px, transparent 55%);
   background-attachment: fixed;
+  background-size: 100% 100%;
+}
+@media (max-width: 767px) {
+  [data-theme="green"] body {
+    background-attachment: scroll;
+    background-size: cover;
+  }
 }
 [data-theme="green"] .bg-card,
 [data-theme="green"] [data-slot="card"] {
@@ -294,6 +315,10 @@
 
 @layer base {
   * { border-color: var(--color-border); }
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

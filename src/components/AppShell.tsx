@@ -413,44 +413,133 @@ export function AppShell() {
     }
 
     const { status } = tenantProfile;
-    const isLightSidebar = settings.theme === "light";
+    const theme = settings.theme;
+
+    let mobileStatusStyles = "";
+    let desktopStatusStyles = "";
 
     if (status === "active") {
+      // Mobile: solid bold pill for max readability
+      mobileStatusStyles = "bg-emerald-600 text-white border-transparent";
+      // Desktop sidebar: theme-matched subtle badge
+      switch (theme) {
+        case "light":
+          desktopStatusStyles = "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
+          break;
+        case "dark":
+          desktopStatusStyles = "border-emerald-400/50 bg-emerald-400/20 text-emerald-300";
+          break;
+        case "contrast":
+          desktopStatusStyles = "border-white bg-emerald-700/80 text-white";
+          break;
+        case "lavender":
+          desktopStatusStyles = "border-teal-400 bg-teal-600/70 text-white";
+          break;
+        case "maroon":
+          desktopStatusStyles = "border-amber-400 bg-amber-600/70 text-white";
+          break;
+        case "green":
+          desktopStatusStyles = "border-emerald-400 bg-emerald-600/70 text-white";
+          break;
+        default:
+          desktopStatusStyles = "border-emerald-400/50 bg-emerald-400/20 text-emerald-300";
+      }
       return (
-        <span className={cn(
-          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-          isLightSidebar
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
-            : "border-emerald-400/50 bg-emerald-400/20 text-emerald-300"
-        )}>
-          Pro Version
-        </span>
+        <>
+          <span className={cn(
+            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
+            mobileStatusStyles
+          )}>
+            Pro ✓
+          </span>
+          <span className={cn(
+            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+            desktopStatusStyles
+          )}>
+            Pro Version
+          </span>
+        </>
       );
     }
 
     if (status === "trialing") {
+      // Mobile: solid amber pill
+      mobileStatusStyles = "bg-amber-500 text-white border-transparent";
+      switch (theme) {
+        case "light":
+          desktopStatusStyles = "border-amber-500/40 bg-amber-500/10 text-amber-800";
+          break;
+        case "dark":
+          desktopStatusStyles = "border-amber-400/50 bg-amber-400/20 text-amber-300";
+          break;
+        case "contrast":
+          desktopStatusStyles = "border-yellow-400 bg-yellow-600/80 text-white";
+          break;
+        case "lavender":
+          desktopStatusStyles = "border-orange-400 bg-orange-600/70 text-white";
+          break;
+        case "maroon":
+          desktopStatusStyles = "border-orange-400 bg-orange-600/70 text-white";
+          break;
+        case "green":
+          desktopStatusStyles = "border-amber-400 bg-amber-600/70 text-white";
+          break;
+        default:
+          desktopStatusStyles = "border-amber-400/50 bg-amber-400/20 text-amber-300";
+      }
       return (
-        <span className={cn(
-          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-          isLightSidebar
-            ? "border-amber-500/40 bg-amber-500/10 text-amber-800"
-            : "border-amber-400/50 bg-amber-400/20 text-amber-300"
-        )}>
-          Trial Mode
-        </span>
+        <>
+          <span className={cn(
+            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
+            mobileStatusStyles
+          )}>
+            Trial
+          </span>
+          <span className={cn(
+            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+            desktopStatusStyles
+          )}>
+            Trial Mode
+          </span>
+        </>
       );
     }
 
     if (status === "suspended") {
+      mobileStatusStyles = "bg-red-600 text-white border-transparent";
+      switch (theme) {
+        case "light":
+          desktopStatusStyles = "border-red-500/40 bg-red-500/10 text-red-800";
+          break;
+        case "dark":
+          desktopStatusStyles = "border-red-400/50 bg-red-400/20 text-red-300";
+          break;
+        case "contrast":
+          desktopStatusStyles = "border-red-500 bg-red-700/80 text-white";
+          break;
+        case "lavender":
+        case "maroon":
+        case "green":
+          desktopStatusStyles = "border-rose-400 bg-rose-600/70 text-white";
+          break;
+        default:
+          desktopStatusStyles = "border-red-400/50 bg-red-400/20 text-red-300";
+      }
       return (
-        <span className={cn(
-          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-          isLightSidebar
-            ? "border-red-500/40 bg-red-500/10 text-red-800"
-            : "border-red-400/50 bg-red-400/20 text-red-300"
-        )}>
-          Suspended
-        </span>
+        <>
+          <span className={cn(
+            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
+            mobileStatusStyles
+          )}>
+            Suspended
+          </span>
+          <span className={cn(
+            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+            desktopStatusStyles
+          )}>
+            Suspended
+          </span>
+        </>
       );
     }
 
@@ -458,7 +547,7 @@ export function AppShell() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background">
+    <div className="flex flex-col min-h-screen w-full bg-background overflow-x-hidden">
       {isReadOnly && (
         <div className="bg-amber-500 dark:bg-amber-600 text-white px-4 py-2 text-center text-xs md:text-sm font-medium flex items-center justify-center gap-2 border-b border-amber-600 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
           <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -587,13 +676,23 @@ export function AppShell() {
           </div>
 
           {tenantProfile?.status === "trialing" && (
-            <div className="text-xs md:text-sm font-medium text-amber-600 dark:text-amber-400 truncate py-1">
+            <div className={cn(
+              "text-xs md:text-sm font-medium truncate py-1",
+              settings.theme === "light"
+                ? "text-amber-600"
+                : "text-amber-400"
+            )}>
               {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
               <a
                 href="https://wa.me/923210081414"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-bold hover:text-amber-700 dark:hover:text-amber-500 transition-colors"
+                className={cn(
+                  "underline font-bold transition-colors",
+                  settings.theme === "light"
+                    ? "text-amber-700 hover:text-amber-900"
+                    : "text-amber-300 hover:text-amber-200"
+                )}
               >
                 Whatsapp +923210081414
               </a>{" "}
@@ -680,14 +779,24 @@ export function AppShell() {
 
         {/* Mobile-only sub-header trial notice banner */}
         {tenantProfile?.status === "trialing" && (
-          <div className="md:hidden bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-1.5">
+          <div className={cn(
+            "md:hidden border-b px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-1.5",
+            settings.theme === "light"
+              ? "bg-amber-500/10 border-amber-500/20 text-amber-700"
+              : "bg-amber-500/15 border-amber-500/30 text-amber-300"
+          )}>
             <span>
               {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
               <a
                 href="https://wa.me/923210081414"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-bold hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+                className={cn(
+                  "underline font-bold transition-colors",
+                  settings.theme === "light"
+                    ? "text-amber-800 hover:text-amber-950"
+                    : "text-amber-200 hover:text-amber-100"
+                )}
               >
                 Whatsapp +923210081414
               </a>{" "}

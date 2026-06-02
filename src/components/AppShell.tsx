@@ -405,63 +405,36 @@ export function AppShell() {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  const renderAccountStatus = () => {
+  const renderCompactAccountStatus = () => {
     if (!tenantProfile) {
       return (
-        <div className="mb-4 px-1">
-          <div className="h-[74px] w-full rounded-lg bg-muted/20 animate-pulse border border-muted/50" />
-        </div>
+        <div className="h-5 w-16 rounded bg-muted/20 animate-pulse border border-muted/50 inline-block" />
       );
     }
 
-    const { status, trial_ends_at } = tenantProfile;
+    const { status } = tenantProfile;
 
     if (status === "active") {
       return (
-        <div className="mb-4 px-1">
-          <div className="relative overflow-hidden rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-3 text-xs shadow-sm h-[74px] flex flex-col justify-center">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-emerald-800 dark:text-emerald-300 font-bold tracking-wide">Ace Ledger Pro</span>
-              <span className="inline-flex items-center rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
-                Pro Version
-              </span>
-            </div>
-            <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
-              Full unrestricted enterprise features unlocked
-            </div>
-          </div>
-        </div>
+        <span className="inline-flex items-center rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+          Pro Version
+        </span>
       );
     }
 
     if (status === "trialing") {
-      const daysLeft = getTrialDaysRemaining(trial_ends_at);
       return (
-        <div className="mb-4 px-1">
-          <a
-            href="https://wa.me/923210081414"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 p-3 text-xs text-amber-900 dark:text-amber-200 transition-colors shadow-sm cursor-pointer h-[74px]"
-          >
-            Trial Period: {daysLeft} Days Left. Contact <span className="underline font-bold">WhatsApp +923210081414</span> for upgrading to pro.
-          </a>
-        </div>
+        <span className="inline-flex items-center rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
+          Trial Mode
+        </span>
       );
     }
 
     if (status === "suspended") {
       return (
-        <div className="mb-4 px-1">
-          <a
-            href="https://wa.me/923210081414"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 p-3 text-xs text-red-950 dark:text-red-200 transition-colors shadow-sm cursor-pointer h-[74px]"
-          >
-            Trial Period: Expired. Contact <span className="underline font-bold">WhatsApp +923210081414</span> for upgrading to pro.
-          </a>
-        </div>
+        <span className="inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">
+          Suspended
+        </span>
       );
     }
 
@@ -547,7 +520,7 @@ export function AppShell() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {renderAccountStatus()}
+
 
           {NAV.map((item) => {
             const Icon = item.icon;
@@ -583,17 +556,33 @@ export function AppShell() {
             </Link>
           )}
         </nav>
-        <div className="border-t p-3 text-xs text-muted-foreground">
+        <div className="border-t p-3 text-xs text-muted-foreground flex flex-col gap-2">
           <div className="truncate">{user?.email}</div>
+          <div>{renderCompactAccountStatus()}</div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center shrink-0">
             <BusinessSwitcher isMobile />
           </div>
+
+          {tenantProfile?.status === "trialing" && (
+            <div className="text-xs md:text-sm font-medium text-amber-600 dark:text-amber-400 truncate py-1">
+              {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
+              <a
+                href="https://wa.me/923210081414"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-bold hover:text-amber-700 dark:hover:text-amber-500 transition-colors"
+              >
+                Whatsapp +923210081414
+              </a>{" "}
+              for upgrd
+            </div>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs font-medium">
               <span className="text-muted-foreground">Currency</span>

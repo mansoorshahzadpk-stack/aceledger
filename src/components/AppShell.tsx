@@ -413,10 +413,16 @@ export function AppShell() {
     }
 
     const { status } = tenantProfile;
+    const isLightSidebar = settings.theme === "light";
 
     if (status === "active") {
       return (
-        <span className="inline-flex items-center rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide">
+        <span className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+          isLightSidebar
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+            : "border-emerald-400/50 bg-emerald-400/20 text-emerald-300"
+        )}>
           Pro Version
         </span>
       );
@@ -424,7 +430,12 @@ export function AppShell() {
 
     if (status === "trialing") {
       return (
-        <span className="inline-flex items-center rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
+        <span className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+          isLightSidebar
+            ? "border-amber-500/40 bg-amber-500/10 text-amber-800"
+            : "border-amber-400/50 bg-amber-400/20 text-amber-300"
+        )}>
           Trial Mode
         </span>
       );
@@ -432,7 +443,12 @@ export function AppShell() {
 
     if (status === "suspended") {
       return (
-        <span className="inline-flex items-center rounded-md border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:text-red-400 uppercase tracking-wide">
+        <span className={cn(
+          "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+          isLightSidebar
+            ? "border-red-500/40 bg-red-500/10 text-red-800"
+            : "border-red-400/50 bg-red-400/20 text-red-300"
+        )}>
           Suspended
         </span>
       );
@@ -557,16 +573,17 @@ export function AppShell() {
           )}
         </nav>
         <div className="border-t p-3 text-xs text-muted-foreground flex flex-col gap-2">
-          <div className="truncate">{user?.email}</div>
           <div>{renderCompactAccountStatus()}</div>
+          <div className="truncate">{user?.email}</div>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
-          <div className="md:hidden flex items-center shrink-0">
+          <div className="md:hidden flex items-center shrink-0 gap-2">
             <BusinessSwitcher isMobile />
+            {renderCompactAccountStatus()}
           </div>
 
           {tenantProfile?.status === "trialing" && (
@@ -661,6 +678,24 @@ export function AppShell() {
           </div>
         </header>
 
+        {/* Mobile-only sub-header trial notice banner */}
+        {tenantProfile?.status === "trialing" && (
+          <div className="md:hidden bg-amber-500/10 dark:bg-amber-500/5 border-b border-amber-500/20 text-amber-700 dark:text-amber-400 px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-1.5">
+            <span>
+              {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
+              <a
+                href="https://wa.me/923210081414"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-bold hover:text-amber-800 dark:hover:text-amber-300 transition-colors"
+              >
+                Whatsapp +923210081414
+              </a>{" "}
+              for upgrd
+            </span>
+          </div>
+        )}
+
         {/* Page */}
         <main className="flex-1 p-4 pb-24 md:p-6 md:pb-6">
           <Outlet />
@@ -710,6 +745,12 @@ export function AppShell() {
                   </Link>
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-xs text-muted-foreground flex flex-col gap-1">
+                <div>{renderCompactAccountStatus()}</div>
+                <div className="truncate">{user?.email}</div>
+              </div>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={cycleTheme}>
                 <ThemeIcon className="mr-2 h-4 w-4" />
                 Theme: {settings.theme}

@@ -214,11 +214,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const isReadOnly = (() => {
     if (!tenantProfile) return false;
     if (tenantProfile.status === "suspended") return true;
-    if (tenantProfile.status !== "active") {
-      const trialEnds = new Date(tenantProfile.trial_ends_at);
-      if (isNaN(trialEnds.getTime()) || trialEnds < new Date()) {
-        return true;
-      }
+    const expiryDate = new Date(tenantProfile.trial_ends_at);
+    if (isNaN(expiryDate.getTime()) || expiryDate < new Date()) {
+      return true;
     }
     return false;
   })();

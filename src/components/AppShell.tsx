@@ -397,174 +397,204 @@ export function AppShell() {
     );
   };
 
-  const getTrialDaysRemaining = (trialEndsAt?: string) => {
-    if (!trialEndsAt) return 0;
-    const trialEnds = new Date(trialEndsAt);
-    const diffMs = trialEnds.getTime() - Date.now();
+  const getSubscriptionState = () => {
+    if (!tenantProfile) return null;
+    const { status, trial_ends_at } = tenantProfile;
+    const now = new Date();
+    const expiryDate = new Date(trial_ends_at);
+    const isExpired = isNaN(expiryDate.getTime()) || expiryDate < now;
+
+    if (status === "suspended") {
+      return { state: "suspended", isReadOnly: true, label: "Suspended" };
+    }
+
+    if (status === "active") {
+      if (isExpired) {
+        return { state: "suspended", isReadOnly: true, label: "Suspended" };
+      }
+      const diffMs = expiryDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays <= 7) {
+        return { state: "active-expiring", isReadOnly: false, label: "Active", daysRemaining: diffDays > 0 ? diffDays : 0 };
+      }
+      return { state: "active", isReadOnly: false, label: "Active" };
+    }
+
+    // Default to trialing
+    if (isExpired) {
+      return { state: "suspended", isReadOnly: true, label: "Suspended" };
+    }
+    const diffMs = expiryDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
+    return { state: "trialing", isReadOnly: false, label: "Trial", daysRemaining: diffDays > 0 ? diffDays : 0 };
   };
 
   const renderCompactAccountStatus = () => {
     if (!tenantProfile) {
       return (
-        <div className="h-5 w-16 rounded bg-muted/20 animate-pulse border border-muted/50 inline-block" />
+        <div className="h-5 w-16 rounded bg-muted animate-pulse border inline-block" />
       );
     }
 
-    const { status } = tenantProfile;
-    const theme = settings.theme;
+    const subState = getSubscriptionState();
+    if (!subState) return null;
 
-    let mobileStatusStyles = "";
-    let desktopStatusStyles = "";
+    let badgeClass = "";
 
-    if (status === "active") {
-      // Mobile: solid bold pill for max readability
-      mobileStatusStyles = "bg-emerald-600 text-white border-transparent";
-      // Desktop sidebar: theme-matched subtle badge
-      switch (theme) {
-        case "light":
-          desktopStatusStyles = "border-emerald-500/30 bg-emerald-500/10 text-emerald-700";
-          break;
-        case "dark":
-          desktopStatusStyles = "border-emerald-400/50 bg-emerald-400/20 text-emerald-300";
-          break;
-        case "contrast":
-          desktopStatusStyles = "border-white bg-emerald-700/80 text-white";
-          break;
-        case "lavender":
-          desktopStatusStyles = "border-teal-400 bg-teal-600/70 text-white";
-          break;
-        case "maroon":
-          desktopStatusStyles = "border-amber-400 bg-amber-600/70 text-white";
-          break;
-        case "green":
-          desktopStatusStyles = "border-emerald-400 bg-emerald-600/70 text-white";
-          break;
-        default:
-          desktopStatusStyles = "border-emerald-400/50 bg-emerald-400/20 text-emerald-300";
-      }
-      return (
-        <>
-          <span className={cn(
-            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
-            mobileStatusStyles
-          )}>
-            Pro ✓
-          </span>
-          <span className={cn(
-            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-            desktopStatusStyles
-          )}>
-            Pro Version
-          </span>
-        </>
-      );
+    if (subState.state === "trialing") {
+      badgeClass = "bg-amber-600 border-amber-700 text-white font-extrabold";
+    } else if (subState.state === "active" || subState.state === "active-expiring") {
+      badgeClass = "bg-emerald-600 border-emerald-700 text-white font-extrabold";
+    } else if (subState.state === "suspended") {
+      badgeClass = "bg-rose-700 border-rose-800 text-white font-extrabold";
     }
 
-    if (status === "trialing") {
-      // Mobile: solid amber pill
-      mobileStatusStyles = "bg-amber-500 text-white border-transparent";
-      switch (theme) {
-        case "light":
-          desktopStatusStyles = "border-amber-500/40 bg-amber-500/10 text-amber-800";
-          break;
-        case "dark":
-          desktopStatusStyles = "border-amber-400/50 bg-amber-400/20 text-amber-300";
-          break;
-        case "contrast":
-          desktopStatusStyles = "border-yellow-400 bg-yellow-600/80 text-white";
-          break;
-        case "lavender":
-          desktopStatusStyles = "border-orange-400 bg-orange-600/70 text-white";
-          break;
-        case "maroon":
-          desktopStatusStyles = "border-orange-400 bg-orange-600/70 text-white";
-          break;
-        case "green":
-          desktopStatusStyles = "border-amber-400 bg-amber-600/70 text-white";
-          break;
-        default:
-          desktopStatusStyles = "border-amber-400/50 bg-amber-400/20 text-amber-300";
-      }
-      return (
-        <>
-          <span className={cn(
-            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
-            mobileStatusStyles
-          )}>
-            Trial
-          </span>
-          <span className={cn(
-            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-            desktopStatusStyles
-          )}>
-            Trial Mode
-          </span>
-        </>
-      );
-    }
-
-    if (status === "suspended") {
-      mobileStatusStyles = "bg-red-600 text-white border-transparent";
-      switch (theme) {
-        case "light":
-          desktopStatusStyles = "border-red-500/40 bg-red-500/10 text-red-800";
-          break;
-        case "dark":
-          desktopStatusStyles = "border-red-400/50 bg-red-400/20 text-red-300";
-          break;
-        case "contrast":
-          desktopStatusStyles = "border-red-500 bg-red-700/80 text-white";
-          break;
-        case "lavender":
-        case "maroon":
-        case "green":
-          desktopStatusStyles = "border-rose-400 bg-rose-600/70 text-white";
-          break;
-        default:
-          desktopStatusStyles = "border-red-400/50 bg-red-400/20 text-red-300";
-      }
-      return (
-        <>
-          <span className={cn(
-            "md:hidden inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wider shadow-sm",
-            mobileStatusStyles
-          )}>
-            Suspended
-          </span>
-          <span className={cn(
-            "hidden md:inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
-            desktopStatusStyles
-          )}>
-            Suspended
-          </span>
-        </>
-      );
-    }
-
-    return null;
+    return (
+      <span className={cn(
+        "inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-sm select-none",
+        badgeClass
+      )}>
+        {subState.label}
+      </span>
+    );
   };
 
-  return (
-    <div className="flex flex-col min-h-screen w-full bg-background overflow-x-hidden">
-      {isReadOnly && (
-        <div className="bg-amber-500 dark:bg-amber-600 text-white px-4 py-2 text-center text-xs md:text-sm font-medium flex items-center justify-center gap-2 border-b border-amber-600 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
+  const renderHeaderNotice = () => {
+    const subState = getSubscriptionState();
+    if (!subState || subState.state === "active") return null;
+
+    let bgStyle = "";
+    let content: React.ReactNode = null;
+
+    if (subState.state === "trialing") {
+      bgStyle = "bg-amber-600 text-white px-3 py-1 rounded shadow-sm border border-amber-700";
+      content = (
+        <span className="text-xs md:text-sm font-bold">
+          {subState.daysRemaining} days remaining,{" "}
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-amber-100 transition-colors font-extrabold"
+          >
+            Whatsapp +923210081414
+          </a>{" "}
+          for upgrd
+        </span>
+      );
+    } else if (subState.state === "active-expiring") {
+      bgStyle = "bg-orange-600 text-white px-3 py-1 rounded shadow-sm border border-orange-700";
+      content = (
+        <span className="text-xs md:text-sm font-bold">
+          {subState.daysRemaining} days remaining,{" "}
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-orange-100 transition-colors font-extrabold"
+          >
+            Whatsapp +923210081414
+          </a>{" "}
+          for renewal
+        </span>
+      );
+    } else if (subState.state === "suspended") {
+      bgStyle = "bg-rose-700 text-white px-3 py-1.5 rounded shadow-sm border border-rose-800 flex items-center gap-1.5";
+      content = (
+        <span className="text-xs md:text-sm font-bold flex items-center gap-1.5 flex-wrap">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-white" />
           <span>
-            Upgrade your account to continue adding records. You still retain unlimited access to view, customize themes, and print your past records/PDFs. Contact on{" "}
+            Account Suspended. Contact{" "}
             <a
               href="https://wa.me/923210081414"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline font-bold hover:text-amber-100 transition-colors"
+              className="underline hover:text-rose-100 transition-colors font-extrabold"
             >
-              WhatsApp (+92 321 0081414)
+              WhatsApp +923210081414
             </a>{" "}
-            to upgrade.
+            to restore access.
           </span>
-        </div>
-      )}
+        </span>
+      );
+    }
+
+    return (
+      <div className={bgStyle}>
+        {content}
+      </div>
+    );
+  };
+
+  const renderMobileSubHeaderNotice = () => {
+    const subState = getSubscriptionState();
+    if (!subState || subState.state === "active") return null;
+
+    let bgStyle = "";
+    let content: React.ReactNode = null;
+
+    if (subState.state === "trialing") {
+      bgStyle = "bg-amber-600 text-white px-4 py-2 border-b border-amber-700 text-center flex items-center justify-center";
+      content = (
+        <span className="text-xs font-bold">
+          {subState.daysRemaining} days remaining,{" "}
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-amber-100 transition-colors font-extrabold"
+          >
+            Whatsapp +923210081414
+          </a>{" "}
+          for upgrd
+        </span>
+      );
+    } else if (subState.state === "active-expiring") {
+      bgStyle = "bg-orange-600 text-white px-4 py-2 border-b border-orange-700 text-center flex items-center justify-center";
+      content = (
+        <span className="text-xs font-bold">
+          {subState.daysRemaining} days remaining,{" "}
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-orange-100 transition-colors font-extrabold"
+          >
+            Whatsapp +923210081414
+          </a>{" "}
+          for renewal
+        </span>
+      );
+    } else if (subState.state === "suspended") {
+      bgStyle = "bg-rose-700 text-white px-4 py-2 border-b border-rose-800 text-center flex items-center justify-center gap-1.5";
+      content = (
+        <span className="text-xs font-bold flex items-center gap-1.5 justify-center flex-wrap">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-white" />
+          <span>
+            Account Suspended. Contact{" "}
+            <a
+              href="https://wa.me/923210081414"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-rose-100 transition-colors font-extrabold"
+            >
+              WhatsApp +923210081414
+            </a>{" "}
+            to restore access.
+          </span>
+        </span>
+      );
+    }
+
+    return (
+      <div className={cn("md:hidden shadow-sm animate-in fade-in duration-300", bgStyle)}>
+        {content}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen w-full bg-background overflow-x-hidden">
       <div className="flex flex-1 min-w-0 w-full bg-background">
         {/* Desktop sidebar */}
         <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar">
@@ -576,7 +606,6 @@ export function AppShell() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  disabled={isReadOnly}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
                 >
                 <span className="flex items-center gap-2">
@@ -589,27 +618,29 @@ export function AppShell() {
             <DropdownMenuContent className="w-52" align="start">
               <DropdownMenuLabel className="text-xs">Quick Actions</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/invoices/new" className="flex items-center gap-2 cursor-pointer w-full">
+              <DropdownMenuItem asChild disabled={isReadOnly}>
+                <Link to="/invoices/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
                   <FileText className="h-4 w-4 shrink-0" />
                   <span>New Invoice</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setClientPayOpen(true)}
+                disabled={isReadOnly}
                 className="flex items-center gap-2 cursor-pointer w-full"
               >
                 <Banknote className="h-4 w-4 shrink-0" />
                 <span>Log Payment Received</span>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/vendors/grn/new" className="flex items-center gap-2 cursor-pointer w-full">
+              <DropdownMenuItem asChild disabled={isReadOnly}>
+                <Link to="/vendors/grn/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
                   <Truck className="h-4 w-4 shrink-0" />
                   <span>Log GRN</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setVendorPayOpen(true)}
+                disabled={isReadOnly}
                 className="flex items-center gap-2 cursor-pointer w-full"
               >
                 <Coins className="h-4 w-4 shrink-0" />
@@ -617,6 +648,7 @@ export function AppShell() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => setLedgerTxOpen(true)}
+                disabled={isReadOnly}
                 className="flex items-center gap-2 cursor-pointer w-full"
               >
                 <BookOpen className="h-4 w-4 shrink-0" />
@@ -675,30 +707,9 @@ export function AppShell() {
             {renderCompactAccountStatus()}
           </div>
 
-          {tenantProfile?.status === "trialing" && (
-            <div className={cn(
-              "text-xs md:text-sm font-medium truncate py-1",
-              settings.theme === "light"
-                ? "text-amber-600"
-                : "text-amber-400"
-            )}>
-              {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
-              <a
-                href="https://wa.me/923210081414"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "underline font-bold transition-colors",
-                  settings.theme === "light"
-                    ? "text-amber-700 hover:text-amber-900"
-                    : "text-amber-300 hover:text-amber-200"
-                )}
-              >
-                Whatsapp +923210081414
-              </a>{" "}
-              for upgrd
-            </div>
-          )}
+          <div className="hidden md:block">
+            {renderHeaderNotice()}
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="hidden sm:flex items-center gap-1 rounded-md border bg-muted/50 px-2 py-1 text-xs font-medium">
               <span className="text-muted-foreground">Currency</span>
@@ -708,34 +719,36 @@ export function AppShell() {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="md:hidden" title="Quick Actions" disabled={isReadOnly}>
+                <Button variant="outline" size="icon" className="md:hidden" title="Quick Actions">
                   <Plus className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-52" align="end">
                 <DropdownMenuLabel className="text-xs">Quick Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/invoices/new" className="flex items-center gap-2 cursor-pointer w-full">
+                <DropdownMenuItem asChild disabled={isReadOnly}>
+                  <Link to="/invoices/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
                     <FileText className="h-4 w-4 shrink-0" />
                     <span>New Invoice</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setClientPayOpen(true)}
+                  disabled={isReadOnly}
                   className="flex items-center gap-2 cursor-pointer w-full"
                 >
                   <Banknote className="h-4 w-4 shrink-0" />
                   <span>Log Payment Received</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/vendors/grn/new" className="flex items-center gap-2 cursor-pointer w-full">
+                <DropdownMenuItem asChild disabled={isReadOnly}>
+                  <Link to="/vendors/grn/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
                     <Truck className="h-4 w-4 shrink-0" />
                     <span>Log GRN</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setVendorPayOpen(true)}
+                  disabled={isReadOnly}
                   className="flex items-center gap-2 cursor-pointer w-full"
                 >
                   <Coins className="h-4 w-4 shrink-0" />
@@ -743,6 +756,7 @@ export function AppShell() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => setLedgerTxOpen(true)}
+                  disabled={isReadOnly}
                   className="flex items-center gap-2 cursor-pointer w-full"
                 >
                   <BookOpen className="h-4 w-4 shrink-0" />
@@ -777,33 +791,8 @@ export function AppShell() {
           </div>
         </header>
 
-        {/* Mobile-only sub-header trial notice banner */}
-        {tenantProfile?.status === "trialing" && (
-          <div className={cn(
-            "md:hidden border-b px-4 py-2 text-xs font-semibold text-center flex items-center justify-center gap-1.5",
-            settings.theme === "light"
-              ? "bg-amber-500/10 border-amber-500/20 text-amber-700"
-              : "bg-amber-500/15 border-amber-500/30 text-amber-300"
-          )}>
-            <span>
-              {getTrialDaysRemaining(tenantProfile.trial_ends_at)} days remaining,{" "}
-              <a
-                href="https://wa.me/923210081414"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cn(
-                  "underline font-bold transition-colors",
-                  settings.theme === "light"
-                    ? "text-amber-800 hover:text-amber-950"
-                    : "text-amber-200 hover:text-amber-100"
-                )}
-              >
-                Whatsapp +923210081414
-              </a>{" "}
-              for upgrd
-            </span>
-          </div>
-        )}
+        {/* Mobile-only sub-header notice banner */}
+        {renderMobileSubHeaderNotice()}
 
         {/* Page */}
         <main className="flex-1 p-4 pb-24 md:p-6 md:pb-6">

@@ -32,7 +32,7 @@ jobs:
             set net:timeout 15;
             set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            mirror -R --delete ./dist/client/ ./;
+            mirror -R ./dist/client/ ./;
             quit;
           "
 

@@ -393,25 +393,38 @@ function SuperAdminPage() {
                   autoFocus
                 />
               </div>
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 justify-between items-center">
-              <Button
-                type="button"
-                variant="secondary"
-                className="cursor-pointer bg-emerald-600 text-white hover:bg-emerald-700 sm:mb-0 mb-2 w-full sm:w-auto"
-                onClick={handlePermanentAccess}
-                disabled={extendTrialMutation.isPending}
-              >
-                Grant Permanent Access
-              </Button>
-              <div className="flex gap-2 w-full sm:w-auto justify-end">
-                <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => setExtendUser(null)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="w-full sm:w-auto" disabled={extendTrialMutation.isPending}>
-                  {extendTrialMutation.isPending ? "Updating..." : "Grant Access"}
+
+              <div className="relative my-2">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-3 border rounded-lg bg-emerald-500/5 border-emerald-500/20">
+                <p className="text-xs text-center text-muted-foreground mb-3">
+                  Provide permanent unlimited active access without any day limits.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white font-semibold w-full"
+                  onClick={handlePermanentAccess}
+                  disabled={extendTrialMutation.isPending}
+                >
+                  Grant Permanent Access
                 </Button>
               </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setExtendUser(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={extendTrialMutation.isPending}>
+                {extendTrialMutation.isPending ? "Updating..." : "Grant Access"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

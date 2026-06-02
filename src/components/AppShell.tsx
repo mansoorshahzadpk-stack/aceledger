@@ -73,6 +73,7 @@ export function AppShell() {
     setActiveBusinessId,
     createBusiness,
     isReadOnly,
+    tenantProfile,
   } = useApp();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
 
@@ -396,6 +397,77 @@ export function AppShell() {
     );
   };
 
+  const getTrialDaysRemaining = (trialEndsAt?: string) => {
+    if (!trialEndsAt) return 0;
+    const trialEnds = new Date(trialEndsAt);
+    const diffMs = trialEnds.getTime() - Date.now();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  };
+
+  const renderAccountStatus = () => {
+    if (!tenantProfile) {
+      return (
+        <div className="mb-4 px-1">
+          <div className="h-[74px] w-full rounded-lg bg-muted/20 animate-pulse border border-muted/50" />
+        </div>
+      );
+    }
+
+    const { status, trial_ends_at } = tenantProfile;
+
+    if (status === "active") {
+      return (
+        <div className="mb-4 px-1">
+          <div className="relative overflow-hidden rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 p-3 text-xs shadow-sm h-[74px] flex flex-col justify-center">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-emerald-800 dark:text-emerald-300 font-bold tracking-wide">Ace Ledger Pro</span>
+              <span className="inline-flex items-center rounded bg-emerald-500/20 border border-emerald-500/40 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                Pro Version
+              </span>
+            </div>
+            <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
+              Full unrestricted enterprise features unlocked
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (status === "trialing") {
+      const daysLeft = getTrialDaysRemaining(trial_ends_at);
+      return (
+        <div className="mb-4 px-1">
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-lg border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15 p-3 text-xs text-amber-900 dark:text-amber-200 transition-colors shadow-sm cursor-pointer h-[74px]"
+          >
+            Trial Period: {daysLeft} Days Left. Contact <span className="underline font-bold">WhatsApp +923210081414</span> for upgrading to pro.
+          </a>
+        </div>
+      );
+    }
+
+    if (status === "suspended") {
+      return (
+        <div className="mb-4 px-1">
+          <a
+            href="https://wa.me/923210081414"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block rounded-lg border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 p-3 text-xs text-red-950 dark:text-red-200 transition-colors shadow-sm cursor-pointer h-[74px]"
+          >
+            Trial Period: Expired. Contact <span className="underline font-bold">WhatsApp +923210081414</span> for upgrading to pro.
+          </a>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="flex flex-col min-h-screen w-full bg-background">
       {isReadOnly && (
@@ -474,6 +546,8 @@ export function AppShell() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {renderAccountStatus()}
 
           {NAV.map((item) => {
             const Icon = item.icon;

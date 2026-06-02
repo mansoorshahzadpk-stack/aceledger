@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
 type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
 
 function NewGrnPage() {
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     vendor_id: "",
@@ -302,8 +302,8 @@ function NewGrnPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => window.history.back()}>Cancel</Button>
-              <Button type="button" variant="secondary" onClick={() => handleSave("draft")}>Save as Draft</Button>
-              <Button type="button" onClick={() => handleSave("posted")}>Post GRN</Button>
+              <Button type="button" variant="secondary" onClick={() => handleSave("draft")} disabled={isReadOnly}>Save as Draft</Button>
+              <Button type="button" onClick={() => handleSave("posted")} disabled={isReadOnly}>Post GRN</Button>
             </div>
           </form>
         </CardContent>

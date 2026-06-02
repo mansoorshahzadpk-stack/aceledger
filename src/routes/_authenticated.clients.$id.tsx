@@ -24,7 +24,7 @@ interface PayForm { amount: string; payment_date: string; method: string; refere
 
 function ClientDetail() {
   const { id } = Route.useParams();
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState<PayForm>({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: "" });
@@ -161,8 +161,8 @@ function ClientDetail() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button asChild><Link to="/invoices/new" search={{ client: id } as any}><Plus className="mr-1 h-4 w-4" />New Invoice</Link></Button>
-        <Button variant="default" disabled={postedInvoices.length === 0 && Number(data.c.opening_balance) === 0} onClick={() => setPayOpen(true)}>
+        <Button asChild className={isReadOnly ? "pointer-events-none opacity-50" : ""}><Link to="/invoices/new" search={{ client: id } as any}><Plus className="mr-1 h-4 w-4" />New Invoice</Link></Button>
+        <Button variant="default" disabled={isReadOnly || (postedInvoices.length === 0 && Number(data.c.opening_balance) === 0)} onClick={() => setPayOpen(true)}>
           <Banknote className="mr-1 h-4 w-4" />Log Payment Received
         </Button>
       </div>
@@ -212,8 +212,8 @@ function ClientDetail() {
                       <TableCell className="text-xs text-muted-foreground">{p.reference ?? "—"}</TableCell>
                       <TableCell className="text-right figure text-success">{formatMoney(p.amount, settings.currency)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} title="Amend"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} disabled={isReadOnly} title="Amend"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -290,7 +290,7 @@ function ClientDetail() {
               </Select>
             </Field>
             <Field label="Reference"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></Field>
-            <DialogFooter><Button type="submit">Save payment</Button></DialogFooter>
+            <DialogFooter><Button type="submit" disabled={isReadOnly}>Save payment</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -304,7 +304,7 @@ function ClientDetail() {
           <Field label="Reason"><Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" /></Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>
-            <Button onClick={applyEditPay}>Confirm amendment</Button>
+            <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm amendment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -317,7 +317,7 @@ function ClientDetail() {
           <Field label="Reason"><Textarea autoFocus rows={3} value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="Reason for deletion" /></Field>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDelPay(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={applyDeletePay}>Delete payment</Button>
+            <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>Delete payment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/vendors/")({
 });
 
 function VendorsPage() {
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -115,7 +115,7 @@ function VendorsPage() {
           {selected.size > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+                <Button variant="destructive" disabled={isReadOnly}><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -131,9 +131,9 @@ function VendorsPage() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button asChild><Link to="/vendors/grn/new"><Truck className="mr-2 h-4 w-4" />Log GRN</Link></Button>
+          <Button asChild className={isReadOnly ? "pointer-events-none opacity-50" : ""}><Link to="/vendors/grn/new"><Truck className="mr-2 h-4 w-4" />Log GRN</Link></Button>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button variant="outline"><Plus className="mr-2 h-4 w-4" />New Vendor</Button></DialogTrigger>
+            <DialogTrigger asChild><Button variant="outline" disabled={isReadOnly}><Plus className="mr-2 h-4 w-4" />New Vendor</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add Vendor</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-3">
@@ -145,7 +145,7 @@ function VendorsPage() {
                 <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
                 <Field label="Opening balance (we owe them)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
-                <DialogFooter><Button type="submit">Save vendor</Button></DialogFooter>
+                <DialogFooter><Button type="submit" disabled={isReadOnly}>Save vendor</Button></DialogFooter>
               </form>
             </DialogContent>
           </Dialog>

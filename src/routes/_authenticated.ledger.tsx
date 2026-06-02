@@ -47,7 +47,7 @@ interface LedgerTransaction {
 }
 
 function LedgerPage() {
-  const { settings, activeBusinessId, user } = useApp();
+  const { settings, activeBusinessId, user, isReadOnly } = useApp();
   const c = settings.currency;
   const qc = useQueryClient();
 
@@ -228,6 +228,7 @@ function LedgerPage() {
           </p>
         </div>
         <Button
+          disabled={isReadOnly}
           onClick={() => {
             setEditingTx(null);
             setForm({
@@ -402,6 +403,7 @@ function LedgerPage() {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground"
                           onClick={() => handleEdit(tx)}
+                          disabled={isReadOnly}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -414,6 +416,7 @@ function LedgerPage() {
                               deleteMutation.mutate(tx.id);
                             }
                           }}
+                          disabled={isReadOnly}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -541,7 +544,7 @@ function LedgerPage() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
+              <Button type="submit" disabled={isReadOnly || saveMutation.isPending}>
                 {saveMutation.isPending ? "Saving..." : "Save Transaction"}
               </Button>
             </DialogFooter>

@@ -38,7 +38,7 @@ type Item = { id?: string; description: string; quantity: string; unit_price: st
 
 function InvoiceDetail() {
   const { id } = Route.useParams();
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
@@ -222,9 +222,9 @@ function InvoiceDetail() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={print}><Printer className="mr-1 h-4 w-4" />Print / PDF</Button>
-            {!editing && <Button variant="secondary" onClick={() => setEditing(true)}>{isPosted ? "Edit (requires reason)" : "Edit"}</Button>}
-            {!editing && <Button variant="destructive" onClick={() => { setDeleteReason(""); setDeleteOpen(true); }}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>}
-            {!isPosted && <Button onClick={postInvoice}><Send className="mr-1 h-4 w-4" />Post Invoice</Button>}
+            {!editing && <Button variant="secondary" onClick={() => setEditing(true)} disabled={isReadOnly}>{isPosted ? "Edit (requires reason)" : "Edit"}</Button>}
+            {!editing && <Button variant="destructive" onClick={() => { setDeleteReason(""); setDeleteOpen(true); }} disabled={isReadOnly}><Trash2 className="mr-1 h-4 w-4" />Delete</Button>}
+            {!isPosted && <Button onClick={postInvoice} disabled={isReadOnly}><Send className="mr-1 h-4 w-4" />Post Invoice</Button>}
           </div>
         </div>
       </div>
@@ -235,7 +235,7 @@ function InvoiceDetail() {
           {editing && (
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setForm(null); }}>Cancel</Button>
-              <Button size="sm" onClick={isPosted ? requestPostedEdit : saveDraftEdit}>Save changes</Button>
+              <Button size="sm" onClick={isPosted ? requestPostedEdit : saveDraftEdit} disabled={isReadOnly}>Save changes</Button>
             </div>
           )}
         </CardHeader>
@@ -465,7 +465,7 @@ function InvoiceDetail() {
           <Textarea autoFocus value={amendReason} onChange={(e) => setAmendReason(e.target.value)} placeholder="e.g. Corrected quantity per delivery note 24-09-12" rows={4} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAmendOpen(false)}>Cancel</Button>
-            <Button onClick={applyAmendment}>Confirm amendment</Button>
+            <Button onClick={applyAmendment} disabled={isReadOnly}>Confirm amendment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -483,7 +483,7 @@ function InvoiceDetail() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-            <Button variant="destructive" onClick={deleteInvoice}>Delete invoice</Button>
+            <Button variant="destructive" onClick={deleteInvoice} disabled={isReadOnly}>Delete invoice</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

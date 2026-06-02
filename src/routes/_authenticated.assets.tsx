@@ -36,7 +36,7 @@ interface Asset {
 }
 
 function AssetsPage() {
-  const { settings, activeBusinessId, user } = useApp();
+  const { settings, activeBusinessId, user, isReadOnly } = useApp();
   const c = settings.currency;
   const qc = useQueryClient();
 
@@ -120,13 +120,12 @@ function AssetsPage() {
     },
   });
 
-  // Auto provision defaults if list is empty
   useEffect(() => {
-    if (isSuccess && assets.length === 0 && activeBusinessId && user && !isLoading && !provisionMutation.isPending) {
+    if (isSuccess && assets.length === 0 && activeBusinessId && user && !isLoading && !provisionMutation.isPending && !isReadOnly) {
       provisionMutation.mutate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSuccess, assets.length, activeBusinessId, user, isLoading]);
+  }, [isSuccess, assets.length, activeBusinessId, user, isLoading, isReadOnly]);
 
   // Save/Create Asset
   const saveMutation = useMutation({
@@ -267,6 +266,7 @@ function AssetsPage() {
           </p>
         </div>
         <Button
+          disabled={isReadOnly}
           onClick={() => {
             setEditingAsset(null);
             setForm({
@@ -397,6 +397,7 @@ function AssetsPage() {
                           size="icon"
                           className="h-8 w-8 text-muted-foreground"
                           onClick={() => handleEdit(asset)}
+                          disabled={isReadOnly}
                         >
                           <ReceiptText className="h-4 w-4" />
                         </Button>
@@ -409,7 +410,7 @@ function AssetsPage() {
                               deleteMutation.mutate(asset.id);
                             }
                           }}
-                          disabled={assets.length <= 2 && (asset.type === "bank_account" || asset.type === "petty_cash")}
+                          disabled={isReadOnly || (assets.length <= 2 && (asset.type === "bank_account" || asset.type === "petty_cash"))}
                         >
                           <Plus className="h-4 w-4 rotate-45" />
                         </Button>
@@ -515,7 +516,7 @@ function AssetsPage() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={saveMutation.isPending}>
+              <Button type="submit" disabled={isReadOnly || saveMutation.isPending}>
                 {saveMutation.isPending ? "Saving..." : "Save Asset"}
               </Button>
             </DialogFooter>

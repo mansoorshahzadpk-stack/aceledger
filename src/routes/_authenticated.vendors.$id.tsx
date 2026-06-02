@@ -47,7 +47,7 @@ type GRN = {
 
 function VendorDetail() {
   const { id } = Route.useParams();
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: "" });
@@ -244,7 +244,7 @@ function VendorDetail() {
         <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div><CardTitle>Goods Received (GRNs)</CardTitle><CardDescription>Material logged from this vendor</CardDescription></div>
-            <Button asChild size="sm"><Link to="/vendors/grn/new"><Plus className="mr-1 h-4 w-4" />New GRN</Link></Button>
+            <Button asChild size="sm" className={isReadOnly ? "pointer-events-none opacity-50" : ""}><Link to="/vendors/grn/new"><Plus className="mr-1 h-4 w-4" />New GRN</Link></Button>
           </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
@@ -266,13 +266,13 @@ function VendorDetail() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {(g.status || "posted") === "draft" && (
-                            <Button size="icon" variant="ghost" onClick={() => postGrnDirect(g)} title="Post GRN" className="text-primary hover:text-primary hover:bg-primary/10">
+                            <Button size="icon" variant="ghost" onClick={() => postGrnDirect(g)} disabled={isReadOnly} title="Post GRN" className="text-primary hover:text-primary hover:bg-primary/10">
                               <Send className="h-4 w-4" />
                             </Button>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => printGrn(g)} title="Print"><Printer className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(g)} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => { setDeleteGrn(g); setDeleteReason(""); }} title="Delete"><Trash2 className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(g)} disabled={isReadOnly} title="Edit"><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setDeleteGrn(g); setDeleteReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -287,7 +287,7 @@ function VendorDetail() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div><CardTitle>Payments to vendor</CardTitle><CardDescription>Money we have paid them</CardDescription></div>
             <Dialog open={payOpen} onOpenChange={setPayOpen}>
-              <DialogTrigger asChild><Button size="sm"><Plus className="mr-1 h-4 w-4" />Log Payment</Button></DialogTrigger>
+              <DialogTrigger asChild><Button size="sm" disabled={isReadOnly}><Plus className="mr-1 h-4 w-4" />Log Payment</Button></DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Log Payment to {data.v.name}</DialogTitle></DialogHeader>
                 <form onSubmit={logPayment} className="space-y-3">
@@ -321,7 +321,7 @@ function VendorDetail() {
                   </Field>
                   <Field label="Reference"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} placeholder="Cheque # / Txn ID" /></Field>
                   <Field label="Notes"><Textarea value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} /></Field>
-                  <DialogFooter><Button type="submit">Save payment</Button></DialogFooter>
+                  <DialogFooter><Button type="submit" disabled={isReadOnly}>Save payment</Button></DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
@@ -485,7 +485,7 @@ function VendorDetail() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditGrn(null)}>Cancel</Button>
-            <Button onClick={saveEdit}>Save amendment</Button>
+            <Button onClick={saveEdit} disabled={isReadOnly}>Save amendment</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -510,7 +510,7 @@ function VendorDetail() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteGrn(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete}>Delete GRN</Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isReadOnly}>Delete GRN</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

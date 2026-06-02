@@ -49,7 +49,7 @@ type MaterialRow = {
 const emptyForm = { id: "", name: "", sku: "", description: "", unit: "kg", default_price: "0", default_tax_rate: "0", active: true };
 
 function MaterialsPage() {
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -137,7 +137,7 @@ function MaterialsPage() {
           {selected.size > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+                <Button variant="destructive" disabled={isReadOnly}><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -153,7 +153,7 @@ function MaterialsPage() {
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button onClick={openNew}><Plus className="mr-2 h-4 w-4" />New Material</Button>
+          <Button onClick={openNew} disabled={isReadOnly}><Plus className="mr-2 h-4 w-4" />New Material</Button>
         </div>
       </div>
 
@@ -198,10 +198,10 @@ function MaterialsPage() {
                     <TableCell><Badge variant="secondary">{p.unit}</Badge></TableCell>
                     <TableCell className="text-right figure">{formatMoney(p.default_price, settings.currency)}</TableCell>
                     <TableCell className="text-center">
-                      <Switch checked={p.active} onCheckedChange={() => toggleActive(p)} />
+                      <Switch checked={p.active} onCheckedChange={() => toggleActive(p)} disabled={isReadOnly} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} disabled={isReadOnly}><Pencil className="h-4 w-4" /></Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -232,7 +232,7 @@ function MaterialsPage() {
               </div>
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
             </div>
-            <DialogFooter><Button type="submit">{form.id ? "Save changes" : "Add material"}</Button></DialogFooter>
+            <DialogFooter><Button type="submit" disabled={isReadOnly}>{form.id ? "Save changes" : "Add material"}</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

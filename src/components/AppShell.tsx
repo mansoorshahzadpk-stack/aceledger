@@ -24,6 +24,7 @@ import {
   Scale,
   ClipboardCheck,
   Banknote,
+  AlertTriangle,
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ export function AppShell() {
     activeBusinessId,
     setActiveBusinessId,
     createBusiness,
+    isReadOnly,
   } = useApp();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
 
@@ -395,19 +397,27 @@ export function AppShell() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-background">
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar">
-        <div className="flex h-16 items-center border-b px-3">
-          <BusinessSwitcher />
+    <div className="flex flex-col min-h-screen w-full bg-background">
+      {isReadOnly && (
+        <div className="bg-amber-500 dark:bg-amber-600 text-white px-4 py-2 text-center text-xs md:text-sm font-medium flex items-center justify-center gap-2 border-b border-amber-600 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>Upgrade your account to continue adding records. You still retain unlimited access to view, customize themes, and print your past records/PDFs.</span>
         </div>
-        <nav className="flex-1 space-y-1 p-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
-              >
+      )}
+      <div className="flex flex-1 min-w-0 w-full bg-background">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar">
+          <div className="flex h-16 items-center border-b px-3">
+            <BusinessSwitcher />
+          </div>
+          <nav className="flex-1 space-y-1 p-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  disabled={isReadOnly}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
+                >
                 <span className="flex items-center gap-2">
                   <Plus className="h-4 w-4 shrink-0" />
                   <span>Quick Actions</span>
@@ -473,6 +483,20 @@ export function AppShell() {
               </Link>
             );
           })}
+          {user?.email === "mansoorshahzadpk@gmail.com" && (
+            <Link
+              to="/super-admin"
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive("/super-admin")
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+              )}
+            >
+              <ShieldAlert className="h-4 w-4" />
+              Super Admin
+            </Link>
+          )}
         </nav>
         <div className="border-t p-3 text-xs text-muted-foreground">
           <div className="truncate">{user?.email}</div>
@@ -494,7 +518,7 @@ export function AppShell() {
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="md:hidden" title="Quick Actions">
+                <Button variant="outline" size="icon" className="md:hidden" title="Quick Actions" disabled={isReadOnly}>
                   <Plus className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -604,6 +628,14 @@ export function AppShell() {
                   </DropdownMenuItem>
                 );
               })}
+              {user?.email === "mansoorshahzadpk@gmail.com" && (
+                <DropdownMenuItem asChild>
+                  <Link to="/super-admin">
+                    <ShieldAlert className="mr-2 h-4 w-4" />
+                    Super Admin
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={cycleTheme}>
                 <ThemeIcon className="mr-2 h-4 w-4" />
                 Theme: {settings.theme}
@@ -990,6 +1022,7 @@ export function AppShell() {
           </form>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

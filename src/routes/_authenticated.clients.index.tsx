@@ -35,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/clients/")({
 });
 
 function ClientsPage() {
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -168,7 +168,7 @@ function ClientsPage() {
           {selected.size > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+                <Button variant="destructive" disabled={isReadOnly}><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -185,7 +185,7 @@ function ClientsPage() {
             </AlertDialog>
           )}
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" />New Client</Button></DialogTrigger>
+            <DialogTrigger asChild><Button disabled={isReadOnly}><Plus className="mr-2 h-4 w-4" />New Client</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
               <form onSubmit={addClient} className="space-y-3">
@@ -197,7 +197,7 @@ function ClientsPage() {
                 <Field label="Email"><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
                 <Field label="Address"><Textarea value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
                 <Field label="Opening balance (owes us)"><Input type="number" step="0.01" value={form.opening_balance} onChange={(e) => setForm({ ...form, opening_balance: e.target.value })} /></Field>
-                <DialogFooter><Button type="submit">Save client</Button></DialogFooter>
+                <DialogFooter><Button type="submit" disabled={isReadOnly}>Save client</Button></DialogFooter>
               </form>
             </DialogContent>
           </Dialog>
@@ -232,7 +232,7 @@ function ClientsPage() {
                     <TableCell className="text-muted-foreground">{c.phone ?? "—"}</TableCell>
                     <TableCell className="text-right figure font-medium text-warning">{formatMoney(c.outstanding, settings.currency)}</TableCell>
                     <TableCell className="text-right">
-                      <Button size="sm" variant="default" disabled={!c.hasPosted} onClick={() => setPayOpen(c.id)} title={!c.hasPosted ? "No posted invoices" : ""}>
+                      <Button size="sm" variant="default" disabled={isReadOnly || !c.hasPosted} onClick={() => setPayOpen(c.id)} title={!c.hasPosted ? "No posted invoices" : ""}>
                         <Banknote className="mr-1 h-4 w-4" />Log Payment Received
                       </Button>
                     </TableCell>
@@ -276,7 +276,7 @@ function ClientsPage() {
               </Select>
             </Field>
             <Field label="Reference (optional)"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></Field>
-            <DialogFooter><Button type="submit">Subtract from balance</Button></DialogFooter>
+            <DialogFooter><Button type="submit" disabled={isReadOnly}>Subtract from balance</Button></DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

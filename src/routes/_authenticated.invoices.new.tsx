@@ -29,7 +29,7 @@ type Material = { id: string; name: string; sku: string | null; unit: string; de
 
 function NewInvoice() {
   const navigate = useNavigate();
-  const { settings, user, activeBusinessId } = useApp();
+  const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const sp = Route.useSearch();
   const [clientId, setClientId] = useState<string>(sp.client ?? "");
   const [invNum, setInvNum] = useState("");
@@ -243,8 +243,8 @@ function NewInvoice() {
 
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="outline" onClick={() => navigate({ to: "/invoices" })}>Cancel</Button>
-        <Button variant="secondary" onClick={() => save("draft")}>Save as Draft</Button>
-        <Button onClick={() => save("posted")}>Post Invoice</Button>
+        <Button variant="secondary" onClick={() => save("draft")} disabled={isReadOnly}>Save as Draft</Button>
+        <Button onClick={() => save("posted")} disabled={isReadOnly}>Post Invoice</Button>
       </div>
     </div>
   );

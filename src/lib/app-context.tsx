@@ -29,6 +29,14 @@ export interface Business {
   updated_at: string;
 }
 
+export interface TenantProfile {
+  user_id: string;
+  email: string | null;
+  created_at: string;
+  trial_ends_at: string;
+  status: "trialing" | "active" | "suspended";
+}
+
 interface AppContextValue {
   user: { id: string; email?: string } | null;
   loadingAuth: boolean;
@@ -36,6 +44,8 @@ interface AppContextValue {
   businesses: Business[];
   activeBusiness: Business | null;
   activeBusinessId: string | null;
+  tenantProfile: TenantProfile | null;
+  isReadOnly: boolean;
   setActiveBusinessId: (id: string) => Promise<void>;
   createBusiness: (
     name: string,
@@ -75,6 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [activeBusiness, setActiveBusiness] = useState<Business | null>(null);
   const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
+  const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(null);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
@@ -90,6 +101,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const refreshSettings = async () => {
     if (!user) return;
+
+    // 1a. Fetch tenant profile
+    const { data: profile } = await supabase
+      .from("tenant_profiles" as any)
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    setTenantProfile(profile as TenantProfile | null);
 
     // 1. Fetch app_settings
     let { data: appSettingsData } = await supabase
@@ -176,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBusinesses([]);
       setActiveBusiness(null);
       setActiveBusinessId(null);
+      setTenantProfile(null);
       applyTheme("light");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,12 +211,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshSettings();
   };
 
+  const isReadOnly = (() => {
+    if (!tenantProfile) return false;
+    if (tenantProfile.status === "suspended") return true;
+    if (tenantProfile.status !== "active") {
+      const trialEnds = new Date(tenantProfile.trial_ends_at);
+      if (isNaN(trialEnds.getTime()) || trialEnds < new Date()) {
+        return true;
+      }
+    }
+    return false;
+  })();
+
   const createBusiness = async (
     name: string,
     currency: CurrencyCode,
     details?: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
   ) => {
     if (!user) return;
+    if (isReadOnly) throw new Error("Subscription inactive. Read-only access.");
     if (businesses.length >= 10) {
       throw new Error("Maximum limit of 10 businesses reached");
     }
@@ -224,6 +257,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteBusiness = async (id: string) => {
     if (!user) return;
+    if (isReadOnly) throw new Error("Subscription inactive. Read-only access.");
     if (businesses.length <= 1) {
       throw new Error("You must have at least one business");
     }
@@ -249,6 +283,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     patch: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
   ) => {
     if (!user || !activeBusinessId) return;
+    if (isReadOnly) throw new Error("Subscription inactive. Read-only access.");
     const { error } = await supabase
       .from("businesses")
       .update(patch)
@@ -293,6 +328,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         businesses,
         activeBusiness,
         activeBusinessId,
+        tenantProfile,
+        isReadOnly,
         setActiveBusinessId: handleSetActiveBusinessId,
         createBusiness,
         deleteBusiness,

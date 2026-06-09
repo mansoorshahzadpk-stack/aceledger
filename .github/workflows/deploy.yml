@@ -91,9 +91,10 @@ jobs:
           lftp -c "
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
-            set net:timeout 15;
-            set net:max-retries 2;
+            set net:timeout 30;
+            set net:max-retries 3;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            cd public_html;
             set cmd:fail-exit no;
             rm .htaccess;
             rm index.html;
@@ -115,6 +116,19 @@ jobs:
 
           if [ "$HTTP_CODE" -ne 200 ] || [ "$BODY" != "Success" ]; then
             echo "Deployment extraction failed!"
+            echo "NOTE: If HTTP_CODE is 403/404, the FTP upload may have gone to the wrong directory."
             exit 1
           fi
           echo "Deployment succeeded!"
+
+      - name: Verify Site is Live
+        run: |
+          echo "Waiting 5 seconds for files to settle..."
+          sleep 5
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://aceledger.top/")
+          echo "Site status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 301 ] || [ "$HTTP_STATUS" -eq 302 ]; then
+            echo "✅ Site is live!"
+          else
+            echo "⚠️ Site returned $HTTP_STATUS — check Hostinger FTP directory configuration"
+          fi

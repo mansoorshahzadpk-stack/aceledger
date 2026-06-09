@@ -164,6 +164,8 @@ export type Database = {
           payment_date: string
           reconciled: boolean
           reference: string | null
+          status: "draft" | "posted"
+          posted_at: string | null
           user_id: string
         }
         Insert: {
@@ -179,6 +181,8 @@ export type Database = {
           payment_date?: string
           reconciled?: boolean
           reference?: string | null
+          status?: "draft" | "posted"
+          posted_at?: string | null
           user_id: string
         }
         Update: {
@@ -194,6 +198,8 @@ export type Database = {
           payment_date?: string
           reconciled?: boolean
           reference?: string | null
+          status?: "draft" | "posted"
+          posted_at?: string | null
           user_id?: string
         }
         Relationships: [

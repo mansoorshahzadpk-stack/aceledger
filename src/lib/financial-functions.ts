@@ -132,6 +132,7 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   const { data: clientPayments, error: clientPaysError } = await supabase
     .from("client_payments")
     .select("amount, asset_id, payment_date, client_id")
+    .eq("status", "posted")
     .eq("business_id", businessId)
     .eq("user_id", userId)
     .lte("payment_date", asOfDate);

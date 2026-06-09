@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
-import { ArrowLeft, Plus, Banknote, Pencil, Trash2, History } from "lucide-react";
+import { ArrowLeft, Plus, Banknote, Pencil, Trash2, History, Send } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
@@ -71,7 +71,7 @@ function ClientDetail() {
         supabase.from("payment_amendments").select("*").eq("client_id", id).eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       const posted = (invs ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
-      const paid = (pays ?? []).reduce((s, x) => s + Number(x.amount), 0);
+      const paid = (pays ?? []).filter((p) => (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);
       const outstanding = Number(c?.opening_balance ?? 0) + posted - paid;
       return { c, invs: invs ?? [], pays: pays ?? [], amends: amends ?? [], outstanding, posted };
     },
@@ -91,10 +91,11 @@ function ClientDetail() {
       method: pay.method as any,
       reference: pay.reference || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
+      status: "draft",
     });
     if (error) toast.error(error.message);
     else {
-      toast.success("Payment Received recorded");
+      toast.success("Payment logged as Draft");
       setPayOpen(false);
       setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: bankCashAssets[0]?.id || "" });
       qc.invalidateQueries({ queryKey: ["client", id] });
@@ -111,15 +112,18 @@ function ClientDetail() {
 
   const applyEditPay = async () => {
     if (!editPay || !user) return;
-    if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+    const isPosted = (editPay.status || "posted") === "posted";
     const newAmt = parseFloat(editAmount) || 0;
-    await supabase.from("payment_amendments").insert({
-      user_id: user.id, payment_id: editPay.id, client_id: id,
-      action: "edit", previous_amount: editPay.amount, new_amount: newAmt,
-      reason: editReason.trim(),
-    });
+    if (isPosted) {
+      if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+      await supabase.from("payment_amendments").insert({
+        user_id: user.id, payment_id: editPay.id, client_id: id,
+        action: "edit", previous_amount: editPay.amount, new_amount: newAmt,
+        reason: editReason.trim(),
+      });
+    }
     await supabase.from("client_payments").update({ amount: newAmt }).eq("id", editPay.id).eq("user_id", user.id);
-    toast.success("Payment Received amended");
+    toast.success(isPosted ? "Payment Received amended" : "Payment Received updated");
     setEditPay(null);
     qc.invalidateQueries({ queryKey: ["client", id] });
     qc.invalidateQueries({ queryKey: ["clients"] });
@@ -128,18 +132,37 @@ function ClientDetail() {
 
   const applyDeletePay = async () => {
     if (!delPay || !user) return;
-    if (delReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
-    await supabase.from("payment_amendments").insert({
-      user_id: user.id, payment_id: delPay.id, client_id: id,
-      action: "delete", previous_amount: delPay.amount, new_amount: 0,
-      reason: delReason.trim(),
-    });
+    const isPosted = (delPay.status || "posted") === "posted";
+    if (isPosted) {
+      if (delReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+      await supabase.from("payment_amendments").insert({
+        user_id: user.id, payment_id: delPay.id, client_id: id,
+        action: "delete", previous_amount: delPay.amount, new_amount: 0,
+        reason: delReason.trim(),
+      });
+    }
     await supabase.from("client_payments").delete().eq("id", delPay.id).eq("user_id", user.id);
-    toast.success("Payment Received deleted");
+    toast.success(isPosted ? "Payment Received deleted" : "Draft Payment deleted");
     setDelPay(null); setDelReason("");
     qc.invalidateQueries({ queryKey: ["client", id] });
     qc.invalidateQueries({ queryKey: ["clients"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
+  };
+
+  const postPaymentDirect = async (p: any) => {
+    if (!user) return;
+    const { error } = await supabase.from("client_payments").update({
+      status: "posted",
+      posted_at: new Date().toISOString()
+    } as any).eq("id", p.id).eq("user_id", user.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Payment posted — balance updated");
+      qc.invalidateQueries({ queryKey: ["client", id] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
   };
 
   const postedInvoices = data?.invs.filter((i) => i.status === "posted") ?? [];
@@ -199,22 +222,34 @@ function ClientDetail() {
         </Card>
 
         <Card className="min-w-0">
-          <CardHeader><CardTitle>Payment Received</CardTitle><CardDescription>Payments received from this client — amend / delete requires a reason</CardDescription></CardHeader>
+          <CardHeader><CardTitle>Payment Received</CardTitle><CardDescription>Payments received from this client — drafts can be updated/deleted freely</CardDescription></CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead>Ref</TableHead><TableHead className="text-right">Amount</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead>Ref</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-36 text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
-                  {data.pays.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
+                  {data.pays.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
                   {data.pays.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.reference ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={(p.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">
+                          {p.status || "posted"}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right figure text-success">{formatMoney(p.amount, settings.currency)}</TableCell>
                       <TableCell className="text-right whitespace-nowrap">
-                        <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} disabled={isReadOnly} title="Amend"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <div className="flex justify-end gap-1">
+                          {(p.status || "posted") === "draft" && (
+                            <Button size="icon" variant="ghost" onClick={() => postPaymentDirect(p)} disabled={isReadOnly} title="Post Payment" className="text-primary hover:text-primary hover:bg-primary/10">
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} disabled={isReadOnly} title="Edit / Amend"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -299,13 +334,19 @@ function ClientDetail() {
       {/* Amend payment dialog */}
       <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Amend Payment Received</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">A reason is required for the audit trail. The client balance will be recalculated.</p>
+          <DialogHeader><DialogTitle>{(editPay?.status || "posted") === "posted" ? "Amend Payment Received" : "Edit Payment Received"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {(editPay?.status || "posted") === "posted"
+              ? "A reason is required for the audit trail. The client balance will be recalculated."
+              : "Update the draft payment details."}
+          </p>
           <Field label="Amount"><FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" /></Field>
-          <Field label="Reason"><Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" /></Field>
+          {(editPay?.status || "posted") === "posted" && (
+            <Field label="Reason"><Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" /></Field>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>
-            <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm amendment</Button>
+            <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -313,9 +354,15 @@ function ClientDetail() {
       {/* Delete payment dialog */}
       <Dialog open={!!delPay} onOpenChange={(v) => !v && setDelPay(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Delete Payment Received?</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">This will remove the payment and add it back to the client balance. A reason is required.</p>
-          <Field label="Reason"><Textarea autoFocus rows={3} value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="Reason for deletion" /></Field>
+          <DialogHeader><DialogTitle>{(delPay?.status || "posted") === "posted" ? "Delete Payment Received?" : "Delete Draft Payment?"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {(delPay?.status || "posted") === "posted"
+              ? "This will remove the payment and add it back to the client balance. A reason is required."
+              : "This will permanently delete this draft payment."}
+          </p>
+          {(delPay?.status || "posted") === "posted" && (
+            <Field label="Reason"><Textarea autoFocus rows={3} value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="Reason for deletion" /></Field>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDelPay(null)}>Cancel</Button>
             <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>Delete payment</Button>

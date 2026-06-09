@@ -219,11 +219,12 @@ export function AppShell() {
       method: clientPay.method as any,
       reference: clientPay.reference || null,
       asset_id: clientPay.asset_id === "" || clientPay.asset_id === "none" ? null : clientPay.asset_id,
+      status: "draft",
     });
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Payment Received recorded!");
+      toast.success("Payment logged as Draft!");
       setClientPayOpen(false);
       setClientPay(prev => ({
         ...prev,

@@ -75,7 +75,7 @@ function AssetsPage() {
     queryFn: async () => {
       if (!activeBusinessId || !user) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
       const [{ data: clientPays }, { data: vendorPays }, { data: ledgerTxs }] = await Promise.all([
-        supabase.from("client_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("client_payments").select("amount, asset_id").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);

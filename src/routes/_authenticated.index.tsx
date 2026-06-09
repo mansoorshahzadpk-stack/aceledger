@@ -34,14 +34,14 @@ function Dashboard() {
       const [clients, invoices, cpay, vendors, grns, vpay] = await Promise.all([
         supabase.from("clients").select("id, opening_balance").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("invoices").select("id, total, status, client_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
-        supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name)").eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }).limit(20),
+        supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name), status").eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
         supabase.from("vendors").select("id, opening_balance").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("vendor_grns").select("id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("vendor_payments").select("id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
       const clientOpening = (clients.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
       const postedTotal = (invoices.data ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
-      const paidIn = (cpay.data ?? []).reduce((s, x) => s + Number(x.amount), 0);
+      const paidIn = (cpay.data ?? []).filter((p) => p.status === "posted").reduce((s, x) => s + Number(x.amount), 0);
       const outstanding = clientOpening + postedTotal - paidIn;
 
       const vendorOpening = (vendors.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
@@ -50,10 +50,12 @@ function Dashboard() {
       const owed = vendorOpening + grnTotal - paidOut;
 
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekCollections = (cpay.data ?? []).filter((p) => new Date(p.payment_date) >= weekAgo)
+      const weekCollections = (cpay.data ?? []).filter((p) => p.status === "posted" && new Date(p.payment_date) >= weekAgo)
         .reduce((s, x) => s + Number(x.amount), 0);
 
-      return { outstanding, owed, weekCollections, recent: cpay.data ?? [], counts: { clients: clients.data?.length ?? 0, vendors: vendors.data?.length ?? 0, invoices: invoices.data?.length ?? 0 } };
+      const recent = (cpay.data ?? []).slice(0, 20);
+
+      return { outstanding, owed, weekCollections, recent, counts: { clients: clients.data?.length ?? 0, vendors: vendors.data?.length ?? 0, invoices: invoices.data?.length ?? 0 } };
     },
     enabled: !!user,
   });
@@ -119,7 +121,14 @@ function Dashboard() {
                   <TableRow key={p.id}>
                     <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
                     <TableCell>{p.clients?.name ?? "—"}</TableCell>
-                    <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="capitalize">{p.method}</Badge>
+                        <Badge variant={(p.status || "posted") === "posted" ? "default" : "outline"} className="text-[10px] py-0 px-1.5 uppercase font-semibold">
+                          {p.status || "posted"}
+                        </Badge>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right figure font-medium text-success">{formatMoney(p.amount, c)}</TableCell>
                   </TableRow>
                 ))}

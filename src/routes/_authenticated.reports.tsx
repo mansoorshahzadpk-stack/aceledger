@@ -695,6 +695,7 @@ function ReconciliationTab() {
       const clientQuery = supabase
         .from("client_payments")
         .select("id, amount, payment_date, method, reference, client_id, clients(name), asset_id, reconciled")
+        .eq("status", "posted")
         .eq("business_id", activeBusinessId)
         .eq("user_id", user?.id || "");
 
@@ -1029,7 +1030,7 @@ function AnalyticsTab() {
       const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] = await Promise.all([
         supabase.from("vendor_grns").select("*").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("grn_date", from).lte("grn_date", to),
         supabase.from("invoices").select("*").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("issue_date", from).lte("issue_date", to),
-        supabase.from("client_payments").select("*").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("payment_date", from).lte("payment_date", to),
+        supabase.from("client_payments").select("*").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("payment_date", from).lte("payment_date", to),
         supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
         supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
       ]);

@@ -73,7 +73,7 @@ function ClientsPage() {
       const [{ data: cs }, { data: invs }, { data: pays }] = await Promise.all([
         supabase.from("clients").select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false }),
         supabase.from("invoices").select("client_id, total, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
-        supabase.from("client_payments").select("client_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("client_payments").select("client_id, amount").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
       return (cs ?? []).map((c) => {
         const posted = (invs ?? []).filter((i) => i.client_id === c.id && i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
@@ -126,10 +126,11 @@ function ClientsPage() {
       method: pay.method as any,
       reference: pay.reference || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
+      status: "draft",
     });
     if (error) toast.error(error.message);
     else {
-      toast.success("Payment Received recorded — balance updated");
+      toast.success("Payment logged as Draft");
       setPayOpen(null);
       setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: bankCashAssets[0]?.id || "" });
       qc.invalidateQueries({ queryKey: ["clients"] });

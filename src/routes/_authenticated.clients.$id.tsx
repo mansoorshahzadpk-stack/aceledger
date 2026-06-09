@@ -56,6 +56,9 @@ function ClientDetail() {
   const [editPay, setEditPay] = useState<any | null>(null);
   const [editReason, setEditReason] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editMethod, setEditMethod] = useState("");
+  const [editReference, setEditReference] = useState("");
 
   const [delPay, setDelPay] = useState<any | null>(null);
   const [delReason, setDelReason] = useState("");
@@ -111,6 +114,9 @@ function ClientDetail() {
   const openEditPay = (p: any) => {
     setEditPay(p);
     setEditAmount(String(p.amount));
+    setEditDate(p.payment_date);
+    setEditMethod(p.method);
+    setEditReference(p.reference || "");
     setEditReason("");
   };
 
@@ -118,20 +124,37 @@ function ClientDetail() {
     if (!editPay || !user) return;
     const isPosted = (editPay.status || "posted") === "posted";
     const newAmt = parseFloat(editAmount) || 0;
-    if (isPosted) {
-      if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
-      await supabase.from("payment_amendments").insert({
-        user_id: user.id, payment_id: editPay.id, client_id: id,
-        action: "edit", previous_amount: editPay.amount, new_amount: newAmt,
-        reason: editReason.trim(),
-      });
+
+    if (newAmt <= 0) {
+      toast.error("Amount must be greater than zero");
+      return;
     }
-    await supabase.from("client_payments").update({ amount: newAmt }).eq("id", editPay.id).eq("user_id", user.id);
-    toast.success(isPosted ? "Payment Received amended" : "Payment Received updated");
-    setEditPay(null);
-    qc.invalidateQueries({ queryKey: ["client", id] });
-    qc.invalidateQueries({ queryKey: ["clients"] });
-    qc.invalidateQueries({ queryKey: ["dashboard"] });
+
+    if (isPosted && editReason.trim().length < 5) {
+      toast.error("Reason must be at least 5 characters");
+      return;
+    }
+
+    // Call update_client_payment database function (RPC)
+    const { error } = await supabase.rpc("update_client_payment" as any, {
+      p_payment_id: editPay.id,
+      p_amount: newAmt,
+      p_date: editDate,
+      p_method: editMethod,
+      p_reference: editReference,
+      p_reason: isPosted ? editReason.trim() : "",
+      p_user_id: user.id,
+    });
+
+    if (error) {
+      toast.error(error.message || "Failed to update payment");
+    } else {
+      toast.success(isPosted ? "Payment Received amended" : "Payment Received updated");
+      setEditPay(null);
+      qc.invalidateQueries({ queryKey: ["client", id] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
   };
 
   const applyDeletePay = async () => {
@@ -347,10 +370,35 @@ function ClientDetail() {
               ? "A reason is required for the audit trail. The client balance will be recalculated."
               : "Update the draft payment details."}
           </p>
-          <Field label="Amount"><FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" /></Field>
-          {(editPay?.status || "posted") === "posted" && (
-            <Field label="Reason"><Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" /></Field>
-          )}
+          <div className="space-y-3 py-2">
+            <Field label="Amount">
+              <FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Date">
+                <Input type="date" required value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              </Field>
+              <Field label="Method">
+                <Select value={editMethod} onValueChange={setEditMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank transfer</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="mobile">Mobile / wallet</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label="Reference">
+              <Input value={editReference} onChange={(e) => setEditReference(e.target.value)} />
+            </Field>
+            {(editPay?.status || "posted") === "posted" && (
+              <Field label="Reason">
+                <Textarea autoFocus rows={3} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected from bank receipt" />
+              </Field>
+            )}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>
             <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm changes</Button>

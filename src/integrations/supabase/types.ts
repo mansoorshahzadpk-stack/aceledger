@@ -962,6 +962,18 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_client_payment: {
+        Args: {
+          p_payment_id: string
+          p_amount: number
+          p_date: string
+          p_method: string
+          p_reference: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       amend_action: "edit" | "delete"

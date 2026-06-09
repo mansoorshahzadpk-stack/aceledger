@@ -1,17 +1,10 @@
 -- Ensure extensions schema is in the search path for compilation in Supabase
 SET search_path TO public, extensions;
 
--- Enable pgcrypto extension for bcrypt hashing
+-- Enable pgcrypto extension for bcrypt hashing (ensuring it is in extensions schema)
 CREATE EXTENSION IF NOT EXISTS pgcrypto SCHEMA extensions;
 
--- Add master password fields to app_settings
-ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS master_password_hash text;
-ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS master_password_reset_token text;
-ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS master_password_reset_expires_at timestamptz;
-ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS master_password_failed_attempts integer DEFAULT 0;
-ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS master_password_lockout_until timestamptz;
-
--- Set master password
+-- Recreate functions with the correct search path to locate pgcrypto functions (crypt, gen_salt)
 CREATE OR REPLACE FUNCTION public.set_master_password(
   p_user_id uuid,
   p_password text
@@ -27,7 +20,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
--- Check master password with rate limiting/lockout
 CREATE OR REPLACE FUNCTION public.check_master_password(
   p_user_id uuid,
   p_password text
@@ -82,41 +74,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
--- Generate master password recovery token
-CREATE OR REPLACE FUNCTION public.request_master_password_recovery(
-  p_user_id uuid
-) RETURNS text AS $$
-DECLARE
-  v_token text;
-BEGIN
-  v_token := gen_random_uuid()::text;
-  
-  UPDATE public.app_settings
-  SET master_password_reset_token = v_token,
-      master_password_reset_expires_at = now() + interval '1 hour'
-  WHERE user_id = p_user_id;
-  
-  RETURN v_token;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Validate master password reset token
-CREATE OR REPLACE FUNCTION public.check_master_password_reset(
-  p_token text
-) RETURNS uuid AS $$
-DECLARE
-  v_user_id uuid;
-BEGIN
-  SELECT user_id INTO v_user_id
-  FROM public.app_settings
-  WHERE master_password_reset_token = p_token
-    AND master_password_reset_expires_at > now();
-  
-  RETURN v_user_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- Reset master password with token
 CREATE OR REPLACE FUNCTION public.reset_master_password_with_token(
   p_token text,
   p_new_password text
@@ -145,7 +102,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
--- Delete audit log record securely gated behind master password check
 CREATE OR REPLACE FUNCTION public.delete_audit_log_entry(
   p_user_id uuid,
   p_password text,

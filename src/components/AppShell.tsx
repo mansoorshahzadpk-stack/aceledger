@@ -203,11 +203,14 @@ export function AppShell() {
   }, [vendors]);
 
   // Submission handlers
-  const handleClientPaySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleClientPaySubmit = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId) return;
     if (!clientPay.client_id) {
       toast.error("Please select a client");
+      return;
+    }
+    if (!clientPay.amount) {
+      toast.error("Please enter an amount");
       return;
     }
     const { error } = await supabase.from("client_payments").insert({
@@ -219,12 +222,13 @@ export function AppShell() {
       method: clientPay.method as any,
       reference: clientPay.reference || null,
       asset_id: clientPay.asset_id === "" || clientPay.asset_id === "none" ? null : clientPay.asset_id,
-      status: "draft",
+      status,
+      posted_at: status === "posted" ? new Date().toISOString() : null,
     });
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Payment logged as Draft!");
+      toast.success(status === "draft" ? "Payment logged as Draft!" : "Payment posted — balance updated!");
       setClientPayOpen(false);
       setClientPay(prev => ({
         ...prev,
@@ -924,101 +928,104 @@ export function AppShell() {
       {/* Log Payment Received Dialog */}
       <Dialog open={clientPayOpen} onOpenChange={setClientPayOpen}>
         <DialogContent className="sm:max-w-[425px]">
-          <form onSubmit={handleClientPaySubmit}>
+          <form onSubmit={(e) => e.preventDefault()}>
             <DialogHeader>
-              <DialogTitle>Log Payment Received</DialogTitle>
-              <DialogDescription>
-                Record incoming installment payment from industrial client.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-4">
-              <Field label="Client">
-                <Select
-                  value={clientPay.client_id}
-                  onValueChange={(val) => setClientPay({ ...clientPay, client_id: val })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select client" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Amount">
-                <FormattedInput
-                  mode="currency"
-                  required
-                  rawValue={clientPay.amount}
-                  onRawChange={(raw) => setClientPay({ ...clientPay, amount: raw })}
-                  placeholder="e.g. 25,000.00"
-                  autoFocus
-                />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Date">
-                  <Input
-                    type="date"
-                    required
-                    value={clientPay.payment_date}
-                    onChange={(e) => setClientPay({ ...clientPay, payment_date: e.target.value })}
-                  />
-                </Field>
-                <Field label="Method">
-                  <Select
-                    value={clientPay.method}
-                    onValueChange={(v) => setClientPay({ ...clientPay, method: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="bank">Bank transfer</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="mobile">Mobile / wallet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <Field label="Deposit Account">
-                <Select
-                  value={clientPay.asset_id}
-                  onValueChange={(v) => setClientPay({ ...clientPay, asset_id: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankCashAssets.map((asset) => (
-                      <SelectItem key={asset.id} value={asset.id}>
-                        {asset.name} ({asset.type === "bank_account" ? "Bank" : "Petty Cash"})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Reference (optional)">
-                <Input
-                  value={clientPay.reference}
-                  onChange={(e) => setClientPay({ ...clientPay, reference: e.target.value })}
-                  placeholder="Cheque # / Trans ID"
-                />
-              </Field>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setClientPayOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Subtract from balance
-              </Button>
-            </DialogFooter>
-          </form>
+               <DialogTitle>Log Payment Received</DialogTitle>
+               <DialogDescription>
+                 Record incoming installment payment from industrial client.
+               </DialogDescription>
+             </DialogHeader>
+             <div className="space-y-3 py-4">
+               <Field label="Client">
+                 <Select
+                   value={clientPay.client_id}
+                   onValueChange={(val) => setClientPay({ ...clientPay, client_id: val })}
+                 >
+                   <SelectTrigger>
+                     <SelectValue placeholder="Select client" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {clients.map((c) => (
+                       <SelectItem key={c.id} value={c.id}>
+                         {c.name}
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </Field>
+               <Field label="Amount">
+                 <FormattedInput
+                   mode="currency"
+                   required
+                   rawValue={clientPay.amount}
+                   onRawChange={(raw) => setClientPay({ ...clientPay, amount: raw })}
+                   placeholder="e.g. 25,000.00"
+                   autoFocus
+                 />
+               </Field>
+               <div className="grid grid-cols-2 gap-3">
+                 <Field label="Date">
+                   <Input
+                     type="date"
+                     required
+                     value={clientPay.payment_date}
+                     onChange={(e) => setClientPay({ ...clientPay, payment_date: e.target.value })}
+                   />
+                 </Field>
+                 <Field label="Method">
+                   <Select
+                     value={clientPay.method}
+                     onValueChange={(v) => setClientPay({ ...clientPay, method: v })}
+                   >
+                     <SelectTrigger>
+                       <SelectValue />
+                     </SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="cash">Cash</SelectItem>
+                       <SelectItem value="bank">Bank transfer</SelectItem>
+                       <SelectItem value="cheque">Cheque</SelectItem>
+                       <SelectItem value="mobile">Mobile / wallet</SelectItem>
+                     </SelectContent>
+                   </Select>
+                 </Field>
+               </div>
+               <Field label="Deposit Account">
+                 <Select
+                   value={clientPay.asset_id}
+                   onValueChange={(v) => setClientPay({ ...clientPay, asset_id: v })}
+                 >
+                   <SelectTrigger>
+                     <SelectValue placeholder="Select account" />
+                   </SelectTrigger>
+                   <SelectContent>
+                     {bankCashAssets.map((asset) => (
+                       <SelectItem key={asset.id} value={asset.id}>
+                         {asset.name} ({asset.type === "bank_account" ? "Bank" : "Petty Cash"})
+                       </SelectItem>
+                     ))}
+                   </SelectContent>
+                 </Select>
+               </Field>
+               <Field label="Reference (optional)">
+                 <Input
+                   value={clientPay.reference}
+                   onChange={(e) => setClientPay({ ...clientPay, reference: e.target.value })}
+                   placeholder="Cheque # / Trans ID"
+                 />
+               </Field>
+             </div>
+             <DialogFooter className="flex gap-2 justify-end">
+               <Button type="button" variant="outline" onClick={() => setClientPayOpen(false)}>
+                 Cancel
+               </Button>
+               <Button type="button" variant="secondary" onClick={() => handleClientPaySubmit("draft")} disabled={isReadOnly}>
+                 Save as Draft
+               </Button>
+               <Button type="button" onClick={() => handleClientPaySubmit("posted")} disabled={isReadOnly}>
+                 Post Payment
+               </Button>
+             </DialogFooter>
+           </form>
         </DialogContent>
       </Dialog>
 

@@ -114,8 +114,11 @@ function ClientsPage() {
     else { toast.success("Client added"); setOpen(false); setForm({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" }); qc.invalidateQueries({ queryKey: ["clients"] }); }
   };
 
-  const logInstallment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const logInstallment = async (status: "draft" | "posted") => {
+    if (!pay.amount) {
+      toast.error("Please enter an amount");
+      return;
+    }
     if (!user || !payOpen || !activeBusinessId) return;
     const { error } = await supabase.from("client_payments").insert({
       user_id: user.id,
@@ -126,11 +129,12 @@ function ClientsPage() {
       method: pay.method as any,
       reference: pay.reference || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
-      status: "draft",
+      status,
+      posted_at: status === "posted" ? new Date().toISOString() : null,
     });
     if (error) toast.error(error.message);
     else {
-      toast.success("Payment logged as Draft");
+      toast.success(status === "draft" ? "Payment logged as Draft" : "Payment posted — balance updated");
       setPayOpen(null);
       setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: bankCashAssets[0]?.id || "" });
       qc.invalidateQueries({ queryKey: ["clients"] });
@@ -249,7 +253,7 @@ function ClientsPage() {
       <Dialog open={!!payOpen} onOpenChange={(v) => !v && setPayOpen(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Log Payment Received</DialogTitle></DialogHeader>
-          <form onSubmit={logInstallment} className="space-y-3">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
             <Field label="Amount"><FormattedInput mode="currency" required rawValue={pay.amount} onRawChange={(raw) => setPay({ ...pay, amount: raw })} autoFocus placeholder="0.00" /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date"><Input type="date" required value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} /></Field>
@@ -278,7 +282,10 @@ function ClientsPage() {
               </Select>
             </Field>
             <Field label="Reference (optional)"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></Field>
-            <DialogFooter><Button type="submit" disabled={isReadOnly}>Subtract from balance</Button></DialogFooter>
+            <DialogFooter className="flex gap-2 justify-end">
+              <Button type="button" variant="secondary" onClick={() => logInstallment("draft")} disabled={isReadOnly}>Save as Draft</Button>
+              <Button type="button" onClick={() => logInstallment("posted")} disabled={isReadOnly}>Post Payment</Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

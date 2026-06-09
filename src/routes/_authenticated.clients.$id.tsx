@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
@@ -62,6 +62,78 @@ function ClientDetail() {
 
   const [delPay, setDelPay] = useState<any | null>(null);
   const [delReason, setDelReason] = useState("");
+
+  // Master Password Audit Deletion State
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; reason: string } | null>(null);
+  const [masterPassword, setMasterPassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteTarget) return;
+    if (!masterPassword) {
+      toast.error("Master password is required");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const { data: authData } = await supabase.auth.getSession();
+      const token = authData.session?.access_token;
+      let success = false;
+      let message = "";
+
+      // 1. Try calling the API endpoint
+      try {
+        const response = await fetch("/api/audit-log/delete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({
+            password: masterPassword,
+            id: deleteTarget.id,
+            type: "payment",
+          }),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          const res = await response.json();
+          success = true;
+          message = res.message;
+        }
+      } catch (err) {
+        console.warn("Backend API not available, using database RPC fallback:", err);
+      }
+
+      // 2. Fallback to Supabase RPC
+      if (!success) {
+        const { error: deleteError } = await supabase.rpc("delete_audit_log_entry", {
+          p_user_id: user?.id || "",
+          p_password: masterPassword,
+          p_id: deleteTarget.id,
+          p_type: "payment",
+        });
+
+        if (deleteError) {
+          throw new Error(deleteError.message);
+        }
+        success = true;
+        message = "Audit log entry deleted successfully";
+      }
+
+      toast.success(message);
+      setDeleteTarget(null);
+      setMasterPassword("");
+      qc.invalidateQueries({ queryKey: ["client", id, user?.id] });
+      qc.invalidateQueries({ queryKey: ["amendments"] });
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const { data } = useQuery({
     queryKey: ["client", user?.id, id, activeBusinessId],
@@ -293,7 +365,7 @@ function ClientDetail() {
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Action</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Was</TableHead><TableHead className="text-right">Became</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Action</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Was</TableHead><TableHead className="text-right">Became</TableHead><TableHead className="text-right w-[80px]">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {data.amends.map((a: any) => (
                     <TableRow key={a.id}>
@@ -302,6 +374,18 @@ function ClientDetail() {
                       <TableCell>{a.reason}</TableCell>
                       <TableCell className="text-right figure">{formatMoney(a.previous_amount, settings.currency)}</TableCell>
                       <TableCell className="text-right figure font-medium">{formatMoney(a.new_amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                          onClick={() => setDeleteTarget({ id: a.id, reason: a.reason })}
+                          title="Delete entry"
+                          disabled={isReadOnly}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -422,6 +506,49 @@ function ClientDetail() {
             <Button variant="outline" onClick={() => setDelPay(null)}>Cancel</Button>
             <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>Delete payment</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privileged Deletion Challenge Modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setMasterPassword(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Confirm Privileged Deletion
+            </DialogTitle>
+            <DialogDescription>
+              You are about to delete a payment amendment history entry: <strong>{deleteTarget?.reason}</strong>. This operation requires verification of the Master Password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDeleteConfirm} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="master-password-input">Master Password</Label>
+              <Input
+                id="master-password-input"
+                type="password"
+                required
+                placeholder="Enter Master Password"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setMasterPassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

@@ -64,6 +64,251 @@ function SettingsPage() {
   const [newBizName, setNewBizName] = useState("");
   const [newBizCurrency, setNewBizCurrency] = useState<CurrencyCode>("PKR");
 
+  // Master Password State
+  const [activeTab, setActiveTab] = useState("general");
+  const [resetTokenValue, setResetTokenValue] = useState("");
+  const [isMasterPasswordSet, setIsMasterPasswordSet] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [simulatedLink, setSimulatedLink] = useState("");
+
+  const fetchPasswordStatus = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("app_settings")
+        .select("master_password_hash")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) {
+        setIsMasterPasswordSet(!!data.master_password_hash);
+      }
+    } catch (err) {
+      console.error("Error fetching master password status:", err);
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPasswordStatus();
+  }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("reset_token");
+    if (token) {
+      setActiveTab("security");
+      setResetTokenValue(token);
+    }
+  }, []);
+
+  const handleSaveMasterPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      let success = false;
+      let message = "";
+      
+      // 1. Try calling the API endpoint
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const response = await fetch("/api/settings/master-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({
+            action: isMasterPasswordSet ? "change" : "set",
+            currentPassword,
+            newPassword,
+          }),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          const res = await response.json();
+          success = true;
+          message = res.message;
+        }
+      } catch (err) {
+        console.warn("Backend API not available, using database RPC fallback:", err);
+      }
+
+      // 2. Fallback to Supabase RPC directly
+      if (!success) {
+        if (isMasterPasswordSet) {
+          // Verify current password first via RPC
+          const { data: isValid, error: checkError } = await supabase.rpc("check_master_password", {
+            p_user_id: user?.id || "",
+            p_password: currentPassword,
+          });
+          if (checkError) throw new Error(checkError.message);
+          if (!isValid) throw new Error("Incorrect current master password");
+        }
+
+        // Set the new password via RPC
+        const { error: setError } = await supabase.rpc("set_master_password", {
+          p_user_id: user?.id || "",
+          p_password: newPassword,
+        });
+        if (setError) throw new Error(setError.message);
+
+        success = true;
+        message = isMasterPasswordSet ? "Master password updated successfully" : "Master password set successfully";
+      }
+
+      toast.success(message);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      fetchPasswordStatus();
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetMasterPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      let success = false;
+      let message = "";
+
+      // 1. Try calling the API endpoint
+      try {
+        const response = await fetch("/api/settings/master-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "reset",
+            resetToken: resetTokenValue,
+            newPassword,
+          }),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          const res = await response.json();
+          success = true;
+          message = res.message;
+        }
+      } catch (err) {
+        console.warn("Backend API not available, using database RPC fallback:", err);
+      }
+
+      // 2. Fallback to Supabase RPC
+      if (!success) {
+        const { data: resetOk, error: resetError } = await supabase.rpc("reset_master_password_with_token", {
+          p_token: resetTokenValue,
+          p_new_password: newPassword,
+        });
+        if (resetError) throw new Error(resetError.message);
+        if (!resetOk) throw new Error("Invalid or expired recovery token");
+
+        success = true;
+        message = "Master password reset successfully";
+      }
+
+      toast.success(message);
+      setNewPassword("");
+      setConfirmPassword("");
+      setResetTokenValue("");
+      window.history.replaceState({}, document.title, window.location.pathname);
+      fetchPasswordStatus();
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotMasterPassword = async () => {
+    setIsSubmitting(true);
+    try {
+      let success = false;
+      let resetUrl = "";
+
+      // 1. Try calling the API endpoint
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const response = await fetch("/api/settings/master-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+          body: JSON.stringify({
+            action: "forgot",
+          }),
+        });
+
+        const contentType = response.headers.get("content-type") || "";
+        if (response.ok && contentType.includes("application/json")) {
+          const res = await response.json();
+          success = true;
+          resetUrl = res.resetUrl;
+        }
+      } catch (err) {
+        console.warn("Backend API not available, using database RPC fallback:", err);
+      }
+
+      // 2. Fallback to Supabase RPC
+      if (!success) {
+        const { data: token, error: recoveryError } = await supabase.rpc("request_master_password_recovery", {
+          p_user_id: user?.id || "",
+        });
+        if (recoveryError) throw new Error(recoveryError.message);
+        if (!token) throw new Error("Failed to generate recovery token");
+
+        const origin = window.location.origin;
+        resetUrl = `${origin}/settings?reset_token=${token}`;
+        
+        // Mock email log to console
+        console.log(`\n========================================\n[RECOVERY SYSTEM] Direct Supabase RPC simulation to ${user?.email}:\nSubject: Master Password Reset Request\nLink: ${resetUrl}\n========================================\n`);
+        success = true;
+      }
+
+      toast.success("Recovery link simulated successfully!");
+      if (resetUrl) {
+        setSimulatedLink(resetUrl);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
+
   // Sync state with active business when it loads/changes
   useEffect(() => {
     if (activeBusiness) {
@@ -251,11 +496,12 @@ function SettingsPage() {
         <p className="text-sm text-muted-foreground">Global preferences for currency, theme, and document templates</p>
       </div>
 
-      <Tabs defaultValue="general">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="documents">Document Designer</TabsTrigger>
           <TabsTrigger value="business">Business Settings</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="demo">Demo Data</TabsTrigger>
         </TabsList>
 
@@ -465,6 +711,169 @@ function SettingsPage() {
               <Button onClick={seedDemo} disabled={seeding}>{seeding ? "Loading…" : "Load demo data"}</Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="space-y-4">
+          {resetTokenValue ? (
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle>Reset Master Password</CardTitle>
+                <CardDescription>
+                  You are resetting the master password using a secure recovery link. This token is time-sensitive and will expire soon.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleResetMasterPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-new-password">New Master Password</Label>
+                    <Input
+                      id="reset-new-password"
+                      type="password"
+                      required
+                      placeholder="Minimum 6 characters"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reset-confirm-password">Confirm New Master Password</Label>
+                    <Input
+                      id="reset-confirm-password"
+                      type="password"
+                      required
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <Button type="submit" disabled={isSubmitting}>
+                      {isSubmitting ? "Resetting..." : "Reset Master Password"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setResetTokenValue("");
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                      }}
+                    >
+                      Cancel Reset
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4 max-w-xl">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{isMasterPasswordSet ? "Change Master Password" : "Set Master Password"}</CardTitle>
+                  <CardDescription>
+                    {isMasterPasswordSet
+                      ? "Update the current master password used for privileged operations like deleting audit trail entries."
+                      : "Create a master password. This password will be required when performing privileged operations like deleting audit logs."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {checkingStatus ? (
+                    <div className="flex items-center justify-center p-4">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveMasterPassword} className="space-y-4">
+                      {isMasterPasswordSet && (
+                        <div className="space-y-2">
+                          <Label htmlFor="current-password">Current Master Password</Label>
+                          <Input
+                            id="current-password"
+                            type="password"
+                            required
+                            placeholder="Enter current master password"
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <Label htmlFor="new-password">New Master Password</Label>
+                        <Input
+                          id="new-password"
+                          type="password"
+                          required
+                          placeholder="Minimum 6 characters"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="confirm-password">Confirm New Master Password</Label>
+                        <Input
+                          id="confirm-password"
+                          type="password"
+                          required
+                          placeholder="Confirm new master password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                        />
+                      </div>
+                      <div className="pt-2">
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting
+                            ? "Saving..."
+                            : isMasterPasswordSet
+                            ? "Change Master Password"
+                            : "Set Master Password"}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
+                </CardContent>
+              </Card>
+
+              {isMasterPasswordSet && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Master Password Recovery</CardTitle>
+                    <CardDescription>
+                      If you've forgotten your master password, you can request a simulated recovery email.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleForgotMasterPassword}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? "Generating Link..." : "Forgot Master Password?"}
+                      </Button>
+                    </div>
+
+                    {simulatedLink && (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                        <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400">
+                          Simulated Reset Token Generated
+                        </h4>
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-500 leading-relaxed">
+                          A recovery email has been logged to the server console. For convenience, you can reset it by clicking this link or copying it:
+                        </p>
+                        <div className="mt-2 text-xs break-all">
+                          <a
+                            href={simulatedLink}
+                            className="font-medium text-amber-900 dark:text-amber-300 underline hover:text-amber-800"
+                          >
+                            {simulatedLink}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -23,6 +23,11 @@ export type Database = {
           business_phone: string | null
           currency: Database["public"]["Enums"]["currency_code"]
           default_doc_template: Database["public"]["Enums"]["doc_template"]
+          master_password_failed_attempts: number
+          master_password_hash: string | null
+          master_password_lockout_until: string | null
+          master_password_reset_expires_at: string | null
+          master_password_reset_token: string | null
           theme: Database["public"]["Enums"]["ui_theme"]
           updated_at: string
           user_id: string
@@ -35,6 +40,11 @@ export type Database = {
           business_phone?: string | null
           currency?: Database["public"]["Enums"]["currency_code"]
           default_doc_template?: Database["public"]["Enums"]["doc_template"]
+          master_password_failed_attempts?: number
+          master_password_hash?: string | null
+          master_password_lockout_until?: string | null
+          master_password_reset_expires_at?: string | null
+          master_password_reset_token?: string | null
           theme?: Database["public"]["Enums"]["ui_theme"]
           updated_at?: string
           user_id: string
@@ -47,6 +57,11 @@ export type Database = {
           business_phone?: string | null
           currency?: Database["public"]["Enums"]["currency_code"]
           default_doc_template?: Database["public"]["Enums"]["doc_template"]
+          master_password_failed_attempts?: number
+          master_password_hash?: string | null
+          master_password_lockout_until?: string | null
+          master_password_reset_expires_at?: string | null
+          master_password_reset_token?: string | null
           theme?: Database["public"]["Enums"]["ui_theme"]
           updated_at?: string
           user_id?: string
@@ -971,6 +986,48 @@ export type Database = {
           p_reference: string
           p_reason: string
           p_user_id: string
+        }
+        Returns: undefined
+      }
+      set_master_password: {
+        Args: {
+          p_user_id: string
+          p_password: string
+        }
+        Returns: undefined
+      }
+      check_master_password: {
+        Args: {
+          p_user_id: string
+          p_password: string
+        }
+        Returns: boolean
+      }
+      check_master_password_reset: {
+        Args: {
+          p_token: string
+        }
+        Returns: string
+      }
+      reset_master_password_with_token: {
+        Args: {
+          p_token: string
+          p_new_password: string
+        }
+        Returns: boolean
+      }
+      request_master_password_recovery: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: string
+      }
+      delete_audit_log_entry: {
+        Args: {
+          p_user_id: string
+          p_password: string
+          p_id: string
+          p_type: string
         }
         Returns: undefined
       }

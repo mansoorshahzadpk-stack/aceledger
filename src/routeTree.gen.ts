@@ -25,6 +25,8 @@ import { Route as AuthenticatedVendorsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedMaterialsIndexRouteImport } from './routes/_authenticated.materials.index'
 import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authenticated.invoices.index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
+import { Route as ApiSettingsMasterPasswordRouteImport } from './routes/api.settings.master-password'
+import { Route as ApiAuditLogDeleteRouteImport } from './routes/api.audit-log.delete'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated.invoices.new'
 import { Route as AuthenticatedInvoicesIdRouteImport } from './routes/_authenticated.invoices.$id'
@@ -114,6 +116,17 @@ const AuthenticatedClientsIndexRoute =
     path: '/clients/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiSettingsMasterPasswordRoute =
+  ApiSettingsMasterPasswordRouteImport.update({
+    id: '/api/settings/master-password',
+    path: '/api/settings/master-password',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAuditLogDeleteRoute = ApiAuditLogDeleteRouteImport.update({
+  id: '/api/audit-log/delete',
+  path: '/api/audit-log/delete',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedVendorsIdRoute = AuthenticatedVendorsIdRouteImport.update({
   id: '/vendors/$id',
   path: '/vendors/$id',
@@ -158,6 +171,8 @@ export interface FileRoutesByFullPath {
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/materials/': typeof AuthenticatedMaterialsIndexRoute
@@ -180,6 +195,8 @@ export interface FileRoutesByTo {
   '/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/invoices': typeof AuthenticatedInvoicesIndexRoute
   '/materials': typeof AuthenticatedMaterialsIndexRoute
@@ -204,6 +221,8 @@ export interface FileRoutesById {
   '/_authenticated/invoices/$id': typeof AuthenticatedInvoicesIdRoute
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
+  '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/invoices/': typeof AuthenticatedInvoicesIndexRoute
   '/_authenticated/materials/': typeof AuthenticatedMaterialsIndexRoute
@@ -228,6 +247,8 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/invoices/new'
     | '/vendors/$id'
+    | '/api/audit-log/delete'
+    | '/api/settings/master-password'
     | '/clients/'
     | '/invoices/'
     | '/materials/'
@@ -250,6 +271,8 @@ export interface FileRouteTypes {
     | '/invoices/$id'
     | '/invoices/new'
     | '/vendors/$id'
+    | '/api/audit-log/delete'
+    | '/api/settings/master-password'
     | '/clients'
     | '/invoices'
     | '/materials'
@@ -273,6 +296,8 @@ export interface FileRouteTypes {
     | '/_authenticated/invoices/$id'
     | '/_authenticated/invoices/new'
     | '/_authenticated/vendors/$id'
+    | '/api/audit-log/delete'
+    | '/api/settings/master-password'
     | '/_authenticated/clients/'
     | '/_authenticated/invoices/'
     | '/_authenticated/materials/'
@@ -285,6 +310,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
+  ApiAuditLogDeleteRoute: typeof ApiAuditLogDeleteRoute
+  ApiSettingsMasterPasswordRoute: typeof ApiSettingsMasterPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -401,6 +428,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/settings/master-password': {
+      id: '/api/settings/master-password'
+      path: '/api/settings/master-password'
+      fullPath: '/api/settings/master-password'
+      preLoaderRoute: typeof ApiSettingsMasterPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/audit-log/delete': {
+      id: '/api/audit-log/delete'
+      path: '/api/audit-log/delete'
+      fullPath: '/api/audit-log/delete'
+      preLoaderRoute: typeof ApiAuditLogDeleteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/vendors/$id': {
       id: '/_authenticated/vendors/$id'
       path: '/vendors/$id'
@@ -488,6 +529,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   AuthCallbackRoute: AuthCallbackRoute,
+  ApiAuditLogDeleteRoute: ApiAuditLogDeleteRoute,
+  ApiSettingsMasterPasswordRoute: ApiSettingsMasterPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -13,7 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Landmark, Home, ArrowUpRight, ArrowDownLeft, ReceiptText } from "lucide-react";
+import { Plus, Wallet, Landmark, Home, ArrowUpRight, ArrowDownLeft, ReceiptText, ArrowLeftRight } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets")({
   component: AssetsPage,
@@ -43,6 +43,14 @@ function AssetsPage() {
 
   const [open, setOpen] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    from_asset_id: "",
+    to_asset_id: "",
+    amount: "",
+    transfer_date: new Date().toISOString().slice(0, 10),
+    remarks: "",
+  });
 
   const [form, setForm] = useState({
     name: "",
@@ -202,6 +210,69 @@ function AssetsPage() {
     saveMutation.mutate(payload);
   };
 
+  // Transfer Mutation
+  const transferMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (!user || !activeBusinessId) return;
+      const { error } = await supabase.rpc("transfer_funds" as any, {
+        p_from_asset_id: payload.from_asset_id,
+        p_to_asset_id: payload.to_asset_id,
+        p_amount: payload.amount,
+        p_date: payload.transfer_date,
+        p_remarks: payload.remarks,
+        p_user_id: user.id,
+        p_business_id: activeBusinessId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Funds transferred successfully");
+      setTransferOpen(false);
+      setTransferForm({
+        from_asset_id: "",
+        to_asset_id: "",
+        amount: "",
+        transfer_date: new Date().toISOString().slice(0, 10),
+        remarks: "",
+      });
+      qc.invalidateQueries({ queryKey: ["assets"] });
+      qc.invalidateQueries({ queryKey: ["asset_flows"] });
+      qc.invalidateQueries({ queryKey: ["ledger_transactions"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to transfer funds");
+    },
+  });
+
+  const handleTransferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferForm.from_asset_id) {
+      toast.error("Please select a source account");
+      return;
+    }
+    if (!transferForm.to_asset_id) {
+      toast.error("Please select a destination account");
+      return;
+    }
+    const amt = parseFloat(transferForm.amount) || 0;
+    if (amt <= 0) {
+      toast.error("Please enter a valid transfer amount");
+      return;
+    }
+    if (amt > fromAssetBalance) {
+      toast.error("Insufficient balance in source account");
+      return;
+    }
+    transferMutation.mutate({
+      from_asset_id: transferForm.from_asset_id,
+      to_asset_id: transferForm.to_asset_id,
+      amount: amt,
+      transfer_date: transferForm.transfer_date,
+      remarks: transferForm.remarks,
+    });
+  };
+
   const handleEdit = (asset: Asset) => {
     setEditingAsset(asset);
     setForm({
@@ -249,6 +320,11 @@ function AssetsPage() {
     };
   });
 
+  const selectedFromAsset = computedAssets.find((a) => a.id === transferForm.from_asset_id);
+  const fromAssetBalance = selectedFromAsset ? selectedFromAsset.balance : 0;
+  const cashBankAssets = computedAssets.filter((a) => a.type === "bank_account" || a.type === "petty_cash");
+  const destinationAssets = cashBankAssets.filter((a) => a.id !== transferForm.from_asset_id);
+
   const totalBankCash = computedAssets
     .filter((a) => a.type === "bank_account" || a.type === "petty_cash")
     .reduce((sum, a) => sum + a.balance, 0);
@@ -266,23 +342,43 @@ function AssetsPage() {
             Track bank accounts, petty cash funds, and property/equipment valuations to represent your business capital.
           </p>
         </div>
-        <Button
-          disabled={isReadOnly}
-          onClick={() => {
-            setEditingAsset(null);
-            setForm({
-              name: "",
-              type: "bank_account",
-              initial_balance: "0",
-              current_valuation: "0",
-              notes: "",
-            });
-            setOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Asset Account
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={isReadOnly}
+            onClick={() => {
+              const cashBank = computedAssets.filter(a => a.type === "bank_account" || a.type === "petty_cash");
+              setTransferForm({
+                from_asset_id: cashBank[0]?.id || "",
+                to_asset_id: cashBank[1]?.id || "",
+                amount: "",
+                transfer_date: new Date().toISOString().slice(0, 10),
+                remarks: "",
+              });
+              setTransferOpen(true);
+            }}
+          >
+            <ArrowLeftRight className="mr-2 h-4 w-4" />
+            Transfer Funds
+          </Button>
+          <Button
+            disabled={isReadOnly}
+            onClick={() => {
+              setEditingAsset(null);
+              setForm({
+                name: "",
+                type: "bank_account",
+                initial_balance: "0",
+                current_valuation: "0",
+                notes: "",
+              });
+              setOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Asset Account
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -517,6 +613,127 @@ function AssetsPage() {
               </Button>
               <Button type="submit" disabled={isReadOnly || saveMutation.isPending}>
                 {saveMutation.isPending ? "Saving..." : "Save Asset"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={handleTransferSubmit}>
+            <DialogHeader>
+              <DialogTitle>Transfer Funds</DialogTitle>
+              <DialogDescription>
+                Move money between cash/bank holding accounts.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="from_asset_id" className="text-right text-sm font-medium">
+                  From Account
+                </Label>
+                <Select
+                  value={transferForm.from_asset_id}
+                  onValueChange={(val) => {
+                    const cb = computedAssets.filter(a => a.type === "bank_account" || a.type === "petty_cash");
+                    const nextTo = transferForm.to_asset_id === val 
+                      ? (cb.find(a => a.id !== val)?.id || "")
+                      : transferForm.to_asset_id;
+                    setTransferForm({ ...transferForm, from_asset_id: val, to_asset_id: nextTo });
+                  }}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cashBankAssets.map((asset) => (
+                      <SelectItem key={asset.id} value={asset.id}>
+                        {asset.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {transferForm.from_asset_id && (
+                <div className="grid grid-cols-4 items-center gap-4 -mt-2">
+                  <div className="col-start-2 col-span-3 text-xs text-muted-foreground flex justify-between">
+                    <span>Available Balance:</span>
+                    <span className="font-semibold text-warning">{formatMoney(fromAssetBalance, c)}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="to_asset_id" className="text-right text-sm font-medium">
+                  To Account
+                </Label>
+                <Select
+                  value={transferForm.to_asset_id}
+                  onValueChange={(val) => setTransferForm({ ...transferForm, to_asset_id: val })}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {destinationAssets.map((asset) => (
+                      <SelectItem key={asset.id} value={asset.id}>
+                        {asset.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="transfer_amount" className="text-right text-sm font-medium">
+                  Amount
+                </Label>
+                <FormattedInput
+                  id="transfer_amount"
+                  mode="currency"
+                  rawValue={transferForm.amount}
+                  onRawChange={(raw) => setTransferForm({ ...transferForm, amount: raw })}
+                  className="col-span-3"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="transfer_date" className="text-right text-sm font-medium">
+                  Date
+                </Label>
+                <Input
+                  id="transfer_date"
+                  type="date"
+                  value={transferForm.transfer_date}
+                  onChange={(e) => setTransferForm({ ...transferForm, transfer_date: e.target.value })}
+                  className="col-span-3"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="transfer_remarks" className="text-right text-sm font-medium">
+                  Remarks
+                </Label>
+                <Input
+                  id="transfer_remarks"
+                  value={transferForm.remarks}
+                  onChange={(e) => setTransferForm({ ...transferForm, remarks: e.target.value })}
+                  className="col-span-3"
+                  placeholder="e.g. Weekly petty cash replenishment"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTransferOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isReadOnly || transferMutation.isPending}>
+                {transferMutation.isPending ? "Transferring..." : "Confirm Transfer"}
               </Button>
             </DialogFooter>
           </form>

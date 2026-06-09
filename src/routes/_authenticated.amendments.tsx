@@ -28,17 +28,20 @@ function AuditLog() {
     queryKey: ["amendments", user?.id, activeBusinessId],
     enabled: !!activeBusinessId && !!user,
     queryFn: async () => {
-      const [{ data: inv }, { data: grn }, { data: pay }, invDocs, grnDocs, payClients] = await Promise.all([
+      const [{ data: inv }, { data: grn }, { data: pay }, { data: trf }, invDocs, grnDocs, payClients, assetDocs] = await Promise.all([
         supabase.from("invoice_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
         supabase.from("grn_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
         supabase.from("payment_amendments").select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
+        supabase.from("transfer_logs" as any).select("*").eq("user_id", user?.id || "").order("created_at", { ascending: false }),
         supabase.from("invoices").select("id, invoice_number").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
         supabase.from("vendor_grns").select("id, grn_number").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
         supabase.from("clients").select("id, name").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
+        supabase.from("assets").select("id, name").eq("business_id", activeBusinessId || "").eq("user_id", user?.id || ""),
       ]);
       const invMap = new Map((invDocs.data ?? []).map((r) => [r.id, r.invoice_number]));
       const grnMap = new Map((grnDocs.data ?? []).map((r) => [r.id, r.grn_number]));
       const clMap = new Map((payClients.data ?? []).map((r) => [r.id, r.name]));
+      const assetMap = new Map((assetDocs.data ?? []).map((r) => [r.id, r.name]));
       const rows = [
         ...(inv ?? [])
           .filter((a: any) => invMap.has(a.invoice_id))
@@ -61,6 +64,11 @@ function AuditLog() {
             link: `/clients/${a.client_id}`, prev: a.previous_amount, next: a.new_amount,
             reason: a.reason, created_at: a.created_at,
           })),
+        ...(trf ?? []).map((a: any) => ({
+          id: `t-${a.id}`, type: "Fund Transfer", action: "transfer", ref: `${assetMap.get(a.from_asset_id) ?? "—"} ➔ ${assetMap.get(a.to_asset_id) ?? "—"}`,
+          link: null, prev: 0, next: a.amount,
+          reason: a.remarks || "Internal transfer of funds", created_at: a.created_at,
+        })),
       ].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
       return rows;
     },
@@ -70,7 +78,7 @@ function AuditLog() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Audit Log</h1>
-        <p className="text-sm text-muted-foreground">All amendments and deletions on posted invoices, GRNs and payments received</p>
+        <p className="text-sm text-muted-foreground">All amendments, deletions, and internal fund transfers tracked for audit transparency</p>
       </div>
       <Card>
         <CardHeader><CardTitle>Recent activity</CardTitle><CardDescription>Newest first</CardDescription></CardHeader>

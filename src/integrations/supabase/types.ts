@@ -598,6 +598,61 @@ export type Database = {
         }
         Relationships: []
       }
+      transfer_logs: {
+        Row: {
+          id: string
+          user_id: string
+          business_id: string
+          from_asset_id: string
+          to_asset_id: string
+          amount: number
+          remarks: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_id: string
+          from_asset_id: string
+          to_asset_id: string
+          amount: number
+          remarks?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_id?: string
+          from_asset_id?: string
+          to_asset_id?: string
+          amount?: number
+          remarks?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_logs_from_asset_id_fkey"
+            columns: ["from_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_logs_to_asset_id_fkey"
+            columns: ["to_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -895,6 +950,18 @@ export type Database = {
         Returns: boolean
       }
       next_doc_number: { Args: { _business_id: string; _kind: string }; Returns: string }
+      transfer_funds: {
+        Args: {
+          p_from_asset_id: string
+          p_to_asset_id: string
+          p_amount: number
+          p_date: string
+          p_remarks: string
+          p_user_id: string
+          p_business_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       amend_action: "edit" | "delete"

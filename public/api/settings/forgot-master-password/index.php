@@ -55,17 +55,27 @@ $sendgridApiKey = getenv('SENDGRID_API_KEY');
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, rtrim($supabaseUrl, '/') . '/auth/v1/user');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Authorization: Bearer ' . $jwtToken,
     'apikey: ' . $supabaseAnonKey
 ]);
 $authResponse = curl_exec($ch);
 $authStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$curlError = curl_error($ch);
 curl_close($ch);
 
 if ($authStatusCode !== 200 || !$authResponse) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized: Invalid session']);
+    echo json_encode([
+        'error' => 'Unauthorized: Invalid session',
+        'debug' => [
+            'status' => $authStatusCode,
+            'curl_error' => $curlError,
+            'response' => $authResponse,
+            'token_preview' => substr($jwtToken, 0, 15) . '...'
+        ]
+    ]);
     exit;
 }
 
@@ -84,6 +94,7 @@ $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, rtrim($supabaseUrl, '/') . '/rest/v1/rpc/request_master_password_recovery');
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Authorization: Bearer ' . $jwtToken,
     'apikey: ' . $supabaseAnonKey,
@@ -94,11 +105,19 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
 ]));
 $rpcResponse = curl_exec($ch);
 $rpcStatusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$rpcCurlError = curl_error($ch);
 curl_close($ch);
 
 if ($rpcStatusCode !== 200 || !$rpcResponse) {
     http_response_code(500);
-    echo json_encode(['error' => 'Internal Server Error: Failed to generate recovery token']);
+    echo json_encode([
+        'error' => 'Internal Server Error: Failed to generate recovery token',
+        'debug' => [
+            'status' => $rpcStatusCode,
+            'curl_error' => $rpcCurlError,
+            'response' => $rpcResponse
+        ]
+    ]);
     exit;
 }
 

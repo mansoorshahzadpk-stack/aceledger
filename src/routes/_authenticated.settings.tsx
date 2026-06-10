@@ -74,7 +74,6 @@ function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [simulatedLink, setSimulatedLink] = useState("");
 
   const fetchPasswordStatus = async () => {
     if (!user) return;
@@ -250,58 +249,71 @@ function SettingsPage() {
   };
 
   const handleForgotMasterPassword = async () => {
+    if (!user?.email) {
+      toast.error("User email address not found");
+      return;
+    }
     setIsSubmitting(true);
     try {
       let success = false;
-      let resetUrl = "";
+      let errorMsg = "";
 
-      // 1. Try calling the API endpoint
+      // 1. Try calling the Hostinger PHP API endpoint
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
-        const response = await fetch("/api/settings/master-password", {
+        const response = await fetch("/api/settings/forgot-master-password", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: token ? `Bearer ${token}` : "",
           },
-          body: JSON.stringify({
-            action: "forgot",
-          }),
+          body: JSON.stringify({}),
         });
 
         const contentType = response.headers.get("content-type") || "";
         if (response.ok && contentType.includes("application/json")) {
           const res = await response.json();
-          success = true;
-          resetUrl = res.resetUrl;
+          if (res.success) {
+            success = true;
+            toast.success(res.message || `A secure master password reset link has been dispatched to ${user.email}.`);
+          } else {
+            errorMsg = res.error || "Failed to send recovery email";
+          }
+        } else {
+          errorMsg = `Server returned status ${response.status}`;
         }
-      } catch (err) {
-        console.warn("Backend API not available, using database RPC fallback:", err);
+      } catch (err: any) {
+        console.warn("Hostinger PHP API failed, falling back to Supabase Edge Function:", err);
+        errorMsg = err.message || "Hostinger API unavailable";
       }
 
-      // 2. Fallback to Supabase RPC
+      // 2. Fallback: Try calling the Supabase Edge Function directly
       if (!success) {
-        const { data: token, error: recoveryError } = await supabase.rpc("request_master_password_recovery", {
-          p_user_id: user?.id || "",
-        });
-        if (recoveryError) throw new Error(recoveryError.message);
-        if (!token) throw new Error("Failed to generate recovery token");
+        try {
+          const { data, error: functionError } = await supabase.functions.invoke("forgot-master-password", {
+            method: "POST",
+          });
+          
+          if (functionError) {
+            throw functionError;
+          }
 
-        const origin = window.location.origin;
-        resetUrl = `${origin}/settings?reset_token=${token}`;
-        
-        // Mock email log to console
-        console.log(`\n========================================\n[RECOVERY SYSTEM] Direct Supabase RPC simulation to ${user?.email}:\nSubject: Master Password Reset Request\nLink: ${resetUrl}\n========================================\n`);
-        success = true;
-      }
-
-      toast.success("Recovery link simulated successfully!");
-      if (resetUrl) {
-        setSimulatedLink(resetUrl);
+          if (data && data.success) {
+            success = true;
+            toast.success(data.message || `A secure master password reset link has been dispatched to ${user.email}.`);
+          } else if (data && data.error) {
+            throw new Error(data.error);
+          } else {
+            throw new Error("Invalid response from recovery service");
+          }
+        } catch (edgeErr: any) {
+          console.error("Supabase Edge Function failed:", edgeErr);
+          throw new Error(edgeErr.message || errorMsg || "Failed to deliver recovery email");
+        }
       }
     } catch (err: any) {
-      toast.error(err.message || "An error occurred");
+      toast.error(err.message || "An error occurred during recovery request");
     } finally {
       setIsSubmitting(false);
     }
@@ -836,7 +848,7 @@ function SettingsPage() {
                   <CardHeader>
                     <CardTitle>Master Password Recovery</CardTitle>
                     <CardDescription>
-                      If you've forgotten your master password, you can request a simulated recovery email.
+                      If you've forgotten your master password, you can request a secure recovery email link sent to your registered address.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -847,28 +859,9 @@ function SettingsPage() {
                         onClick={handleForgotMasterPassword}
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? "Generating Link..." : "Forgot Master Password?"}
+                        {isSubmitting ? "Sending Link..." : "Forgot Master Password?"}
                       </Button>
                     </div>
-
-                    {simulatedLink && (
-                      <div className="rounded-md border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-                        <h4 className="text-sm font-semibold text-amber-800 dark:text-amber-400">
-                          Simulated Reset Token Generated
-                        </h4>
-                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-500 leading-relaxed">
-                          A recovery email has been logged to the server console. For convenience, you can reset it by clicking this link or copying it:
-                        </p>
-                        <div className="mt-2 text-xs break-all">
-                          <a
-                            href={simulatedLink}
-                            className="font-medium text-amber-900 dark:text-amber-300 underline hover:text-amber-800"
-                          >
-                            {simulatedLink}
-                          </a>
-                        </div>
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               )}

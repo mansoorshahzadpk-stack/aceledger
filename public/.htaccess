@@ -2,6 +2,10 @@
   RewriteEngine On
   RewriteBase /
 
+  # Pass the Authorization Header to PHP under CGI/FPM environments
+  RewriteCond %{HTTP:Authorization} ^(.*)
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
   # If the request is for a file or directory that exists, serve it directly
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d

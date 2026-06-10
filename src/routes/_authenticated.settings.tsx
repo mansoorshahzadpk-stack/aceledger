@@ -272,13 +272,13 @@ function SettingsPage() {
         });
 
         const contentType = response.headers.get("content-type") || "";
-        if (response.ok && contentType.includes("application/json")) {
+        if (contentType.includes("application/json")) {
           const res = await response.json();
-          if (res.success) {
+          if (response.ok && res.success) {
             success = true;
             toast.success(res.message || `A secure master password reset link has been dispatched to ${user.email}.`);
           } else {
-            errorMsg = res.error || "Failed to send recovery email";
+            errorMsg = res.error || res.message || `Failed to send recovery email (Status ${response.status})`;
           }
         } else {
           errorMsg = `Server returned status ${response.status}`;
@@ -309,7 +309,8 @@ function SettingsPage() {
           }
         } catch (edgeErr: any) {
           console.error("Supabase Edge Function failed:", edgeErr);
-          throw new Error(edgeErr.message || errorMsg || "Failed to deliver recovery email");
+          // Prioritize the Hostinger PHP API error over the missing Edge Function error to prevent confusion
+          throw new Error(errorMsg || edgeErr.message || "Failed to deliver recovery email");
         }
       }
     } catch (err: any) {

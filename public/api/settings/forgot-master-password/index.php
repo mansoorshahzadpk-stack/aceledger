@@ -15,11 +15,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// 1. Parse Authorization Header
-$headers = getallheaders();
-$authHeader = isset($headers['Authorization']) ? $headers['Authorization'] : '';
-if (empty($authHeader) && isset($headers['authorization'])) {
-    $authHeader = $headers['authorization'];
+// 1. Parse Authorization Header (with multi-method fallbacks for CGI/FPM)
+$authHeader = '';
+if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+} elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+} else {
+    $headers = function_exists('getallheaders') ? getallheaders() : [];
+    if (isset($headers['Authorization'])) {
+        $authHeader = $headers['Authorization'];
+    } elseif (isset($headers['authorization'])) {
+        $authHeader = $headers['authorization'];
+    }
 }
 
 if (empty($authHeader) || !preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {

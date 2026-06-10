@@ -66,18 +66,27 @@ $curlError = curl_error($ch);
 curl_close($ch);
 
 if ($authStatusCode !== 200 || !$authResponse) {
+    $debugLog = [
+        'timestamp' => date('c'),
+        'supabase_url' => $supabaseUrl,
+        'anon_key_preview' => substr($supabaseAnonKey, 0, 15) . '...',
+        'token_preview' => substr($jwtToken, 0, 15) . '...',
+        'token_length' => strlen($jwtToken),
+        'http_status' => $authStatusCode,
+        'curl_error' => $curlError,
+        'response_raw' => $authResponse,
+        'response_decoded' => json_decode($authResponse, true)
+    ];
+    file_put_contents(__DIR__ . '/supabase_auth_debug.json', json_encode($debugLog, JSON_PRETTY_PRINT));
+
     http_response_code(401);
     echo json_encode([
         'error' => 'Unauthorized: Invalid session',
-        'debug' => [
-            'status' => $authStatusCode,
-            'curl_error' => $curlError,
-            'response' => $authResponse,
-            'token_preview' => substr($jwtToken, 0, 15) . '...'
-        ]
+        'debug' => $debugLog
     ]);
     exit;
 }
+
 
 $userData = json_decode($authResponse, true);
 $userId = isset($userData['id']) ? $userData['id'] : '';

@@ -279,6 +279,11 @@ function SettingsPage() {
             toast.success(res.message || `A secure master password reset link has been dispatched to ${user.email}.`);
           } else {
             errorMsg = res.error || res.message || `Failed to send recovery email (Status ${response.status})`;
+            if (res.debug) {
+              const debugStr = typeof res.debug === 'object' ? JSON.stringify(res.debug) : res.debug;
+              console.error("Master password recovery debug details:", res.debug);
+              errorMsg += ` | Debug: ${debugStr}`;
+            }
           }
         } else {
           errorMsg = `Server returned status ${response.status}`;

@@ -658,12 +658,12 @@ export function AppShell() {
                   variant="outline"
                   className={cn(
                     "flex items-center bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap",
-                    sidebarCollapsed ? "w-10 h-10 px-0 justify-center mx-auto" : "w-full px-3 py-2 justify-between"
+                    sidebarCollapsed ? "w-10 h-10 p-0 justify-center mx-auto gap-0" : "w-full px-3 py-2 justify-between"
                   )}
                   title={sidebarCollapsed ? "Quick Actions" : undefined}
                 >
                   <span className={cn("flex items-center transition-all duration-300", sidebarCollapsed ? "gap-0" : "gap-2")}>
-                    <Plus className="h-4 w-4 shrink-0" />
+                    <Plus className={cn("shrink-0 transition-all duration-300", sidebarCollapsed ? "h-5 w-5" : "h-4 w-4")} />
                     <span className={cn(
                       "transition-all duration-300 overflow-hidden whitespace-nowrap",
                       sidebarCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"

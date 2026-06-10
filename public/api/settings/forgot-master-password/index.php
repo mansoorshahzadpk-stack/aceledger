@@ -39,8 +39,14 @@ if (empty($authHeader) || !preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)
 $jwtToken = $matches[1];
 
 // 2. Load Environment / Config
-$supabaseUrl = getenv('SUPABASE_URL') ?: 'https://hpnknjoxwzocenxuziwu.supabase.co';
-$supabaseAnonKey = getenv('SUPABASE_ANON_KEY') ?: getenv('VITE_SUPABASE_PUBLISHABLE_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwbmtuam94d3pvY2VueHV6aXd1Iiwicm9sZSI6Imhwbmtuam94d3pvY2VueHV6aXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDkxOTMsImV4cCI6MjA5NTM4NTE5M30.PGao9Ta7s2_emo8NIXVnXLx_jkXtfxms4DiH886MPf8';
+$configPath = dirname(__DIR__) . '/config.json';
+$config = [];
+if (file_exists($configPath)) {
+    $config = json_decode(file_get_contents($configPath), true) ?: [];
+}
+
+$supabaseUrl = getenv('SUPABASE_URL') ?: ($config['SUPABASE_URL'] ?? 'https://hpnknjoxwzocenxuziwu.supabase.co');
+$supabaseAnonKey = getenv('SUPABASE_ANON_KEY') ?: getenv('VITE_SUPABASE_PUBLISHABLE_KEY') ?: ($config['SUPABASE_ANON_KEY'] ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhwbmtuam94d3pvY2VueHV6aXd1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDkxOTMsImV4cCI6MjA5NTM4NTE5M30.PGao9Ta7s2_emo8NIXVnXLx_jkXtfxms4DiH886MPf8');
 
 $smtpHost = getenv('SMTP_HOST');
 $smtpPort = getenv('SMTP_PORT') ?: 587;

@@ -25,6 +25,9 @@ import {
   ClipboardCheck,
   Banknote,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  User,
 } from "lucide-react";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -77,6 +80,17 @@ export function AppShell() {
     tenantProfile,
   } = useApp();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebarCollapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newBizName, setNewBizName] = useState("");
@@ -338,14 +352,17 @@ export function AppShell() {
           : Sun;
 
   const BusinessSwitcher = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const showDetails = isMobile || !sidebarCollapsed;
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              "flex items-center gap-2 text-left rounded-md hover:bg-accent/15 transition-colors p-1.5 focus:outline-none cursor-pointer",
-              isMobile ? "max-w-[180px]" : "w-full mx-1"
+              "flex items-center gap-2 text-left rounded-md hover:bg-accent/15 transition-all duration-300 p-1.5 focus:outline-none cursor-pointer overflow-hidden whitespace-nowrap",
+              isMobile ? "max-w-[180px]" : "w-full mx-1",
+              !showDetails && "justify-center mx-0 px-0"
             )}
+            title={!showDetails ? (settings.business_name || "Ledger") : undefined}
           >
             {settings.business_logo_url ? (
               <img
@@ -358,7 +375,10 @@ export function AppShell() {
                 {(settings.business_name || "L").charAt(0).toUpperCase()}
               </div>
             )}
-            <div className="min-w-0 flex-1 pr-1">
+            <div className={cn(
+              "min-w-0 flex-1 pr-1 transition-all duration-300 overflow-hidden",
+              showDetails ? "opacity-100 max-w-full" : "opacity-0 max-w-0 pointer-events-none"
+            )}>
               <div className="text-sm font-semibold leading-tight truncate text-sidebar-foreground">
                 {settings.business_name || "Ledger"}
               </div>
@@ -366,10 +386,13 @@ export function AppShell() {
                 B2B Accounts
               </div>
             </div>
-            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className={cn(
+              "h-4 w-4 shrink-0 opacity-50 transition-all duration-300",
+              showDetails ? "opacity-50 max-w-full" : "opacity-0 max-w-0 pointer-events-none"
+            )} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="start">
+        <DropdownMenuContent className="w-56" align={showDetails ? "start" : "center"}>
           <DropdownMenuLabel className="text-xs">Switch Business</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {businesses.map((b) => (
@@ -446,13 +469,26 @@ export function AppShell() {
     if (!subState) return null;
 
     let badgeClass = "";
+    let dotClass = "";
 
     if (subState.state === "trialing") {
       badgeClass = "bg-amber-600 border-amber-700 text-white font-extrabold";
+      dotClass = "bg-amber-500 border-amber-600";
     } else if (subState.state === "active" || subState.state === "active-expiring") {
       badgeClass = "bg-emerald-600 border-emerald-700 text-white font-extrabold";
+      dotClass = "bg-emerald-500 border-emerald-600";
     } else if (subState.state === "suspended") {
       badgeClass = "bg-rose-700 border-rose-800 text-white font-extrabold";
+      dotClass = "bg-rose-500 border-rose-600";
+    }
+
+    if (sidebarCollapsed) {
+      return (
+        <div
+          title={`${subState.label} Subscription`}
+          className={cn("h-3.5 w-3.5 rounded-full border shadow-sm animate-pulse", dotClass)}
+        />
+      );
     }
 
     return (
@@ -603,111 +639,171 @@ export function AppShell() {
     <div className="flex flex-col min-h-screen w-full bg-background overflow-x-hidden">
       <div className="flex flex-1 min-w-0 w-full bg-background">
         {/* Desktop sidebar */}
-        <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar">
-          <div className="flex h-16 items-center border-b px-3">
+        <aside
+          className={cn(
+            "hidden md:flex shrink-0 flex-col border-r bg-sidebar transition-all duration-300 ease-in-out overflow-hidden whitespace-nowrap",
+            sidebarCollapsed ? "w-16" : "w-60"
+          )}
+        >
+          <div className={cn(
+            "flex h-16 items-center border-b transition-all duration-300",
+            sidebarCollapsed ? "px-1 justify-center" : "px-3"
+          )}>
             <BusinessSwitcher />
           </div>
-          <nav className="flex-1 space-y-1 p-3">
+          <nav className={cn("flex-1 space-y-1 transition-all duration-300", sidebarCollapsed ? "p-2" : "p-3")}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2 mb-4 bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-colors cursor-pointer"
+                  className={cn(
+                    "w-full flex items-center bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap",
+                    sidebarCollapsed ? "px-0 justify-center h-10 w-10 mx-auto" : "px-3 py-2 justify-between"
+                  )}
+                  title={sidebarCollapsed ? "Quick Actions" : undefined}
                 >
-                <span className="flex items-center gap-2">
-                  <Plus className="h-4 w-4 shrink-0" />
-                  <span>Quick Actions</span>
-                </span>
-                <ChevronsUpDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-52" align="start">
-              <DropdownMenuLabel className="text-xs">Quick Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild disabled={isReadOnly}>
-                <Link to="/invoices/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
-                  <FileText className="h-4 w-4 shrink-0" />
-                  <span>New Invoice</span>
+                  <span className="flex items-center gap-2">
+                    <Plus className="h-4 w-4 shrink-0" />
+                    <span className={cn(
+                      "transition-all duration-300 overflow-hidden whitespace-nowrap",
+                      sidebarCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
+                    )}>
+                      Quick Actions
+                    </span>
+                  </span>
+                  <ChevronsUpDown className={cn(
+                    "h-3.5 w-3.5 opacity-60 shrink-0 transition-all duration-300",
+                    sidebarCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
+                  )} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-52" align={sidebarCollapsed ? "center" : "start"}>
+                <DropdownMenuLabel className="text-xs">Quick Actions</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild disabled={isReadOnly}>
+                  <Link to="/invoices/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
+                    <FileText className="h-4 w-4 shrink-0" />
+                    <span>New Invoice</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setClientPayOpen(true)}
+                  disabled={isReadOnly}
+                  className="flex items-center gap-2 cursor-pointer w-full"
+                >
+                  <Banknote className="h-4 w-4 shrink-0" />
+                  <span>Log Payment Received</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild disabled={isReadOnly}>
+                  <Link to="/vendors/grn/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
+                    <Truck className="h-4 w-4 shrink-0" />
+                    <span>Log GRN</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setVendorPayOpen(true)}
+                  disabled={isReadOnly}
+                  className="flex items-center gap-2 cursor-pointer w-full"
+                >
+                  <Coins className="h-4 w-4 shrink-0" />
+                  <span>Log Payment</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setLedgerTxOpen(true)}
+                  disabled={isReadOnly}
+                  className="flex items-center gap-2 cursor-pointer w-full"
+                >
+                  <BookOpen className="h-4 w-4 shrink-0" />
+                  <span>Log Transaction</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {NAV.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(item.to, item.exact);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  title={sidebarCollapsed ? item.label : undefined}
+                  className={cn(
+                    "flex items-center rounded-md text-sm font-medium transition-all duration-300",
+                    sidebarCollapsed ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2",
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                  )}
+                >
+                  <Icon className={cn("h-4 w-4 shrink-0 transition-all", sidebarCollapsed && "h-5 w-5")} />
+                  <span className={cn(
+                    "transition-all duration-300 overflow-hidden whitespace-nowrap",
+                    sidebarCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
+                  )}>
+                    {item.label}
+                  </span>
                 </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setClientPayOpen(true)}
-                disabled={isReadOnly}
-                className="flex items-center gap-2 cursor-pointer w-full"
-              >
-                <Banknote className="h-4 w-4 shrink-0" />
-                <span>Log Payment Received</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild disabled={isReadOnly}>
-                <Link to="/vendors/grn/new" className={cn("flex items-center gap-2 cursor-pointer w-full", isReadOnly && "pointer-events-none opacity-50")}>
-                  <Truck className="h-4 w-4 shrink-0" />
-                  <span>Log GRN</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setVendorPayOpen(true)}
-                disabled={isReadOnly}
-                className="flex items-center gap-2 cursor-pointer w-full"
-              >
-                <Coins className="h-4 w-4 shrink-0" />
-                <span>Log Payment</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setLedgerTxOpen(true)}
-                disabled={isReadOnly}
-                className="flex items-center gap-2 cursor-pointer w-full"
-              >
-                <BookOpen className="h-4 w-4 shrink-0" />
-                <span>Log Transaction</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-
-
-          {NAV.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.to, item.exact);
-            return (
+              );
+            })}
+            {user?.email === "mansoorshahzadpk@gmail.com" && (
               <Link
-                key={item.to}
-                to={item.to}
+                to="/super-admin"
+                title={sidebarCollapsed ? "Super Admin" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
+                  "flex items-center rounded-md text-sm font-medium transition-all duration-300",
+                  sidebarCollapsed ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2",
+                  isActive("/super-admin")
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
                     : "text-sidebar-foreground hover:bg-sidebar-accent"
                 )}
               >
-                <Icon className="h-4 w-4" />
-                {item.label}
+                <ShieldAlert className={cn("h-4 w-4 shrink-0 transition-all", sidebarCollapsed && "h-5 w-5")} />
+                <span className={cn(
+                  "transition-all duration-300 overflow-hidden whitespace-nowrap",
+                  sidebarCollapsed ? "opacity-0 w-0 pointer-events-none" : "opacity-100 w-auto"
+                )}>
+                  Super Admin
+                </span>
               </Link>
-            );
-          })}
-          {user?.email === "mansoorshahzadpk@gmail.com" && (
-            <Link
-              to="/super-admin"
+            )}
+          </nav>
+          <div className={cn(
+            "border-t text-xs text-muted-foreground flex flex-col gap-2 transition-all duration-300",
+            sidebarCollapsed ? "p-2 items-center" : "p-3"
+          )}>
+            <div className="flex items-center gap-2 w-full justify-center">
+              {renderCompactAccountStatus()}
+            </div>
+            <div
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive("/super-admin")
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent"
+                "truncate transition-all duration-300 overflow-hidden whitespace-nowrap w-full",
+                sidebarCollapsed ? "opacity-0 h-0 pointer-events-none" : "opacity-100 h-auto"
               )}
+              title={user?.email || ""}
             >
-              <ShieldAlert className="h-4 w-4" />
-              Super Admin
-            </Link>
-          )}
-        </nav>
-        <div className="border-t p-3 text-xs text-muted-foreground flex flex-col gap-2">
-          <div>{renderCompactAccountStatus()}</div>
-          <div className="truncate">{user?.email}</div>
-        </div>
-      </aside>
+              {user?.email}
+            </div>
+          </div>
+        </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/95 px-4 backdrop-blur md:px-6">
+          {/* Sidebar Toggle Button (Desktop) */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="hidden md:flex h-9 w-9 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </Button>
+
           <div className="md:hidden flex items-center shrink-0 gap-2">
             <BusinessSwitcher isMobile />
             {renderCompactAccountStatus()}

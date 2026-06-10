@@ -30,8 +30,8 @@ jobs:
           zip -r ../../dist.zip .
           cd ../..
 
-          # 2. Dynamically generate the secure unzip.php script
-          cat << 'EOF' > unzip.php
+          # 2. Dynamically generate the secure unzip script
+          cat << 'EOF' > unzip_${{ github.run_id }}.php
           <?php
           // Prevent unauthorized execution
           if (!isset($_GET['key']) || $_GET['key'] !== 'GITHUB_RUN_ID') {
@@ -62,6 +62,13 @@ jobs:
           deleteDir(__DIR__ . '/assets');
           deleteDir(__DIR__ . '/app-assets');
 
+          // Clean up any other old unzip scripts to prevent clutter
+          foreach (glob(__DIR__ . '/unzip_*.php') as $file) {
+              if (basename($file) !== basename(__FILE__)) {
+                  @unlink($file);
+              }
+          }
+
           // Extract the new deployment bundle
           try {
               $zip = new ZipArchive;
@@ -69,7 +76,7 @@ jobs:
                   $zip->extractTo(__DIR__);
                   $zip->close();
                   unlink($zipFile);
-                  unlink(__FILE__);
+                  @unlink(__FILE__);
                   echo 'Success';
               } else {
                   header('HTTP/1.0 500 Internal Server Error');
@@ -83,7 +90,7 @@ jobs:
           EOF
 
           # 3. Insert the actual github run ID as the security token
-          sed -i "s/GITHUB_RUN_ID/${{ github.run_id }}/g" unzip.php
+          sed -i "s/GITHUB_RUN_ID/${{ github.run_id }}/g" unzip_${{ github.run_id }}.php
 
       - name: Upload Deployment Package to Hostinger
         run: |
@@ -100,14 +107,14 @@ jobs:
             rm index.html;
             set cmd:fail-exit yes;
             put dist.zip;
-            put unzip.php;
+            put unzip_${{ github.run_id }}.php;
             quit;
           "
 
       - name: Trigger Remote Unzip and Verify
         run: |
           echo "Triggering remote unzip..."
-          RESPONSE=$(curl -s -w "%{http_code}" -L "https://aceledger.top/unzip.php?key=${{ github.run_id }}")
+          RESPONSE=$(curl -s -w "%{http_code}" -H "Cache-Control: no-cache" -H "Pragma: no-cache" -L "https://aceledger.top/unzip_${{ github.run_id }}.php?key=${{ github.run_id }}")
           HTTP_CODE="${RESPONSE:${#RESPONSE}-3}"
           BODY="${RESPONSE:0:${#RESPONSE}-3}"
 

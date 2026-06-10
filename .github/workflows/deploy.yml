@@ -1,4 +1,4 @@
-name: Auto Deploy to Hostinger
+name: Auto Deploy to Hostinger (Cache-Busted)
 
 on:
   push:

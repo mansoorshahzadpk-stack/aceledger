@@ -657,12 +657,12 @@ export function AppShell() {
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-full flex items-center bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap",
-                    sidebarCollapsed ? "px-0 justify-center h-10 w-10 mx-auto" : "px-3 py-2 justify-between"
+                    "flex items-center bg-transparent border-sidebar-primary/50 hover:border-sidebar-primary text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground font-semibold shadow-sm rounded-md transition-all duration-300 cursor-pointer overflow-hidden whitespace-nowrap",
+                    sidebarCollapsed ? "w-10 h-10 px-0 justify-center mx-auto" : "w-full px-3 py-2 justify-between"
                   )}
                   title={sidebarCollapsed ? "Quick Actions" : undefined}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className={cn("flex items-center transition-all duration-300", sidebarCollapsed ? "gap-0" : "gap-2")}>
                     <Plus className="h-4 w-4 shrink-0" />
                     <span className={cn(
                       "transition-all duration-300 overflow-hidden whitespace-nowrap",
@@ -677,7 +677,12 @@ export function AppShell() {
                   )} />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-52" align={sidebarCollapsed ? "center" : "start"}>
+              <DropdownMenuContent
+                className="w-52"
+                side={sidebarCollapsed ? "right" : "bottom"}
+                align="start"
+                sideOffset={sidebarCollapsed ? 12 : 4}
+              >
                 <DropdownMenuLabel className="text-xs">Quick Actions</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild disabled={isReadOnly}>

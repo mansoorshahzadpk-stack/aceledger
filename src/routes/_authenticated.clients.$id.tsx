@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
-import { ArrowLeft, Plus, Banknote, Pencil, Trash2, History, Send } from "lucide-react";
+import { ArrowLeft, Plus, Banknote, Pencil, Trash2, History, Send, Maximize2, Minimize2, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/clients/$id")({
   component: ClientDetail,
@@ -29,6 +30,14 @@ function ClientDetail() {
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState<PayForm>({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", invoice_id: "", asset_id: "" });
+
+  const [maximizedCard, setMaximizedCard] = useState<"invoices" | "payments" | null>(null);
+
+  const [invoiceSortField, setInvoiceSortField] = useState<"issue_date" | "status" | "total" | null>("issue_date");
+  const [invoiceSortOrder, setInvoiceSortOrder] = useState<"asc" | "desc" | null>("desc");
+
+  const [paymentSortField, setPaymentSortField] = useState<"payment_date" | "status" | "amount" | null>("payment_date");
+  const [paymentSortOrder, setPaymentSortOrder] = useState<"asc" | "desc" | null>("desc");
 
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
@@ -152,6 +161,107 @@ function ClientDetail() {
     },
     enabled: !!user,
   });
+
+  const sortedInvoices = useMemo(() => {
+    if (!data?.invs) return [];
+    const items = [...data.invs];
+    if (!invoiceSortField || !invoiceSortOrder) return items;
+
+    return items.sort((a, b) => {
+      const valA = a[invoiceSortField];
+      const valB = b[invoiceSortField];
+
+      if (valA === null || valA === undefined) return invoiceSortOrder === "asc" ? -1 : 1;
+      if (valB === null || valB === undefined) return invoiceSortOrder === "asc" ? 1 : -1;
+
+      if (invoiceSortField === "total") {
+        return invoiceSortOrder === "asc" 
+          ? Number(valA) - Number(valB) 
+          : Number(valB) - Number(valA);
+      }
+      
+      if (invoiceSortField === "issue_date") {
+        return invoiceSortOrder === "asc"
+          ? new Date(valA).getTime() - new Date(valB).getTime()
+          : new Date(valB).getTime() - new Date(valA).getTime();
+      }
+
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      if (strA < strB) return invoiceSortOrder === "asc" ? -1 : 1;
+      if (strA > strB) return invoiceSortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data?.invs, invoiceSortField, invoiceSortOrder]);
+
+  const sortedPayments = useMemo(() => {
+    if (!data?.pays) return [];
+    const items = [...data.pays];
+    if (!paymentSortField || !paymentSortOrder) return items;
+
+    return items.sort((a, b) => {
+      const valA = paymentSortField === "status" ? (a.status || "posted") : a[paymentSortField];
+      const valB = paymentSortField === "status" ? (b.status || "posted") : b[paymentSortField];
+
+      if (valA === null || valA === undefined) return paymentSortOrder === "asc" ? -1 : 1;
+      if (valB === null || valB === undefined) return paymentSortOrder === "asc" ? 1 : -1;
+
+      if (paymentSortField === "amount") {
+        return paymentSortOrder === "asc" 
+          ? Number(valA) - Number(valB) 
+          : Number(valB) - Number(valA);
+      }
+      
+      if (paymentSortField === "payment_date") {
+        return paymentSortOrder === "asc"
+          ? new Date(valA).getTime() - new Date(valB).getTime()
+          : new Date(valB).getTime() - new Date(valA).getTime();
+      }
+
+      const strA = String(valA).toLowerCase();
+      const strB = String(valB).toLowerCase();
+      if (strA < strB) return paymentSortOrder === "asc" ? -1 : 1;
+      if (strA > strB) return paymentSortOrder === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [data?.pays, paymentSortField, paymentSortOrder]);
+
+  const handleInvoiceSort = (field: "issue_date" | "status" | "total") => {
+    if (invoiceSortField !== field) {
+      setInvoiceSortField(field);
+      setInvoiceSortOrder(field === "issue_date" ? "desc" : "asc");
+    } else if (invoiceSortOrder === "asc") {
+      setInvoiceSortOrder("desc");
+    } else if (invoiceSortOrder === "desc") {
+      setInvoiceSortField(null);
+      setInvoiceSortOrder(null);
+    } else {
+      setInvoiceSortField(field);
+      setInvoiceSortOrder(field === "issue_date" ? "desc" : "asc");
+    }
+  };
+
+  const handlePaymentSort = (field: "payment_date" | "status" | "amount") => {
+    if (paymentSortField !== field) {
+      setPaymentSortField(field);
+      setPaymentSortOrder(field === "payment_date" ? "desc" : "asc");
+    } else if (paymentSortOrder === "asc") {
+      setPaymentSortOrder("desc");
+    } else if (paymentSortOrder === "desc") {
+      setPaymentSortField(null);
+      setPaymentSortOrder(null);
+    } else {
+      setPaymentSortField(field);
+      setPaymentSortOrder(field === "payment_date" ? "desc" : "asc");
+    }
+  };
+
+  const renderSortIndicator = (field: string, currentField: string | null, currentOrder: "asc" | "desc" | null) => {
+    if (currentField !== field) return null;
+    if (currentOrder === "asc") return <ChevronUp className="ml-1 h-3.5 w-3.5 inline shrink-0" />;
+    if (currentOrder === "desc") return <ChevronDown className="ml-1 h-3.5 w-3.5 inline shrink-0" />;
+    return null;
+  };
 
   const logInstallment = async (status: "draft" | "posted") => {
     if (!pay.amount) {
@@ -290,16 +400,80 @@ function ClientDetail() {
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 min-w-0 w-full">
-        <Card className="min-w-0">
-          <CardHeader><CardTitle>Invoices</CardTitle><CardDescription>Click an invoice number to edit, amend or delete</CardDescription></CardHeader>
+      {maximizedCard && (
+        <div 
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setMaximizedCard(null)}
+        />
+      )}
+
+      <div className={cn(
+        "grid gap-6 min-w-0 w-full transition-all duration-300",
+        maximizedCard ? "grid-cols-1" : "lg:grid-cols-2"
+      )}>
+        <Card className={cn(
+          "min-w-0 transition-all duration-300 ease-in-out",
+          maximizedCard === "invoices" 
+            ? "fixed inset-4 md:inset-10 z-40 bg-card overflow-y-auto shadow-2xl border animate-in fade-in zoom-in-95" 
+            : maximizedCard === "payments" 
+              ? "hidden" 
+              : "relative"
+        )}>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div className="space-y-1">
+              <CardTitle>Invoices</CardTitle>
+              <CardDescription>Click an invoice number to edit, amend or delete</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              onClick={() => setMaximizedCard(maximizedCard === "invoices" ? null : "invoices")}
+              title={maximizedCard === "invoices" ? "Minimize" : "Maximize"}
+            >
+              {maximizedCard === "invoices" ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>#</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead><TableHead></TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      onClick={() => handleInvoiceSort("issue_date")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Date {renderSortIndicator("issue_date", invoiceSortField, invoiceSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead>#</TableHead>
+                    <TableHead 
+                      onClick={() => handleInvoiceSort("status")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Status {renderSortIndicator("status", invoiceSortField, invoiceSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      onClick={() => handleInvoiceSort("total")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors text-right"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Total {renderSortIndicator("total", invoiceSortField, invoiceSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {data.invs.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No invoices</TableCell></TableRow>}
-                  {data.invs.map((i) => (
+                  {sortedInvoices.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No invoices</TableCell></TableRow>}
+                  {sortedInvoices.map((i) => (
                     <TableRow key={i.id} className="hover:bg-muted/30">
                       <TableCell className="tabular">{formatDate(i.issue_date)}</TableCell>
                       <TableCell><Link to="/invoices/$id" params={{ id: i.id }} className="font-mono text-xs hover:underline">{i.invoice_number}</Link></TableCell>
@@ -320,15 +494,70 @@ function ClientDetail() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0">
-          <CardHeader><CardTitle>Payment Received</CardTitle><CardDescription>Payments received from this client — drafts can be updated/deleted freely</CardDescription></CardHeader>
+        <Card className={cn(
+          "min-w-0 transition-all duration-300 ease-in-out",
+          maximizedCard === "payments" 
+            ? "fixed inset-4 md:inset-10 z-40 bg-card overflow-y-auto shadow-2xl border animate-in fade-in zoom-in-95" 
+            : maximizedCard === "invoices" 
+              ? "hidden" 
+              : "relative"
+        )}>
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div className="space-y-1">
+              <CardTitle>Payment Received</CardTitle>
+              <CardDescription>Payments received from this client — drafts can be updated/deleted freely</CardDescription>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              onClick={() => setMaximizedCard(maximizedCard === "payments" ? null : "payments")}
+              title={maximizedCard === "payments" ? "Minimize" : "Maximize"}
+            >
+              {maximizedCard === "payments" ? (
+                <Minimize2 className="h-4 w-4" />
+              ) : (
+                <Maximize2 className="h-4 w-4" />
+              )}
+            </Button>
+          </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead>Ref</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-36 text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead 
+                      onClick={() => handlePaymentSort("payment_date")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Date {renderSortIndicator("payment_date", paymentSortField, paymentSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Ref</TableHead>
+                    <TableHead 
+                      onClick={() => handlePaymentSort("status")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors"
+                    >
+                      <div className="flex items-center gap-1">
+                        Status {renderSortIndicator("status", paymentSortField, paymentSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      onClick={() => handlePaymentSort("amount")} 
+                      className="cursor-pointer select-none hover:bg-muted/50 hover:text-foreground transition-colors text-right"
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Amount {renderSortIndicator("amount", paymentSortField, paymentSortOrder)}
+                      </div>
+                    </TableHead>
+                    <TableHead className="w-36 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {data.pays.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
-                  {data.pays.map((p) => (
+                  {sortedPayments.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
+                  {sortedPayments.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>

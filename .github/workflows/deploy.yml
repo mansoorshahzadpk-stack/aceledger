@@ -69,9 +69,7 @@ jobs:
               }
           }
 
-          // Safely delete .htaccess and index.html right before extraction to prevent downtime
-          @unlink(__DIR__ . '/.htaccess');
-          @unlink(__DIR__ . '/index.html');
+
 
           // Extract the new deployment bundle
           try {

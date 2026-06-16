@@ -11,9 +11,10 @@ import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Landmark, Home, ArrowUpRight, ArrowDownLeft, ReceiptText, ArrowLeftRight } from "lucide-react";
+import { Plus, Wallet, Landmark, Home, ArrowUpRight, ArrowDownLeft, ReceiptText, ArrowLeftRight, Calendar, Info, RefreshCw, Pencil } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets")({
   component: AssetsPage,
@@ -60,6 +61,8 @@ function AssetsPage() {
     notes: "",
   });
 
+  const [selectedAssetLedger, setSelectedAssetLedger] = useState<Asset | null>(null);
+
   // Query assets
   const { data: assets = [], isLoading, isSuccess } = useQuery({
     queryKey: ["assets", user?.id, activeBusinessId],
@@ -94,6 +97,95 @@ function AssetsPage() {
       };
     },
     enabled: !!activeBusinessId && !!user,
+  });
+
+  // Query asset detailed ledger transactions
+  const { data: ledgerTxsList = [], isLoading: isLedgerLoading } = useQuery({
+    queryKey: ["asset_ledger_details", user?.id, selectedAssetLedger?.id],
+    queryFn: async () => {
+      if (!selectedAssetLedger || !user) return [];
+      const assetId = selectedAssetLedger.id;
+
+      const [{ data: clientPays }, { data: vendorPays }, { data: ledgerTxs }] = await Promise.all([
+        supabase
+          .from("client_payments")
+          .select("id, amount, payment_date, reference, method, clients(name)")
+          .eq("asset_id", assetId)
+          .eq("status", "posted")
+          .eq("user_id", user.id),
+        supabase
+          .from("vendor_payments")
+          .select("id, amount, payment_date, reference, method, vendors(name)")
+          .eq("asset_id", assetId)
+          .eq("user_id", user.id),
+        supabase
+          .from("ledger_transactions" as any)
+          .select("id, amount, transaction_date, type, description, category")
+          .eq("asset_id", assetId)
+          .eq("user_id", user.id),
+      ]);
+
+      const list: any[] = [];
+
+      if (clientPays) {
+        clientPays.forEach((p: any) => {
+          list.push({
+            id: p.id,
+            date: p.payment_date,
+            type: "Client Payment Received",
+            description: p.clients?.name ? `${p.clients.name}` : "Client Payment",
+            reference: p.reference || p.method || "—",
+            flowType: "debit", // Inflow
+            amount: Number(p.amount),
+          });
+        });
+      }
+
+      if (vendorPays) {
+        vendorPays.forEach((p: any) => {
+          list.push({
+            id: p.id,
+            date: p.payment_date,
+            type: "Vendor Bill Settled",
+            description: p.vendors?.name ? `${p.vendors.name}` : "Vendor Payment",
+            reference: p.reference || p.method || "—",
+            flowType: "credit", // Outflow
+            amount: Number(p.amount),
+          });
+        });
+      }
+
+      if (ledgerTxs) {
+        ledgerTxs.forEach((tx: any) => {
+          const isFundTransfer = tx.category === "Fund Transfer";
+          list.push({
+            id: tx.id,
+            date: tx.transaction_date,
+            type: isFundTransfer ? "Internal Funds Transfer" : (tx.category || "General Ledger"),
+            description: tx.description || "—",
+            reference: "—",
+            flowType: tx.type, // 'debit' or 'credit'
+            amount: Number(tx.amount),
+          });
+        });
+      }
+
+      if (selectedAssetLedger.type !== "property_equipment" && Number(selectedAssetLedger.initial_balance) > 0) {
+        list.push({
+          id: `initial_${selectedAssetLedger.id}`,
+          date: selectedAssetLedger.created_at.slice(0, 10),
+          type: "Opening Balance",
+          description: "Initial account setup balance",
+          reference: "—",
+          flowType: "debit", // Opening balance is an inflow
+          amount: Number(selectedAssetLedger.initial_balance),
+        });
+      }
+
+      // Sort descending by date (latest first)
+      return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    enabled: !!selectedAssetLedger && !!user,
   });
 
   // Provision defaults mutation
@@ -464,7 +556,12 @@ function AssetsPage() {
                   </TableRow>
                 )}
                 {computedAssets.map((asset) => (
-                  <TableRow key={asset.id}>
+                  <TableRow 
+                    key={asset.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => setSelectedAssetLedger(asset)}
+                    title={`View transaction ledger for ${asset.name}`}
+                  >
                     <TableCell className="font-semibold">{asset.name}</TableCell>
                     <TableCell>
                       <span className="capitalize">
@@ -492,22 +589,40 @@ function AssetsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground"
-                          onClick={() => handleEdit(asset)}
-                          disabled={isReadOnly}
+                          className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAssetLedger(asset);
+                          }}
+                          title="View Transaction Ledger"
                         >
                           <ReceiptText className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(asset);
+                          }}
+                          disabled={isReadOnly}
+                          title="Edit Account Details"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (confirm(`Are you sure you want to delete asset "${asset.name}"?`)) {
                               deleteMutation.mutate(asset.id);
                             }
                           }}
                           disabled={isReadOnly || (assets.length <= 2 && (asset.type === "bank_account" || asset.type === "petty_cash"))}
+                          title="Delete Account"
                         >
                           <Plus className="h-4 w-4 rotate-45" />
                         </Button>
@@ -739,6 +854,105 @@ function AssetsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Detailed Transaction Ledger Side Drawer */}
+      <Sheet open={!!selectedAssetLedger} onOpenChange={(open) => !open && setSelectedAssetLedger(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader className="pb-4 border-b">
+            <SheetTitle className="flex items-center gap-2 text-xl">
+              <ReceiptText className="h-5 w-5 text-primary" />
+              {selectedAssetLedger?.name} — Detailed Ledger
+            </SheetTitle>
+            <SheetDescription>
+              Chronological flow of funds for this account. Current running balance:{" "}
+              <span className="font-bold text-foreground">
+                {selectedAssetLedger ? formatMoney(
+                  computedAssets.find((a) => a.id === selectedAssetLedger.id)?.balance || 0,
+                  c
+                ) : "—"}
+              </span>
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="py-4 space-y-4">
+            <div className="overflow-auto rounded-md border max-h-[70vh]">
+              <Table>
+                <TableHeader className="bg-muted/50 sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="w-28">Date</TableHead>
+                    <TableHead className="w-44">Source / Type</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right w-36">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLedgerLoading && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-12">
+                        <div className="flex flex-col items-center gap-2 justify-center">
+                          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                          <span>Loading transaction ledger...</span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLedgerLoading && ledgerTxsList.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-12">
+                        No transactions recorded for this account.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLedgerLoading && ledgerTxsList.map((tx: any) => {
+                    const isDebit = tx.flowType === "debit";
+                    return (
+                      <TableRow key={tx.id} className="hover:bg-muted/30">
+                        <TableCell className="tabular text-xs whitespace-nowrap">{tx.date}</TableCell>
+                        <TableCell className="font-medium text-xs whitespace-nowrap flex items-center gap-1.5 py-3">
+                          <span
+                            className={`h-2 w-2 rounded-full ${
+                              tx.type === "Opening Balance"
+                                ? "bg-blue-500"
+                                : tx.type === "Internal Funds Transfer"
+                                  ? "bg-purple-500"
+                                  : isDebit
+                                    ? "bg-success"
+                                    : "bg-destructive"
+                            }`}
+                          />
+                          {tx.type}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[180px] truncate" title={tx.description}>
+                          {tx.description}
+                          {tx.reference && tx.reference !== "—" && (
+                            <span className="block text-[10px] text-muted-foreground truncate">
+                              Ref: {tx.reference}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-semibold text-xs tabular figure whitespace-nowrap ${
+                            isDebit ? "text-success" : "text-destructive"
+                          }`}
+                        >
+                          {isDebit ? "+" : "-"} {formatMoney(tx.amount, c)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            
+            <div className="text-[11px] text-muted-foreground flex items-center gap-1 bg-muted/40 p-3 rounded-lg border">
+              <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>
+                Note: Inflows (Debits / +) represent money entering the account. Outflows (Credits / -) represent money leaving the account.
+              </span>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

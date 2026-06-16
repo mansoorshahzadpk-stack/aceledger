@@ -324,7 +324,7 @@ function ClientDetail() {
     }
 
     // Call update_client_payment database function (RPC)
-    const { error } = await supabase.rpc("update_client_payment" as any, {
+    let { error } = await supabase.rpc("update_client_payment" as any, {
       p_payment_id: editPay.id,
       p_amount: newAmt,
       p_date: editDate,
@@ -334,6 +334,32 @@ function ClientDetail() {
       p_user_id: user.id,
       p_asset_id: editAssetId === "" ? null : editAssetId,
     });
+
+    // Fallback if the new RPC signature is not deployed/cached in the database schema cache yet
+    if (error && error.message?.includes("Could not find the function")) {
+      const { error: rpcError } = await supabase.rpc("update_client_payment" as any, {
+        p_payment_id: editPay.id,
+        p_amount: newAmt,
+        p_date: editDate,
+        p_method: editMethod,
+        p_reference: editReference,
+        p_reason: isPosted ? editReason.trim() : "",
+        p_user_id: user.id,
+      });
+      error = rpcError;
+      
+      if (!rpcError) {
+        // Update asset_id directly using client SDK fallback
+        const { error: updateError } = await supabase
+          .from("client_payments")
+          .update({ asset_id: editAssetId === "" ? null : editAssetId })
+          .eq("id", editPay.id)
+          .eq("user_id", user.id);
+        if (updateError) {
+          console.warn("Failed to update asset_id via client fallback:", updateError);
+        }
+      }
+    }
 
     if (error) {
       toast.error(error.message || "Failed to update payment");

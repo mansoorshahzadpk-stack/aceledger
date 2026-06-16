@@ -71,15 +71,24 @@ jobs:
 
 
 
+          // Safely delete .htaccess and index.html right before extraction to prevent ownership overwrite issues
+          @unlink(__DIR__ . '/.htaccess');
+          @unlink(__DIR__ . '/index.html');
+
           // Extract the new deployment bundle
           try {
               $zip = new ZipArchive;
               if ($zip->open($zipFile) === TRUE) {
-                  $zip->extractTo(__DIR__);
+                  $ok = $zip->extractTo(__DIR__);
                   $zip->close();
-                  unlink($zipFile);
-                  @unlink(__FILE__);
-                  echo 'Success';
+                  if ($ok) {
+                      unlink($zipFile);
+                      @unlink(__FILE__);
+                      echo 'Success';
+                  } else {
+                      header('HTTP/1.0 500 Internal Server Error');
+                      echo 'Failed to extract zip file to ' . __DIR__;
+                  }
               } else {
                   header('HTTP/1.0 500 Internal Server Error');
                   echo 'Failed to open zip';

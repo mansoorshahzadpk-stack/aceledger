@@ -151,7 +151,7 @@ function ClientDetail() {
       const [{ data: c }, { data: invs }, { data: pays }, { data: amends }] = await Promise.all([
         supabase.from("clients").select("*").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
         supabase.from("invoices").select("*").eq("client_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("issue_date", { ascending: false }),
-        supabase.from("client_payments").select("*").eq("client_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
+        supabase.from("client_payments").select("*, assets(name)").eq("client_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
         supabase.from("payment_amendments").select("*").eq("client_id", id).eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
       const posted = (invs ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
@@ -539,6 +539,7 @@ function ClientDetail() {
                       </div>
                     </TableHead>
                     <TableHead>Method</TableHead>
+                    <TableHead>Deposit Account</TableHead>
                     <TableHead>Ref</TableHead>
                     <TableHead 
                       onClick={() => handlePaymentSort("status")} 
@@ -560,11 +561,12 @@ function ClientDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedPayments.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
+                  {sortedPayments.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
                   {sortedPayments.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>
+                      <TableCell className="text-sm font-medium text-muted-foreground">{p.assets?.name ?? "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.reference ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={(p.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">

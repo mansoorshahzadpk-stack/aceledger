@@ -68,6 +68,7 @@ function ClientDetail() {
   const [editDate, setEditDate] = useState("");
   const [editMethod, setEditMethod] = useState("");
   const [editReference, setEditReference] = useState("");
+  const [editAssetId, setEditAssetId] = useState("");
 
   const [delPay, setDelPay] = useState<any | null>(null);
   const [delReason, setDelReason] = useState("");
@@ -304,6 +305,7 @@ function ClientDetail() {
     setEditMethod(p.method);
     setEditReference(p.reference || "");
     setEditReason("");
+    setEditAssetId(p.asset_id || "");
   };
 
   const applyEditPay = async () => {
@@ -330,6 +332,7 @@ function ClientDetail() {
       p_reference: editReference,
       p_reason: isPosted ? editReason.trim() : "",
       p_user_id: user.id,
+      p_asset_id: editAssetId === "" ? null : editAssetId,
     });
 
     if (error) {
@@ -711,6 +714,18 @@ function ClientDetail() {
             </div>
             <Field label="Reference">
               <Input value={editReference} onChange={(e) => setEditReference(e.target.value)} />
+            </Field>
+            <Field label="Deposit Account">
+              <Select value={editAssetId} onValueChange={setEditAssetId}>
+                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectContent>
+                  {bankCashAssets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             {(editPay?.status || "posted") === "posted" && (
               <Field label="Reason">

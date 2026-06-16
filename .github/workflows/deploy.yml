@@ -69,6 +69,10 @@ jobs:
               }
           }
 
+          // Safely delete .htaccess and index.html right before extraction to prevent downtime
+          @unlink(__DIR__ . '/.htaccess');
+          @unlink(__DIR__ . '/index.html');
+
           // Extract the new deployment bundle
           try {
               $zip = new ZipArchive;
@@ -102,10 +106,6 @@ jobs:
             set net:max-retries 3;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             cd public_html;
-            set cmd:fail-exit no;
-            rm .htaccess;
-            rm index.html;
-            set cmd:fail-exit yes;
             put dist.zip;
             put unzip_${{ github.run_id }}.php;
             quit;

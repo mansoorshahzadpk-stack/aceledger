@@ -17,7 +17,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/format";
-import { Plus, Truck, Trash2 } from "lucide-react";
+import { Plus, Truck, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/vendors/")({
@@ -38,8 +38,25 @@ function VendorsPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editVendor, setEditVendor] = useState<any | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+
+  const handleEdit = (vendor: any) => {
+    setEditVendor(vendor);
+    setEditForm({
+      name: vendor.name,
+      contact_person: vendor.contact_person ?? "",
+      phone: vendor.phone ?? "",
+      email: vendor.email ?? "",
+      address: vendor.address ?? "",
+      opening_balance: String(vendor.opening_balance ?? 0),
+      notes: vendor.notes ?? "",
+    });
+    setEditOpen(true);
+  };
 
   const { data: vendors, isLoading } = useQuery({
     queryKey: ["vendors", user?.id, activeBusinessId],
@@ -89,6 +106,34 @@ function VendorsPage() {
       setOpen(false);
       setForm({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
       qc.invalidateQueries({ queryKey: ["vendors"] });
+    }
+  };
+
+  const submitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !activeBusinessId || !editVendor) return;
+    const { error } = await supabase
+      .from("vendors")
+      .update({
+        name: editForm.name,
+        contact_person: editForm.contact_person || null,
+        phone: editForm.phone || null,
+        email: editForm.email || null,
+        address: editForm.address || null,
+        opening_balance: parseFloat(editForm.opening_balance) || 0,
+        notes: editForm.notes || null,
+      })
+      .eq("id", editVendor.id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Vendor details amended");
+      setEditOpen(false);
+      setEditVendor(null);
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
     }
   };
 
@@ -174,14 +219,35 @@ function VendorsPage() {
                   <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No vendors yet</TableCell></TableRow>
                 )}
                 {vendors?.map((v) => (
-                  <TableRow key={v.id} data-state={selected.has(v.id) ? "selected" : undefined}>
-                    <TableCell>
+                  <TableRow 
+                    key={v.id} 
+                    data-state={selected.has(v.id) ? "selected" : undefined}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleEdit(v)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={selected.has(v.id)} onCheckedChange={() => toggle(v.id)} aria-label={`Select ${v.name}`} />
                     </TableCell>
                     <TableCell className="font-medium">{v.name}</TableCell>
                     <TableCell className="text-muted-foreground">{v.phone ?? "—"}</TableCell>
                     <TableCell className="text-right figure font-medium text-destructive">{formatMoney(v.owed, settings.currency)}</TableCell>
-                    <TableCell className="text-right"><Button asChild variant="ghost" size="sm"><Link to="/vendors/$id" params={{ id: v.id }}>Open</Link></Button></TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                          onClick={() => handleEdit(v)}
+                          disabled={isReadOnly}
+                          title="Edit / Amend Vendor"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to="/vendors/$id" params={{ id: v.id }}>Open</Link>
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -189,6 +255,46 @@ function VendorsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Amend Vendor Details Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Amend Vendor Details</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitEdit} className="space-y-3">
+            <Field label="Name">
+              <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Contact person">
+                <Input value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />
+              </Field>
+              <Field label="Phone">
+                <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Email">
+              <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </Field>
+            <Field label="Address">
+              <Textarea value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+            </Field>
+            <Field label="Opening balance (we owe them)">
+              <FormattedInput 
+                mode="currency" 
+                rawValue={editForm.opening_balance} 
+                onRawChange={(raw) => setEditForm({ ...editForm, opening_balance: raw })} 
+                placeholder="0.00" 
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isReadOnly}>Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

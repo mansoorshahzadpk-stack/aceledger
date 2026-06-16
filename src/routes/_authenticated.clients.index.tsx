@@ -18,7 +18,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { formatMoney } from "@/lib/format";
-import { Plus, Banknote, Trash2 } from "lucide-react";
+import { Plus, Banknote, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
@@ -39,8 +39,50 @@ function ClientsPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editClient, setEditClient] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
+
+  const handleEdit = (client: any) => {
+    setEditClient(client);
+    setEditForm({
+      name: client.name,
+      contact_person: client.contact_person ?? "",
+      phone: client.phone ?? "",
+      email: client.email ?? "",
+      address: client.address ?? "",
+      opening_balance: String(client.opening_balance ?? 0),
+    });
+    setEditOpen(true);
+  };
+
+  const submitEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !activeBusinessId || !editClient) return;
+    const { error } = await supabase
+      .from("clients")
+      .update({
+        name: editForm.name,
+        contact_person: editForm.contact_person || null,
+        phone: editForm.phone || null,
+        email: editForm.email || null,
+        address: editForm.address || null,
+        opening_balance: parseFloat(editForm.opening_balance) || 0,
+      })
+      .eq("id", editClient.id)
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Client details amended");
+      setEditOpen(false);
+      setEditClient(null);
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  };
   const [payOpen, setPayOpen] = useState<string | null>(null);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "cash", reference: "", asset_id: "" });
 
@@ -230,17 +272,43 @@ function ClientsPage() {
                 {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
                 {!isLoading && (clients?.length ?? 0) === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No clients yet</TableCell></TableRow>}
                 {clients?.map((c) => (
-                  <TableRow key={c.id} data-state={selected.has(c.id) ? "selected" : undefined}>
-                    <TableCell>
+                  <TableRow
+                    key={c.id}
+                    data-state={selected.has(c.id) ? "selected" : undefined}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleEdit(c)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} aria-label={`Select ${c.name}`} />
                     </TableCell>
-                    <TableCell className="font-medium"><Link to="/clients/$id" params={{ id: c.id }} className="hover:underline">{c.name}</Link></TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        to="/clients/$id"
+                        params={{ id: c.id }}
+                        className="hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {c.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{c.phone ?? "—"}</TableCell>
                     <TableCell className="text-right figure font-medium text-warning">{formatMoney(c.outstanding, settings.currency)}</TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="default" disabled={isReadOnly || !c.hasPosted} onClick={() => setPayOpen(c.id)} title={!c.hasPosted ? "No posted invoices" : ""}>
-                        <Banknote className="mr-1 h-4 w-4" />Log Payment Received
-                      </Button>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                          onClick={() => handleEdit(c)}
+                          disabled={isReadOnly}
+                          title="Edit / Amend Client"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="default" disabled={isReadOnly || !c.hasPosted} onClick={() => setPayOpen(c.id)} title={!c.hasPosted ? "No posted invoices" : ""}>
+                          <Banknote className="mr-1 h-4 w-4" />Log Payment Received
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -249,6 +317,46 @@ function ClientsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Amend Client Details Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Amend Client Details</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitEdit} className="space-y-3">
+            <Field label="Name">
+              <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Contact person">
+                <Input value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />
+              </Field>
+              <Field label="Phone">
+                <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Email">
+              <Input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} />
+            </Field>
+            <Field label="Address">
+              <Textarea value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
+            </Field>
+            <Field label="Opening balance (owes us)">
+              <FormattedInput
+                mode="currency"
+                rawValue={editForm.opening_balance}
+                onRawChange={(raw) => setEditForm({ ...editForm, opening_balance: raw })}
+                placeholder="0.00"
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isReadOnly}>Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!payOpen} onOpenChange={(v) => !v && setPayOpen(null)}>
         <DialogContent>

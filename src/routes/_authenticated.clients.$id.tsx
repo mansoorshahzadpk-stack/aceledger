@@ -181,9 +181,11 @@ function ClientDetail() {
       }
       
       if (invoiceSortField === "issue_date") {
-        return invoiceSortOrder === "asc"
-          ? new Date(valA).getTime() - new Date(valB).getTime()
-          : new Date(valB).getTime() - new Date(valA).getTime();
+        const dateA = valA ? new Date(valA) : null;
+        const dateB = valB ? new Date(valB) : null;
+        const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0;
+        const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0;
+        return invoiceSortOrder === "asc" ? timeA - timeB : timeB - timeA;
       }
 
       const strA = String(valA).toLowerCase();
@@ -213,9 +215,11 @@ function ClientDetail() {
       }
       
       if (paymentSortField === "payment_date") {
-        return paymentSortOrder === "asc"
-          ? new Date(valA).getTime() - new Date(valB).getTime()
-          : new Date(valB).getTime() - new Date(valA).getTime();
+        const dateA = valA ? new Date(valA) : null;
+        const dateB = valB ? new Date(valB) : null;
+        const timeA = dateA && !isNaN(dateA.getTime()) ? dateA.getTime() : 0;
+        const timeB = dateB && !isNaN(dateB.getTime()) ? dateB.getTime() : 0;
+        return paymentSortOrder === "asc" ? timeA - timeB : timeB - timeA;
       }
 
       const strA = String(valA).toLowerCase();
@@ -227,32 +231,32 @@ function ClientDetail() {
   }, [data?.pays, paymentSortField, paymentSortOrder]);
 
   const handleInvoiceSort = (field: "issue_date" | "status" | "total") => {
+    const defaultOrder = field === "issue_date" ? "desc" : "asc";
     if (invoiceSortField !== field) {
       setInvoiceSortField(field);
-      setInvoiceSortOrder(field === "issue_date" ? "desc" : "asc");
-    } else if (invoiceSortOrder === "asc") {
-      setInvoiceSortOrder("desc");
-    } else if (invoiceSortOrder === "desc") {
-      setInvoiceSortField(null);
-      setInvoiceSortOrder(null);
+      setInvoiceSortOrder(defaultOrder);
     } else {
-      setInvoiceSortField(field);
-      setInvoiceSortOrder(field === "issue_date" ? "desc" : "asc");
+      if (invoiceSortOrder === defaultOrder) {
+        setInvoiceSortOrder(defaultOrder === "desc" ? "asc" : "desc");
+      } else {
+        setInvoiceSortField(null);
+        setInvoiceSortOrder(null);
+      }
     }
   };
 
   const handlePaymentSort = (field: "payment_date" | "status" | "amount") => {
+    const defaultOrder = field === "payment_date" ? "desc" : "asc";
     if (paymentSortField !== field) {
       setPaymentSortField(field);
-      setPaymentSortOrder(field === "payment_date" ? "desc" : "asc");
-    } else if (paymentSortOrder === "asc") {
-      setPaymentSortOrder("desc");
-    } else if (paymentSortOrder === "desc") {
-      setPaymentSortField(null);
-      setPaymentSortOrder(null);
+      setPaymentSortOrder(defaultOrder);
     } else {
-      setPaymentSortField(field);
-      setPaymentSortOrder(field === "payment_date" ? "desc" : "asc");
+      if (paymentSortOrder === defaultOrder) {
+        setPaymentSortOrder(defaultOrder === "desc" ? "asc" : "desc");
+      } else {
+        setPaymentSortField(null);
+        setPaymentSortOrder(null);
+      }
     }
   };
 

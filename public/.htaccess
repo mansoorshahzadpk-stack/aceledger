@@ -14,3 +14,12 @@
   # Rewrite all other requests to index.html to enable client-side routing
   RewriteRule ^ index.html [L]
 </IfModule>
+
+# Disable caching for index.html (SPA entrypoint) to ensure updates are loaded instantly
+<FilesMatch "index\.html$">
+  <IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </IfModule>
+</FilesMatch>

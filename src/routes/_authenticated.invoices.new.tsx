@@ -71,15 +71,8 @@ function NewInvoice() {
   const [shipping, setShipping] = useState("0");
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Item[]>([]);
+  const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
-
-  // Set default item when activeBusinessId is loaded
-  useEffect(() => {
-    if (items.length === 0) {
-      setItems([{ description: "", quantity: "1", unit_price: "0" }]);
-    }
-  }, [activeBusinessId]);
 
   useEffect(() => {
     if (!user || !activeBusinessId || !clientId || !clients) {

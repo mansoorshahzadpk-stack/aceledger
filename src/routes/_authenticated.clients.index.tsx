@@ -20,6 +20,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { formatMoney } from "@/lib/format";
 import { Plus, Banknote, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { generateCodePrefix } from "@/lib/code-prefix";
+
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: ClientsPage,
@@ -41,14 +43,26 @@ function ClientsPage() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editClient, setEditClient] = useState<any | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
+  const [editForm, setEditForm] = useState({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
+  const [form, setForm] = useState({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
+  const [isPrefixTouched, setIsPrefixTouched] = useState(false);
+
+  const handleNameChange = (val: string) => {
+    setForm(prev => {
+      const updated = { ...prev, name: val };
+      if (!isPrefixTouched) {
+        updated.code_prefix = generateCodePrefix(val);
+      }
+      return updated;
+    });
+  };
 
   const handleEdit = (client: any) => {
     setEditClient(client);
     setEditForm({
       name: client.name,
+      code_prefix: client.code_prefix ?? "",
       contact_person: client.contact_person ?? "",
       phone: client.phone ?? "",
       email: client.email ?? "",
@@ -142,10 +156,16 @@ function ClientsPage() {
   const addClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !activeBusinessId) return;
+    const prefix = form.code_prefix.trim().toUpperCase();
+    if (prefix.length !== 3) {
+      toast.error("Prefix must be exactly 3 characters");
+      return;
+    }
     const { error } = await supabase.from("clients").insert({
       user_id: user.id,
       business_id: activeBusinessId,
       name: form.name,
+      code_prefix: prefix,
       contact_person: form.contact_person || null,
       phone: form.phone || null,
       email: form.email || null,
@@ -153,7 +173,13 @@ function ClientsPage() {
       opening_balance: parseFloat(form.opening_balance) || 0,
     });
     if (error) toast.error(error.message);
-    else { toast.success("Client added"); setOpen(false); setForm({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" }); qc.invalidateQueries({ queryKey: ["clients"] }); }
+    else {
+      toast.success("Client added");
+      setOpen(false);
+      setForm({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0" });
+      setIsPrefixTouched(false);
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    }
   };
 
   const logInstallment = async (status: "draft" | "posted") => {
@@ -237,7 +263,27 @@ function ClientsPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
               <form onSubmit={addClient} className="space-y-3">
-                <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Field label="Name">
+                      <Input required value={form.name} onChange={(e) => handleNameChange(e.target.value)} />
+                    </Field>
+                  </div>
+                  <div>
+                    <Field label="Prefix Code">
+                      <Input
+                        required
+                        maxLength={3}
+                        value={form.code_prefix}
+                        onChange={(e) => {
+                          setIsPrefixTouched(true);
+                          setForm({ ...form, code_prefix: e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() });
+                        }}
+                        placeholder="YAS"
+                      />
+                    </Field>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Contact person"><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></Field>
                   <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
@@ -325,9 +371,18 @@ function ClientsPage() {
             <DialogTitle>Amend Client Details</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-3">
-            <Field label="Name">
-              <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-            </Field>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Field label="Name">
+                  <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                </Field>
+              </div>
+              <div>
+                <Field label="Prefix Code">
+                  <Input disabled value={editForm.code_prefix} className="bg-muted text-muted-foreground cursor-not-allowed" />
+                </Field>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Contact person">
                 <Input value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />

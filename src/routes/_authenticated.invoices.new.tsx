@@ -44,12 +44,18 @@ function NewInvoice() {
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!user || !activeBusinessId || invNum) return;
-    supabase.rpc("next_doc_number" as any, { _business_id: activeBusinessId, _kind: "invoice" }).then(({ data }) => {
-      if (typeof data === "string") setInvNum((v) => v || data);
+    if (!user || !activeBusinessId || !clientId) {
+      setInvNum("");
+      return;
+    }
+    supabase.rpc("get_next_invoice_number" as any, { _client_id: clientId }).then(({ data, error }) => {
+      if (error) {
+        console.error("Error fetching next invoice number:", error);
+      } else if (typeof data === "string") {
+        setInvNum(data);
+      }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, activeBusinessId]);
+  }, [user, activeBusinessId, clientId]);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id, activeBusinessId],
@@ -93,11 +99,31 @@ function NewInvoice() {
   const save = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId || !clientId) { toast.error("Choose a client"); return; }
     if (items.length === 0 || items.every((it) => !it.description)) { toast.error("Add at least one line item"); return; }
+    
+    const targetNum = invNum.trim();
+    if (!targetNum) { toast.error("Invoice number cannot be empty"); return; }
+
+    // Validate uniqueness of invoice_number within activeBusinessId
+    const { data: existing, error: checkError } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("business_id", activeBusinessId)
+      .eq("invoice_number", targetNum);
+      
+    if (checkError) {
+      toast.error("Error checking invoice uniqueness: " + checkError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast.error(`Invoice number "${targetNum}" is already in use. Please enter a unique invoice number.`);
+      return;
+    }
+
     const { data: inv, error } = await supabase.from("invoices").insert({
       user_id: user.id,
       business_id: activeBusinessId,
       client_id: clientId,
-      invoice_number: invNum,
+      invoice_number: targetNum,
       status, issue_date: issue, due_date: due || null,
       subtotal, tax: taxNum, shipping: shipNum, discount: discountNum, total,
       doc_template: settings.default_doc_template, notes: notes || null,

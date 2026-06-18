@@ -245,11 +245,13 @@ export type Database = {
         Row: {
           address: string | null
           business_id: string
+          code_prefix: string
           contact_person: string | null
           created_at: string
           email: string | null
           id: string
           name: string
+          next_invoice_sequence: number
           notes: string | null
           opening_balance: number
           phone: string | null
@@ -259,11 +261,13 @@ export type Database = {
         Insert: {
           address?: string | null
           business_id: string
+          code_prefix: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name: string
+          next_invoice_sequence?: number
           notes?: string | null
           opening_balance?: number
           phone?: string | null
@@ -273,11 +277,13 @@ export type Database = {
         Update: {
           address?: string | null
           business_id?: string
+          code_prefix?: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name?: string
+          next_invoice_sequence?: number
           notes?: string | null
           opening_balance?: number
           phone?: string | null
@@ -911,11 +917,13 @@ export type Database = {
         Row: {
           address: string | null
           business_id: string
+          code_prefix: string
           contact_person: string | null
           created_at: string
           email: string | null
           id: string
           name: string
+          next_grn_sequence: number
           notes: string | null
           opening_balance: number
           phone: string | null
@@ -925,11 +933,13 @@ export type Database = {
         Insert: {
           address?: string | null
           business_id: string
+          code_prefix: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name: string
+          next_grn_sequence?: number
           notes?: string | null
           opening_balance?: number
           phone?: string | null
@@ -939,11 +949,13 @@ export type Database = {
         Update: {
           address?: string | null
           business_id?: string
+          code_prefix?: string
           contact_person?: string | null
           created_at?: string
           email?: string | null
           id?: string
           name?: string
+          next_grn_sequence?: number
           notes?: string | null
           opening_balance?: number
           phone?: string | null
@@ -964,6 +976,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_next_grn_number: { Args: { _vendor_id: string }; Returns: string }
+      get_next_invoice_number: { Args: { _client_id: string }; Returns: string }
       next_doc_number: { Args: { _business_id: string; _kind: string }; Returns: string }
       transfer_funds: {
         Args: {

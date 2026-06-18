@@ -111,8 +111,28 @@ function InvoiceDetail() {
 
   const saveDraftEdit = async () => {
     if (!user) return;
+    const targetNum = form.invoice_number.trim();
+    if (!targetNum) { toast.error("Invoice number cannot be empty"); return; }
+
+    // Validate uniqueness of invoice_number within activeBusinessId
+    const { data: existing, error: checkError } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("business_id", inv.business_id)
+      .eq("invoice_number", targetNum)
+      .neq("id", id);
+      
+    if (checkError) {
+      toast.error("Error checking invoice uniqueness: " + checkError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast.error(`Invoice number "${targetNum}" is already in use. Please enter a unique invoice number.`);
+      return;
+    }
+
     await supabase.from("invoices").update({
-      invoice_number: form.invoice_number, issue_date: form.issue_date, due_date: form.due_date || null,
+      invoice_number: targetNum, issue_date: form.issue_date, due_date: form.due_date || null,
       tax: taxNum, shipping: shipNum, discount: discountNum, subtotal, total, notes: form.notes || null, doc_template: form.doc_template,
       tax_formula: getFormulaPart(form.tax),
       shipping_formula: getFormulaPart(form.shipping),
@@ -132,12 +152,32 @@ function InvoiceDetail() {
   const applyAmendment = async () => {
     if (amendReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
     if (!pendingTotal || !user) return;
+    const targetNum = pendingTotal.meta.invoice_number.trim();
+    if (!targetNum) { toast.error("Invoice number cannot be empty"); return; }
+
+    // Validate uniqueness of invoice_number within activeBusinessId
+    const { data: existing, error: checkError } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("business_id", inv.business_id)
+      .eq("invoice_number", targetNum)
+      .neq("id", id);
+      
+    if (checkError) {
+      toast.error("Error checking invoice uniqueness: " + checkError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast.error(`Invoice number "${targetNum}" is already in use. Please enter a unique invoice number.`);
+      return;
+    }
+
     await supabase.from("invoice_amendments").insert({
       invoice_id: id, user_id: user.id, reason: amendReason.trim(),
       previous_total: inv.total, new_total: pendingTotal.total,
     });
     await supabase.from("invoices").update({
-      invoice_number: pendingTotal.meta.invoice_number,
+      invoice_number: targetNum,
       issue_date: pendingTotal.meta.issue_date, due_date: pendingTotal.meta.due_date || null,
       subtotal: pendingTotal.subtotal, tax: pendingTotal.tax, shipping: pendingTotal.shipping, discount: pendingTotal.discount, total: pendingTotal.total,
       notes: pendingTotal.meta.notes || null, doc_template: pendingTotal.meta.doc_template,

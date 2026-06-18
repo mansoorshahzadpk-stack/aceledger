@@ -138,6 +138,26 @@ function VendorDetail() {
 
   const saveEdit = async () => {
     if (!editGrn || !user || !editForm) return;
+    const targetNum = editForm.grn_number.trim();
+    if (!targetNum) { toast.error("GRN number cannot be empty"); return; }
+
+    // Validate uniqueness of grn_number within activeBusinessId
+    const { data: existing, error: checkError } = await supabase
+      .from("vendor_grns")
+      .select("id")
+      .eq("business_id", editGrn.business_id)
+      .eq("grn_number", targetNum)
+      .neq("id", editGrn.id);
+      
+    if (checkError) {
+      toast.error("Error checking GRN uniqueness: " + checkError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast.error(`GRN number "${targetNum}" is already in use. Please enter a unique GRN number.`);
+      return;
+    }
+
     const qty = parseMath(editForm.quantity) || 0;
     const price = parseMath(editForm.unit_price) || 0;
     const subtotal = qty * price;
@@ -154,7 +174,7 @@ function VendorDetail() {
       });
     }
     await supabase.from("vendor_grns").update({
-      grn_number: editForm.grn_number, grn_date: editForm.grn_date,
+      grn_number: targetNum, grn_date: editForm.grn_date,
       material: editForm.material, quantity: qty, unit: editForm.unit,
       unit_price: price, discount: discount, tax: tax, shipping: shipping, total_amount: newTotal, notes: editForm.notes || null,
       quantity_formula: getFormulaPart(editForm.quantity),

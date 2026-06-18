@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatMoney } from "@/lib/format";
 import { Plus, Truck, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { generateCodePrefix } from "@/lib/code-prefix";
+
 
 export const Route = createFileRoute("/_authenticated/vendors/")({
   component: VendorsPage,
@@ -41,13 +43,25 @@ function VendorsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editVendor, setEditVendor] = useState<any | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
-  const [editForm, setEditForm] = useState({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+  const [form, setForm] = useState({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+  const [editForm, setEditForm] = useState({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+  const [isPrefixTouched, setIsPrefixTouched] = useState(false);
+
+  const handleNameChange = (val: string) => {
+    setForm(prev => {
+      const updated = { ...prev, name: val };
+      if (!isPrefixTouched) {
+        updated.code_prefix = generateCodePrefix(val);
+      }
+      return updated;
+    });
+  };
 
   const handleEdit = (vendor: any) => {
     setEditVendor(vendor);
     setEditForm({
       name: vendor.name,
+      code_prefix: vendor.code_prefix ?? "",
       contact_person: vendor.contact_person ?? "",
       phone: vendor.phone ?? "",
       email: vendor.email ?? "",
@@ -89,10 +103,16 @@ function VendorsPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !activeBusinessId) return;
+    const prefix = form.code_prefix.trim().toUpperCase();
+    if (prefix.length !== 3) {
+      toast.error("Prefix must be exactly 3 characters");
+      return;
+    }
     const { error } = await supabase.from("vendors").insert({
       user_id: user.id,
       business_id: activeBusinessId,
       name: form.name,
+      code_prefix: prefix,
       contact_person: form.contact_person || null,
       phone: form.phone || null,
       email: form.email || null,
@@ -104,7 +124,8 @@ function VendorsPage() {
     else {
       toast.success("Vendor added");
       setOpen(false);
-      setForm({ name: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+      setForm({ name: "", code_prefix: "", contact_person: "", phone: "", email: "", address: "", opening_balance: "0", notes: "" });
+      setIsPrefixTouched(false);
       qc.invalidateQueries({ queryKey: ["vendors"] });
     }
   };
@@ -183,7 +204,27 @@ function VendorsPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>Add Vendor</DialogTitle></DialogHeader>
               <form onSubmit={submit} className="space-y-3">
-                <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Field label="Name">
+                      <Input required value={form.name} onChange={(e) => handleNameChange(e.target.value)} />
+                    </Field>
+                  </div>
+                  <div>
+                    <Field label="Prefix Code">
+                      <Input
+                        required
+                        maxLength={3}
+                        value={form.code_prefix}
+                        onChange={(e) => {
+                          setIsPrefixTouched(true);
+                          setForm({ ...form, code_prefix: e.target.value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase() });
+                        }}
+                        placeholder="YAS"
+                      />
+                    </Field>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Contact person"><Input value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} /></Field>
                   <Field label="Phone"><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
@@ -263,9 +304,18 @@ function VendorsPage() {
             <DialogTitle>Amend Vendor Details</DialogTitle>
           </DialogHeader>
           <form onSubmit={submitEdit} className="space-y-3">
-            <Field label="Name">
-              <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
-            </Field>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2">
+                <Field label="Name">
+                  <Input required value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                </Field>
+              </div>
+              <div>
+                <Field label="Prefix Code">
+                  <Input disabled value={editForm.code_prefix} className="bg-muted text-muted-foreground cursor-not-allowed" />
+                </Field>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Contact person">
                 <Input value={editForm.contact_person} onChange={(e) => setEditForm({ ...editForm, contact_person: e.target.value })} />

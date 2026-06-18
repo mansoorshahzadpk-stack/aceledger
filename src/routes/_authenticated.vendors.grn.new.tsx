@@ -44,14 +44,20 @@ function NewGrnPage() {
 
   useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
 
-  // Auto-suggest next 4-digit GRN number
+  // Auto-suggest next vendor-specific GRN number
   useEffect(() => {
-    if (!user || !activeBusinessId || form.grn_number) return;
-    supabase.rpc("next_doc_number" as any, { _business_id: activeBusinessId, _kind: "grn" }).then(({ data }) => {
-      if (typeof data === "string") setForm((f) => f.grn_number ? f : { ...f, grn_number: data });
+    if (!user || !activeBusinessId || !form.vendor_id) {
+      setForm((f) => ({ ...f, grn_number: "" }));
+      return;
+    }
+    supabase.rpc("get_next_grn_number" as any, { _vendor_id: form.vendor_id }).then(({ data, error }) => {
+      if (error) {
+        console.error("Error fetching next GRN number:", error);
+      } else if (typeof data === "string") {
+        setForm((f) => ({ ...f, grn_number: data }));
+      }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, activeBusinessId]);
+  }, [user, activeBusinessId, form.vendor_id]);
 
   const { data: vendors } = useQuery({
     queryKey: ["vendors-list", user?.id, activeBusinessId],
@@ -98,11 +104,31 @@ function NewGrnPage() {
   const handleSave = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
     if (!form.material) { toast.error("Choose or enter a material"); return; }
+    
+    const targetNum = form.grn_number.trim();
+    if (!targetNum) { toast.error("GRN number cannot be empty"); return; }
+
+    // Validate uniqueness of grn_number within activeBusinessId
+    const { data: existing, error: checkError } = await supabase
+      .from("vendor_grns")
+      .select("id")
+      .eq("business_id", activeBusinessId)
+      .eq("grn_number", targetNum);
+      
+    if (checkError) {
+      toast.error("Error checking GRN uniqueness: " + checkError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      toast.error(`GRN number "${targetNum}" is already in use. Please enter a unique GRN number.`);
+      return;
+    }
+
     const { error } = await supabase.from("vendor_grns").insert({
       user_id: user.id,
       business_id: activeBusinessId,
       vendor_id: form.vendor_id,
-      grn_number: form.grn_number,
+      grn_number: targetNum,
       material: form.material,
       product_id: form.product_id || null,
       quantity: parseMath(form.quantity) || 0,

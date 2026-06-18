@@ -109,8 +109,10 @@ jobs:
           lftp -c "
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 3;
+            set ftp:passive-mode on;
+            set net:timeout 15;
+            set net:max-retries 10;
+            set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             cd public_html;
             put dist.zip;

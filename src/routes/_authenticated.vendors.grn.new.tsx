@@ -73,6 +73,31 @@ function NewGrnPage() {
   });
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const { data: vendors } = useQuery({
+    queryKey: ["vendors-list", user?.id, activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId || !user) return [];
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name, code_prefix")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("name");
+      if (error) {
+        // Fallback if code_prefix doesn't exist in schema
+        const { data: fallbackData } = await supabase
+          .from("vendors")
+          .select("id, name")
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("name");
+        return (fallbackData ?? []).map(v => ({ ...v, code_prefix: undefined }));
+      }
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
   useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
 
   // Auto-suggest next vendor-specific GRN number
@@ -99,31 +124,6 @@ function NewGrnPage() {
       }
     });
   }, [user, activeBusinessId, form.vendor_id, vendors]);
-
-  const { data: vendors } = useQuery({
-    queryKey: ["vendors-list", user?.id, activeBusinessId],
-    queryFn: async () => {
-      if (!activeBusinessId || !user) return [];
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("id, name, code_prefix")
-        .eq("business_id", activeBusinessId)
-        .eq("user_id", user.id)
-        .order("name");
-      if (error) {
-        // Fallback if code_prefix doesn't exist in schema
-        const { data: fallbackData } = await supabase
-          .from("vendors")
-          .select("id, name")
-          .eq("business_id", activeBusinessId)
-          .eq("user_id", user.id)
-          .order("name");
-        return (fallbackData ?? []).map(v => ({ ...v, code_prefix: undefined }));
-      }
-      return data ?? [];
-    },
-    enabled: !!user,
-  });
 
   const { data: materials } = useQuery({
     queryKey: ["materials-active", user?.id, activeBusinessId],

@@ -74,30 +74,6 @@ function NewInvoice() {
   const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (!user || !activeBusinessId || !clientId || !clients) {
-      setInvNum("");
-      return;
-    }
-    const selectedClient = clients.find((c) => c.id === clientId);
-    if (!selectedClient) return;
-
-    supabase.rpc("get_next_invoice_number" as any, { _client_id: clientId }).then(async ({ data, error }) => {
-      if (error) {
-        console.warn("RPC failed, falling back to client-side calculation:", error);
-        const fallbackNum = await calculateNextInvoiceNumber(
-          clientId,
-          selectedClient.name,
-          selectedClient.code_prefix,
-          activeBusinessId
-        );
-        setInvNum(fallbackNum);
-      } else if (typeof data === "string") {
-        setInvNum(data);
-      }
-    });
-  }, [user, activeBusinessId, clientId, clients]);
-
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id, activeBusinessId],
     queryFn: async () => {
@@ -122,6 +98,30 @@ function NewInvoice() {
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (!user || !activeBusinessId || !clientId || !clients) {
+      setInvNum("");
+      return;
+    }
+    const selectedClient = clients.find((c) => c.id === clientId);
+    if (!selectedClient) return;
+
+    supabase.rpc("get_next_invoice_number" as any, { _client_id: clientId }).then(async ({ data, error }) => {
+      if (error) {
+        console.warn("RPC failed, falling back to client-side calculation:", error);
+        const fallbackNum = await calculateNextInvoiceNumber(
+          clientId,
+          selectedClient.name,
+          selectedClient.code_prefix,
+          activeBusinessId
+        );
+        setInvNum(fallbackNum);
+      } else if (typeof data === "string") {
+        setInvNum(data);
+      }
+    });
+  }, [user, activeBusinessId, clientId, clients]);
 
   const { data: materials } = useQuery({
     queryKey: ["materials-active", user?.id, activeBusinessId],

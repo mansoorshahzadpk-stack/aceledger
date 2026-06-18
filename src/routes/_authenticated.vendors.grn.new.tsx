@@ -15,12 +15,43 @@ import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, Command
 import { formatMoney } from "@/lib/format";
 import { Package, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { generateCodePrefix } from "@/lib/code-prefix";
 
 export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
   component: NewGrnPage,
 });
 
 type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
+
+// Client-side fallback for sequential GRN numbering
+async function calculateNextGrnNumber(
+  vendorId: string,
+  vendorName: string,
+  storedPrefix: string | undefined | null,
+  activeBusinessId: string
+): Promise<string> {
+  const prefix = (storedPrefix || generateCodePrefix(vendorName) || "XXX").toUpperCase();
+  const { data: grns, error } = await supabase
+    .from("vendor_grns")
+    .select("grn_number")
+    .eq("vendor_id", vendorId)
+    .eq("business_id", activeBusinessId);
+
+  if (error || !grns) {
+    return `GRN-${prefix}-0001`;
+  }
+
+  let maxSeq = 0;
+  const regex = new RegExp(`^GRN-${prefix}-(\\d{4})$`, "i");
+  for (const row of grns) {
+    const match = row.grn_number?.match(regex);
+    if (match) {
+      const seq = parseInt(match[1], 10);
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  }
+  return `GRN-${prefix}-${String(maxSeq + 1).padStart(4, "0")}`;
+}
 
 function NewGrnPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
@@ -46,24 +77,50 @@ function NewGrnPage() {
 
   // Auto-suggest next vendor-specific GRN number
   useEffect(() => {
-    if (!user || !activeBusinessId || !form.vendor_id) {
+    if (!user || !activeBusinessId || !form.vendor_id || !vendors) {
       setForm((f) => ({ ...f, grn_number: "" }));
       return;
     }
-    supabase.rpc("get_next_grn_number" as any, { _vendor_id: form.vendor_id }).then(({ data, error }) => {
+    const selectedVendor = vendors.find((v) => v.id === form.vendor_id);
+    if (!selectedVendor) return;
+
+    supabase.rpc("get_next_grn_number" as any, { _vendor_id: form.vendor_id }).then(async ({ data, error }) => {
       if (error) {
-        console.error("Error fetching next GRN number:", error);
+        console.warn("RPC failed, falling back to client-side calculation:", error);
+        const fallbackNum = await calculateNextGrnNumber(
+          form.vendor_id,
+          selectedVendor.name,
+          selectedVendor.code_prefix,
+          activeBusinessId
+        );
+        setForm((f) => ({ ...f, grn_number: fallbackNum }));
       } else if (typeof data === "string") {
         setForm((f) => ({ ...f, grn_number: data }));
       }
     });
-  }, [user, activeBusinessId, form.vendor_id]);
+  }, [user, activeBusinessId, form.vendor_id, vendors]);
 
   const { data: vendors } = useQuery({
     queryKey: ["vendors-list", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return [];
-      return (await supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user.id).order("name")).data ?? [];
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name, code_prefix")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("name");
+      if (error) {
+        // Fallback if code_prefix doesn't exist in schema
+        const { data: fallbackData } = await supabase
+          .from("vendors")
+          .select("id, name")
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("name");
+        return (fallbackData ?? []).map(v => ({ ...v, code_prefix: undefined }));
+      }
+      return data ?? [];
     },
     enabled: !!user,
   });

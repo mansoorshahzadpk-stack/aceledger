@@ -108,18 +108,28 @@ function VendorsPage() {
       toast.error("Prefix must be exactly 3 characters");
       return;
     }
-    const { error } = await supabase.from("vendors").insert({
+    
+    // Check if the database has code_prefix column
+    const { error: checkColError } = await supabase.from("vendors").select("code_prefix").limit(1);
+    const hasPrefixCol = !checkColError || checkColError.code !== "42703";
+
+    const payload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
       name: form.name,
-      code_prefix: prefix,
       contact_person: form.contact_person || null,
       phone: form.phone || null,
       email: form.email || null,
       address: form.address || null,
       opening_balance: parseFloat(form.opening_balance) || 0,
       notes: form.notes || null,
-    });
+    };
+
+    if (hasPrefixCol) {
+      payload.code_prefix = prefix;
+    }
+
+    const { error } = await supabase.from("vendors").insert(payload);
     if (error) toast.error(error.message);
     else {
       toast.success("Vendor added");

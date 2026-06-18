@@ -16,6 +16,7 @@ import { formatMoney } from "@/lib/format";
 import { Plus, Trash2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
+import { generateCodePrefix } from "@/lib/code-prefix";
 
 const search = z.object({ client: z.string().optional() });
 
@@ -26,6 +27,36 @@ export const Route = createFileRoute("/_authenticated/invoices/new")({
 
 type Item = { description: string; quantity: string; unit_price: string; product_id?: string; unit?: string; grn_ref?: string; vehicle_ref?: string };
 type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
+
+// Client-side fallback for sequential Invoice numbering
+async function calculateNextInvoiceNumber(
+  clientId: string,
+  clientName: string,
+  storedPrefix: string | undefined | null,
+  activeBusinessId: string
+): Promise<string> {
+  const prefix = (storedPrefix || generateCodePrefix(clientName) || "XXX").toUpperCase();
+  const { data: invoices, error } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .eq("client_id", clientId)
+    .eq("business_id", activeBusinessId);
+
+  if (error || !invoices) {
+    return `INV-${prefix}-0001`;
+  }
+
+  let maxSeq = 0;
+  const regex = new RegExp(`^INV-${prefix}-(\\d{4})$`, "i");
+  for (const row of invoices) {
+    const match = row.invoice_number?.match(regex);
+    if (match) {
+      const seq = parseInt(match[1], 10);
+      if (seq > maxSeq) maxSeq = seq;
+    }
+  }
+  return `INV-${prefix}-${String(maxSeq + 1).padStart(4, "0")}`;
+}
 
 function NewInvoice() {
   const navigate = useNavigate();
@@ -40,28 +71,61 @@ function NewInvoice() {
   const [shipping, setShipping] = useState("0");
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
+  const [items, setItems] = useState<Item[]>([]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
+  // Set default item when activeBusinessId is loaded
   useEffect(() => {
-    if (!user || !activeBusinessId || !clientId) {
+    if (items.length === 0) {
+      setItems([{ description: "", quantity: "1", unit_price: "0" }]);
+    }
+  }, [activeBusinessId]);
+
+  useEffect(() => {
+    if (!user || !activeBusinessId || !clientId || !clients) {
       setInvNum("");
       return;
     }
-    supabase.rpc("get_next_invoice_number" as any, { _client_id: clientId }).then(({ data, error }) => {
+    const selectedClient = clients.find((c) => c.id === clientId);
+    if (!selectedClient) return;
+
+    supabase.rpc("get_next_invoice_number" as any, { _client_id: clientId }).then(async ({ data, error }) => {
       if (error) {
-        console.error("Error fetching next invoice number:", error);
+        console.warn("RPC failed, falling back to client-side calculation:", error);
+        const fallbackNum = await calculateNextInvoiceNumber(
+          clientId,
+          selectedClient.name,
+          selectedClient.code_prefix,
+          activeBusinessId
+        );
+        setInvNum(fallbackNum);
       } else if (typeof data === "string") {
         setInvNum(data);
       }
     });
-  }, [user, activeBusinessId, clientId]);
+  }, [user, activeBusinessId, clientId, clients]);
 
   const { data: clients } = useQuery({
     queryKey: ["clients-list", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return [];
-      return (await supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user.id).order("name")).data ?? [];
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, code_prefix")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("name");
+      if (error) {
+        // Fallback if code_prefix doesn't exist in schema
+        const { data: fallbackData } = await supabase
+          .from("clients")
+          .select("id, name")
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("name");
+        return (fallbackData ?? []).map(c => ({ ...c, code_prefix: undefined }));
+      }
+      return data ?? [];
     },
     enabled: !!user,
   });

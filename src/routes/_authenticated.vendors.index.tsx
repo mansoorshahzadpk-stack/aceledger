@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +65,7 @@ export const Route = createFileRoute("/_authenticated/vendors/")({
 function VendorsPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editVendor, setEditVendor] = useState<any | null>(null);
@@ -451,7 +452,7 @@ function VendorsPage() {
                     key={v.id}
                     data-state={selected.has(v.id) ? "selected" : undefined}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleEdit(v)}
+                    onClick={() => navigate({ to: "/vendors/$id", params: { id: v.id } })}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -465,19 +466,27 @@ function VendorsPage() {
                     <TableCell className="text-right figure font-medium text-destructive">
                       {formatMoney(v.owed, settings.currency)}
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:bg-muted"
-                          onClick={() => handleEdit(v)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(v);
+                          }}
                           disabled={isReadOnly}
                           title="Edit / Amend Vendor"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button asChild variant="ghost" size="sm">
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Link to="/vendors/$id" params={{ id: v.id }}>
                             Open
                           </Link>

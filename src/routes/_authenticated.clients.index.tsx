@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,6 +74,7 @@ export const Route = createFileRoute("/_authenticated/clients/")({
 function ClientsPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editClient, setEditClient] = useState<any | null>(null);
@@ -511,7 +512,7 @@ function ClientsPage() {
                     key={c.id}
                     data-state={selected.has(c.id) ? "selected" : undefined}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleEdit(c)}
+                    onClick={() => navigate({ to: "/clients/$id", params: { id: c.id } })}
                   >
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -534,13 +535,16 @@ function ClientsPage() {
                     <TableCell className="text-right figure font-medium text-warning">
                       {formatMoney(c.outstanding, settings.currency)}
                     </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
                           className="h-8 w-8 text-muted-foreground hover:bg-muted"
-                          onClick={() => handleEdit(c)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(c);
+                          }}
                           disabled={isReadOnly}
                           title="Edit / Amend Client"
                         >
@@ -550,7 +554,10 @@ function ClientsPage() {
                           size="sm"
                           variant="default"
                           disabled={isReadOnly || !c.hasPosted}
-                          onClick={() => setPayOpen(c.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPayOpen(c.id);
+                          }}
                           title={!c.hasPosted ? "No posted invoices" : ""}
                         >
                           <Banknote className="mr-1 h-4 w-4" />

@@ -272,11 +272,14 @@ export function AppShell() {
     }
   };
 
-  const handleVendorPaySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleVendorPaySubmit = async (status: "draft" | "posted") => {
     if (!user || !activeBusinessId) return;
     if (!vendorPay.vendor_id) {
       toast.error("Please select a vendor");
+      return;
+    }
+    if (!vendorPay.amount) {
+      toast.error("Please enter an amount");
       return;
     }
 
@@ -301,14 +304,17 @@ export function AppShell() {
     };
 
     if (hasStatusCol) {
-      payload.status = "draft";
+      payload.status = status;
+      payload.posted_at = status === "posted" ? new Date().toISOString() : null;
     }
 
     const { error } = await supabase.from("vendor_payments").insert(payload);
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Payment to vendor logged!");
+      toast.success(
+        status === "draft" ? "Payment logged as Draft!" : "Payment posted — balance updated!",
+      );
       setVendorPayOpen(false);
       setVendorPay((prev) => ({
         ...prev,
@@ -1255,7 +1261,7 @@ export function AppShell() {
         {/* Log Vendor Payment Dialog */}
         <Dialog open={vendorPayOpen} onOpenChange={setVendorPayOpen}>
           <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleVendorPaySubmit}>
+            <form onSubmit={(e) => e.preventDefault()}>
               <DialogHeader>
                 <DialogTitle>Log Vendor Payment</DialogTitle>
                 <DialogDescription>
@@ -1349,11 +1355,25 @@ export function AppShell() {
                   />
                 </Field>
               </div>
-              <DialogFooter>
+              <DialogFooter className="flex gap-2 justify-end">
                 <Button type="button" variant="outline" onClick={() => setVendorPayOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">Log Payment</Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handleVendorPaySubmit("draft")}
+                  disabled={isReadOnly}
+                >
+                  Save as Draft
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => handleVendorPaySubmit("posted")}
+                  disabled={isReadOnly}
+                >
+                  Post Payment
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

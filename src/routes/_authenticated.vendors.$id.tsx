@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -100,11 +100,14 @@ function VendorDetail() {
   const [delPay, setDelPay] = useState<any | null>(null);
   const [delReason, setDelReason] = useState("");
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; reason: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    reason: string;
+    table: "grn_amendments" | "vendor_payment_amendments";
+  } | null>(null);
   const [masterPassword, setMasterPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showGrnHistory, setShowGrnHistory] = useState(false);
-  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
@@ -211,6 +214,34 @@ function VendorDetail() {
 
   const grnIds = new Set((data?.grns ?? []).map((g) => g.id));
   const vendorAmends = (data?.amends ?? []).filter((a) => grnIds.has(a.grn_id));
+
+  const combinedHistory = useMemo(() => {
+    const grnAmendsMapped = vendorAmends.map((a: any) => ({
+      id: a.id,
+      created_at: a.created_at,
+      type: "grn" as const,
+      action: a.action,
+      reason: a.reason,
+      was: a.previous_total,
+      became: a.new_total,
+      table: "grn_amendments" as const,
+    }));
+
+    const paymentAmendsMapped = (data?.paymentAmends ?? []).map((a: any) => ({
+      id: a.id,
+      created_at: a.created_at,
+      type: "payment" as const,
+      action: a.action,
+      reason: a.reason,
+      was: a.previous_amount,
+      became: a.new_amount,
+      table: "vendor_payment_amendments" as const,
+    }));
+
+    return [...grnAmendsMapped, ...paymentAmendsMapped].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [vendorAmends, data?.paymentAmends]);
 
   const logPayment = async (status: "draft" | "posted") => {
     if (!pay.amount) {
@@ -426,7 +457,7 @@ function VendorDetail() {
       }
 
       const { error: deleteError } = await supabase
-        .from("vendor_payment_amendments")
+        .from(deleteTarget.table as any)
         .delete()
         .eq("id", deleteTarget.id)
         .eq("user_id", user?.id || "");
@@ -659,11 +690,24 @@ function VendorDetail() {
               {data.v.phone ?? ""} {data.v.email ? ` · ${data.v.email}` : ""}
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-md border bg-muted/30 px-4 py-2">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">We owe</span>
-            <span className="figure text-xl font-semibold text-destructive">
-              {formatMoney(data.owed, settings.currency)}
-            </span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-3 rounded-md border bg-muted/30 px-4 py-2">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">We owe</span>
+              <span className="figure text-xl font-semibold text-destructive">
+                {formatMoney(data.owed, settings.currency)}
+              </span>
+            </div>
+            {combinedHistory.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHistoryOpen(true)}
+                className="flex items-center gap-1.5"
+              >
+                <History className="h-4 w-4" />
+                View Change History
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -676,17 +720,6 @@ function VendorDetail() {
               <CardDescription>Material logged from this vendor</CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {vendorAmends.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowGrnHistory(!showGrnHistory)}
-                  className="flex items-center gap-1.5"
-                >
-                  <History className="h-4 w-4" />
-                  {showGrnHistory ? "Hide Change History" : "View Change History"}
-                </Button>
-              )}
               <Button
                 asChild
                 size="sm"
@@ -798,17 +831,6 @@ function VendorDetail() {
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
-              {data.paymentAmends && data.paymentAmends.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPaymentHistory(!showPaymentHistory)}
-                  className="flex items-center gap-1.5"
-                >
-                  <History className="h-4 w-4" />
-                  {showPaymentHistory ? "Hide Change History" : "View Change History"}
-                </Button>
-              )}
               <Dialog open={payOpen} onOpenChange={setPayOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" disabled={isReadOnly}>
@@ -1002,52 +1024,6 @@ function VendorDetail() {
           </CardContent>
         </Card>
       </div>
-
-      {vendorAmends.length > 0 && showGrnHistory && (
-        <Card className="min-w-0 animate-in fade-in slide-in-from-top-4 duration-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              GRN Amendments
-            </CardTitle>
-            <CardDescription>Edits and deletions of posted GRNs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Was</TableHead>
-                    <TableHead className="text-right">Became</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {vendorAmends.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="tabular">{formatDate(a.created_at)}</TableCell>
-                      <TableCell>
-                        <Badge variant={a.action === "delete" ? "destructive" : "secondary"}>
-                          {a.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{a.reason}</TableCell>
-                      <TableCell className="text-right figure">
-                        {formatMoney(a.previous_total, settings.currency)}
-                      </TableCell>
-                      <TableCell className="text-right figure font-medium">
-                        {formatMoney(a.new_total, settings.currency)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Edit GRN dialog */}
       <Dialog open={!!editGrn} onOpenChange={(o) => !o && setEditGrn(null)}>
@@ -1254,68 +1230,6 @@ function VendorDetail() {
         </DialogContent>
       </Dialog>
 
-      {data.paymentAmends && data.paymentAmends.length > 0 && showPaymentHistory && (
-        <Card className="min-w-0 animate-in fade-in slide-in-from-top-4 duration-300">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <History className="h-4 w-4" />
-              Payment amendment history
-            </CardTitle>
-            <CardDescription>Audit trail of edits and deletions of posted payments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Was</TableHead>
-                    <TableHead className="text-right">Became</TableHead>
-                    <TableHead className="text-right w-[80px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.paymentAmends.map((a: any) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="tabular">{formatDate(a.created_at)}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={a.action === "delete" ? "destructive" : "secondary"}
-                          className="capitalize"
-                        >
-                          {a.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{a.reason}</TableCell>
-                      <TableCell className="text-right figure">
-                        {formatMoney(a.previous_amount, settings.currency)}
-                      </TableCell>
-                      <TableCell className="text-right figure font-medium">
-                        {formatMoney(a.new_amount, settings.currency)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-                          onClick={() => setDeleteTarget({ id: a.id, reason: a.reason })}
-                          title="Delete entry"
-                          disabled={isReadOnly}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Amend payment dialog */}
       <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
         <DialogContent>
@@ -1460,7 +1374,7 @@ function VendorDetail() {
               <Trash2 className="h-5 w-5" /> Confirm Privileged Deletion
             </DialogTitle>
             <DialogDescription>
-              You are about to delete a payment amendment history entry:{" "}
+              You are about to delete a change history entry:{" "}
               <strong>{deleteTarget?.reason}</strong>. This operation requires verification of the
               Master Password.
             </DialogDescription>
@@ -1494,6 +1408,98 @@ function VendorDetail() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unified Change History Modal */}
+      <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Change History (Audit Trail)
+            </DialogTitle>
+            <DialogDescription>
+              Chronological log of edits and deletions of posted GRNs and payments
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-auto flex-1 rounded-md border mt-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-right">Was</TableHead>
+                  <TableHead className="text-right">Became</TableHead>
+                  <TableHead className="text-right w-[80px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {combinedHistory.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      No changes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  combinedHistory.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="tabular whitespace-nowrap">
+                        {formatDate(item.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {item.type === "grn" ? "GRN" : "Payment"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={item.action === "delete" ? "destructive" : "secondary"}
+                          className="capitalize"
+                        >
+                          {item.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={item.reason}>
+                        {item.reason}
+                      </TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(item.was, settings.currency)}
+                      </TableCell>
+                      <TableCell className="text-right figure font-medium">
+                        {formatMoney(item.became, settings.currency)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                          onClick={() => {
+                            setDeleteTarget({
+                              id: item.id,
+                              reason: item.reason,
+                              table: item.table,
+                            });
+                          }}
+                          title="Delete entry"
+                          disabled={isReadOnly}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setHistoryOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

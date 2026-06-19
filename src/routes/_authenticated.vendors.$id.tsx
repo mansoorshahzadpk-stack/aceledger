@@ -265,7 +265,6 @@ function VendorDetail() {
       // Always explicitly set status — never leave it null so the
       // legacy (p.status || "posted") fallback cannot misclassify a draft as posted.
       status: status,
-      posted_at: status === "posted" ? new Date().toISOString() : null,
     };
 
     const { error } = await supabase.from("vendor_payments").insert(payload);
@@ -450,7 +449,6 @@ function VendorDetail() {
       .from("vendor_payments")
       .update({
         status: "posted",
-        posted_at: new Date().toISOString(),
       } as any)
       .eq("id", p.id)
       .eq("user_id", user.id);
@@ -641,7 +639,6 @@ function VendorDetail() {
       .from("vendor_grns")
       .update({
         status: "posted",
-        posted_at: new Date().toISOString(),
       } as any)
       .eq("id", grn.id)
       .eq("user_id", user.id);

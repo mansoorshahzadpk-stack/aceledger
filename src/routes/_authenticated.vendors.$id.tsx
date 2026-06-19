@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -110,6 +110,9 @@ function VendorDetail() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [maximizedCard, setMaximizedCard] = useState<"grns" | "payments" | null>(null);
+  // Cache whether the vendor_payments table has a 'status' column.
+  // Checked once at load time to avoid per-save round-trips.
+  const hasStatusColRef = useRef<boolean | null>(null);
 
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
@@ -201,6 +204,21 @@ function VendorDetail() {
       const grns = grnsRes.data || [];
       const amends = (amendsRes.data || []) as any[];
 
+      // Check once whether the status column exists (cache in ref for all writes)
+      if (hasStatusColRef.current === null) {
+        const { error: colErr } = await supabase
+          .from("vendor_payments")
+          .select("status")
+          .limit(0);
+        // PostgREST returns code PGRST204 or message containing column name for missing columns
+        const colMissing =
+          colErr &&
+          (colErr.code === "42703" ||
+            colErr.message?.toLowerCase().includes("status") ||
+            colErr.message?.toLowerCase().includes("could not find"));
+        hasStatusColRef.current = !colMissing;
+      }
+
       const grnTotal = (grns ?? [])
         .filter((g) => g.status === "posted" || g.status == null)
         .reduce((s, x) => s + Number(x.total_amount), 0);
@@ -252,7 +270,9 @@ function VendorDetail() {
     }
     if (!user || !activeBusinessId) return;
 
-    const payload: any = {
+    const hasStatusCol = hasStatusColRef.current !== false; // default true, false only if confirmed missing
+
+    const basePayload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
       vendor_id: id,
@@ -262,33 +282,28 @@ function VendorDetail() {
       reference: pay.reference || null,
       notes: pay.notes || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
-      // Always explicitly set status — never leave it null so the
-      // legacy (p.status || "posted") fallback cannot misclassify a draft as posted.
-      status: status,
     };
+
+    // Only include status if the column is confirmed to exist
+    const payload = hasStatusCol
+      ? { ...basePayload, status }
+      : basePayload;
 
     const { error } = await supabase.from("vendor_payments").insert(payload);
     if (error) {
-      // If the status column doesn't exist yet in the DB, retry without it
-      // (backwards-compat for older deployments without the column)
-      if (error.code === "42703") {
-        const { amount, payment_date, method, reference, notes, asset_id } = payload;
-        const { error: retryError } = await supabase.from("vendor_payments").insert({
-          user_id: user.id,
-          business_id: activeBusinessId,
-          vendor_id: id,
-          amount,
-          payment_date,
-          method,
-          reference,
-          notes,
-          asset_id,
-        });
+      // If we get a column-not-found error despite our check, mark col as missing and retry
+      const isColError =
+        error.code === "42703" ||
+        error.message?.toLowerCase().includes("could not find") ||
+        error.message?.toLowerCase().includes("'status'");
+      if (isColError) {
+        hasStatusColRef.current = false;
+        const { error: retryError } = await supabase.from("vendor_payments").insert(basePayload);
         if (retryError) {
           toast.error(retryError.message);
           return;
         }
-        // Column doesn't exist — treat as posted (legacy mode)
+        // No status column — all payments treated as posted in legacy mode
         toast.success("Payment posted — balance updated");
       } else {
         toast.error(error.message);
@@ -296,7 +311,7 @@ function VendorDetail() {
       }
     } else {
       toast.success(
-        status === "draft"
+        status === "draft" && hasStatusCol
           ? "Payment saved as Draft — balance not yet affected"
           : "Payment posted — balance updated",
       );

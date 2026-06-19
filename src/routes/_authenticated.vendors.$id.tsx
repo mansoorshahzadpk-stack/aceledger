@@ -36,7 +36,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send } from "lucide-react";
+import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send, Maximize2, Minimize2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { renderDocument } from "@/lib/document-templates";
 import {
   parseMath,
@@ -108,6 +109,7 @@ function VendorDetail() {
   const [masterPassword, setMasterPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [maximizedCard, setMaximizedCard] = useState<"grns" | "payments" | null>(null);
 
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
@@ -712,14 +714,35 @@ function VendorDetail() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 min-w-0 w-full">
-        <Card className="min-w-0">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
+      {maximizedCard && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in"
+          onClick={() => setMaximizedCard(null)}
+        />
+      )}
+
+      <div
+        className={cn(
+          "grid gap-6 min-w-0 w-full transition-all duration-300",
+          maximizedCard ? "grid-cols-1" : "lg:grid-cols-2",
+        )}
+      >
+        <Card
+          className={cn(
+            "min-w-0 transition-all duration-300 ease-in-out",
+            maximizedCard === "grns"
+              ? "fixed inset-4 md:inset-10 z-40 bg-card overflow-y-auto shadow-2xl border animate-in fade-in zoom-in-95"
+              : maximizedCard === "payments"
+                ? "hidden"
+                : "relative",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div className="space-y-1">
               <CardTitle>Goods Received (GRNs)</CardTitle>
               <CardDescription>Material logged from this vendor</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 asChild
                 size="sm"
@@ -729,6 +752,19 @@ function VendorDetail() {
                   <Plus className="mr-1 h-4 w-4" />
                   New GRN
                 </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                onClick={() => setMaximizedCard(maximizedCard === "grns" ? null : "grns")}
+                title={maximizedCard === "grns" ? "Minimize" : "Maximize"}
+              >
+                {maximizedCard === "grns" ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </CardHeader>
@@ -822,15 +858,24 @@ function VendorDetail() {
           </CardContent>
         </Card>
 
-        <Card className="min-w-0">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
+        <Card
+          className={cn(
+            "min-w-0 transition-all duration-300 ease-in-out",
+            maximizedCard === "payments"
+              ? "fixed inset-4 md:inset-10 z-40 bg-card overflow-y-auto shadow-2xl border animate-in fade-in zoom-in-95"
+              : maximizedCard === "grns"
+                ? "hidden"
+                : "relative",
+          )}
+        >
+          <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+            <div className="space-y-1">
               <CardTitle>Payments to vendor</CardTitle>
               <CardDescription>
                 Money we have paid them — drafts can be updated/deleted freely
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Dialog open={payOpen} onOpenChange={setPayOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" disabled={isReadOnly}>
@@ -930,6 +975,19 @@ function VendorDetail() {
                   </form>
                 </DialogContent>
               </Dialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+                onClick={() => setMaximizedCard(maximizedCard === "payments" ? null : "payments")}
+                title={maximizedCard === "payments" ? "Minimize" : "Maximize"}
+              >
+                {maximizedCard === "payments" ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </CardHeader>
           <CardContent>

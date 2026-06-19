@@ -867,6 +867,8 @@ export type Database = {
           reference: string | null
           user_id: string
           vendor_id: string
+          status: string
+          posted_at: string | null
         }
         Insert: {
           amount: number
@@ -881,6 +883,8 @@ export type Database = {
           reference?: string | null
           user_id: string
           vendor_id: string
+          status?: string
+          posted_at?: string | null
         }
         Update: {
           amount?: number
@@ -895,6 +899,8 @@ export type Database = {
           reference?: string | null
           user_id?: string
           vendor_id?: string
+          status?: string
+          posted_at?: string | null
         }
         Relationships: [
           {
@@ -912,6 +918,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vendor_payment_amendments: {
+        Row: {
+          action: Database["public"]["Enums"]["amend_action"]
+          created_at: string
+          id: string
+          new_amount: number
+          payment_id: string | null
+          previous_amount: number
+          reason: string
+          user_id: string
+          vendor_id: string
+        }
+        Insert: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          created_at?: string
+          id?: string
+          new_amount: number
+          payment_id?: string | null
+          previous_amount: number
+          reason: string
+          user_id: string
+          vendor_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["amend_action"]
+          created_at?: string
+          id?: string
+          new_amount?: number
+          payment_id?: string | null
+          previous_amount?: number
+          reason?: string
+          user_id?: string
+          vendor_id?: string
+        }
+        Relationships: []
       }
       vendors: {
         Row: {

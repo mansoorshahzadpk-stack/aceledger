@@ -78,11 +78,18 @@ function VendorsPage() {
       if (!activeBusinessId || !user) return [];
       const { data: vs } = await supabase.from("vendors").select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false });
       const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
-      const { data: pays } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      
+      const vpayResult = await supabase.from("vendor_payments").select("vendor_id, amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      let pays = vpayResult.data || [];
+      if (vpayResult.error && vpayResult.error.code === "42703") {
+        const { data: fallback } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
+        pays = fallback || [];
+      }
+
       return (vs ?? []).map((v) => {
         const owed = Number(v.opening_balance)
           + (grns ?? []).filter((g) => g.vendor_id === v.id && (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
-          - (pays ?? []).filter((p) => p.vendor_id === v.id).reduce((s, x) => s + Number(x.amount), 0);
+          - (pays ?? []).filter((p: any) => p.vendor_id === v.id && (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);
         return { ...v, owed };
       });
     },

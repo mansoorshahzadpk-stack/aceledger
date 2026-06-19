@@ -31,14 +31,19 @@ function Dashboard() {
     queryKey: ["dashboard", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return { outstanding: 0, owed: 0, weekCollections: 0, recent: [], counts: { clients: 0, vendors: 0, invoices: 0 } };
-      const [clients, invoices, cpay, vendors, grns, vpay] = await Promise.all([
+      const [clients, invoices, cpay, vendors, grns, vpayResult] = await Promise.all([
         supabase.from("clients").select("id, opening_balance").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("invoices").select("id, total, status, client_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("client_payments").select("id, amount, payment_date, method, client_id, clients(name), status").eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
         supabase.from("vendors").select("id, opening_balance").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("vendor_grns").select("id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
-        supabase.from("vendor_payments").select("id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id),
+        supabase.from("vendor_payments").select("id, amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
+      let vpayData = vpayResult.data || [];
+      if (vpayResult.error && vpayResult.error.code === "42703") {
+        const { data: fallback } = await supabase.from("vendor_payments").select("id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
+        vpayData = fallback || [];
+      }
       const clientOpening = (clients.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
       const postedTotal = (invoices.data ?? []).filter((i) => i.status === "posted").reduce((s, x) => s + Number(x.total), 0);
       const paidIn = (cpay.data ?? []).filter((p) => p.status === "posted").reduce((s, x) => s + Number(x.amount), 0);
@@ -46,7 +51,7 @@ function Dashboard() {
 
       const vendorOpening = (vendors.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
       const grnTotal = (grns.data ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0);
-      const paidOut = (vpay.data ?? []).reduce((s, x) => s + Number(x.amount), 0);
+      const paidOut = vpayData.filter((p: any) => (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);
       const owed = vendorOpening + grnTotal - paidOut;
 
       const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);

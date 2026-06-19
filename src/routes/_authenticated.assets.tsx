@@ -85,15 +85,29 @@ function AssetsPage() {
     queryKey: ["asset_flows", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
-      const [{ data: clientPays }, { data: vendorPays }, { data: ledgerTxs }] = await Promise.all([
-        supabase.from("client_payments").select("amount, asset_id").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user.id),
-        supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id),
-        supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId).eq("user_id", user.id),
+      
+      const clientPaysPromise = supabase.from("client_payments").select("amount, asset_id").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      const ledgerTxsPromise = supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      const vendorPaysPromise = supabase.from("vendor_payments").select("amount, asset_id, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
+      
+      const [resClient, resLedger, resVendor] = await Promise.all([
+        clientPaysPromise,
+        ledgerTxsPromise,
+        vendorPaysPromise,
       ]);
+
+      let vendorPaysResult = resVendor.data || [];
+      if (resVendor.error && resVendor.error.code === "42703") {
+        const { data: fallback } = await supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id);
+        vendorPaysResult = fallback || [];
+      } else {
+        vendorPaysResult = vendorPaysResult.filter((p: any) => (p.status || "posted") === "posted");
+      }
+
       return {
-        clientPays: clientPays || [],
-        vendorPays: vendorPays || [],
-        ledgerTxs: ledgerTxs || [],
+        clientPays: resClient.data || [],
+        vendorPays: vendorPaysResult,
+        ledgerTxs: resLedger.data || [],
       };
     },
     enabled: !!activeBusinessId && !!user,
@@ -106,24 +120,46 @@ function AssetsPage() {
       if (!selectedAssetLedger || !user) return [];
       const assetId = selectedAssetLedger.id;
 
-      const [{ data: clientPays }, { data: vendorPays }, { data: ledgerTxs }] = await Promise.all([
-        supabase
-          .from("client_payments")
-          .select("id, amount, payment_date, reference, method, clients(name)")
-          .eq("asset_id", assetId)
-          .eq("status", "posted")
-          .eq("user_id", user.id),
-        supabase
+      const clientPaysPromise = supabase
+        .from("client_payments")
+        .select("id, amount, payment_date, reference, method, clients(name)")
+        .eq("asset_id", assetId)
+        .eq("status", "posted")
+        .eq("user_id", user.id);
+        
+      const ledgerTxsPromise = supabase
+        .from("ledger_transactions" as any)
+        .select("id, amount, transaction_date, type, description, category")
+        .eq("asset_id", assetId)
+        .eq("user_id", user.id);
+
+      const vendorPaysPromise = supabase
+        .from("vendor_payments")
+        .select("id, amount, payment_date, reference, method, vendors(name), status")
+        .eq("asset_id", assetId)
+        .eq("user_id", user.id);
+
+      const [resClient, resLedger, resVendor] = await Promise.all([
+        clientPaysPromise,
+        ledgerTxsPromise,
+        vendorPaysPromise,
+      ]);
+
+      let vendorPaysResult = resVendor.data || [];
+      if (resVendor.error && resVendor.error.code === "42703") {
+        const { data: fallback } = await supabase
           .from("vendor_payments")
           .select("id, amount, payment_date, reference, method, vendors(name)")
           .eq("asset_id", assetId)
-          .eq("user_id", user.id),
-        supabase
-          .from("ledger_transactions" as any)
-          .select("id, amount, transaction_date, type, description, category")
-          .eq("asset_id", assetId)
-          .eq("user_id", user.id),
-      ]);
+          .eq("user_id", user.id);
+        vendorPaysResult = fallback || [];
+      } else {
+        vendorPaysResult = vendorPaysResult.filter((p: any) => (p.status || "posted") === "posted");
+      }
+
+      const clientPays = resClient.data || [];
+      const ledgerTxs = resLedger.data || [];
+      const vendorPays = vendorPaysResult;
 
       const list: any[] = [];
 

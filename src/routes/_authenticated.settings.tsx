@@ -447,13 +447,24 @@ function SettingsPage() {
       });
       await supabase.from("vendor_grns").insert(grns);
 
-      const vpays = vRows?.slice(0, 3).map((v, i) => ({
-        user_id: user.id,
-        business_id: activeBusiness.id,
-        vendor_id: v.id, amount: 20000 + i * 10000,
-        payment_date: new Date(Date.now() - i * 5 * 86400000).toISOString().slice(0, 10),
-        method: "bank" as const, reference: `TX-${1000 + i}`,
-      })) ?? [];
+      const { error: checkVpayColError } = await supabase.from("vendor_payments").select("status").limit(1);
+      const hasVpayStatusCol = !checkVpayColError || checkVpayColError.code !== "42703";
+
+      const vpays = vRows?.slice(0, 3).map((v, i) => {
+        const payDate = new Date(Date.now() - i * 5 * 86400000);
+        const p: any = {
+          user_id: user.id,
+          business_id: activeBusiness.id,
+          vendor_id: v.id, amount: 20000 + i * 10000,
+          payment_date: payDate.toISOString().slice(0, 10),
+          method: "bank" as const, reference: `TX-${1000 + i}`,
+        };
+        if (hasVpayStatusCol) {
+          p.status = "posted";
+          p.posted_at = payDate.toISOString();
+        }
+        return p;
+      }) ?? [];
       await supabase.from("vendor_payments").insert(vpays);
 
       const invoices: any[] = [];

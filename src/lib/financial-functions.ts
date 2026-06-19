@@ -140,14 +140,29 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   if (clientPaysError) throw clientPaysError;
 
   // 3. Fetch Vendor Payments
-  const { data: vendorPayments, error: vendorPaysError } = await supabase
+  let vendorPaymentsResult: any[] | null = null;
+  let { data: rawVendorPays, error: vendorPaysError } = await supabase
     .from("vendor_payments")
-    .select("amount, asset_id, payment_date, vendor_id")
+    .select("amount, asset_id, payment_date, vendor_id, status")
     .eq("business_id", businessId)
     .eq("user_id", userId)
     .lte("payment_date", asOfDate);
 
-  if (vendorPaysError) throw vendorPaysError;
+  if (vendorPaysError && vendorPaysError.code === "42703") {
+    // Fallback if status column doesn't exist in schema yet
+    const { data: fallbackPays, error: fallbackError } = await supabase
+      .from("vendor_payments")
+      .select("amount, asset_id, payment_date, vendor_id")
+      .eq("business_id", businessId)
+      .eq("user_id", userId)
+      .lte("payment_date", asOfDate);
+    if (fallbackError) throw fallbackError;
+    vendorPaymentsResult = fallbackPays || [];
+  } else {
+    if (vendorPaysError) throw vendorPaysError;
+    vendorPaymentsResult = (rawVendorPays || []).filter((p: any) => (p.status || "posted") === "posted");
+  }
+  const vendorPayments = vendorPaymentsResult;
 
   // 4. Fetch Ledger Transactions
   const { data: ledgerTxs, error: ledgerError } = await supabase

@@ -263,7 +263,12 @@ export function AppShell() {
       toast.error("Please select a vendor");
       return;
     }
-    const { error } = await supabase.from("vendor_payments").insert({
+    
+    // Check if the database has status column
+    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const hasStatusCol = !checkColError || checkColError.code !== "42703";
+
+    const payload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
       vendor_id: vendorPay.vendor_id,
@@ -273,7 +278,13 @@ export function AppShell() {
       reference: vendorPay.reference || null,
       notes: vendorPay.notes || null,
       asset_id: vendorPay.asset_id === "" || vendorPay.asset_id === "none" ? null : vendorPay.asset_id,
-    });
+    };
+
+    if (hasStatusCol) {
+      payload.status = "draft";
+    }
+
+    const { error } = await supabase.from("vendor_payments").insert(payload);
     if (error) {
       toast.error(error.message);
     } else {

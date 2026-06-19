@@ -53,6 +53,22 @@ function VendorDetail() {
   const [payOpen, setPayOpen] = useState(false);
   const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: "" });
 
+  const [editPay, setEditPay] = useState<any | null>(null);
+  const [editPayReason, setEditPayReason] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [editMethod, setEditMethod] = useState("");
+  const [editReference, setEditReference] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editAssetId, setEditAssetId] = useState("");
+
+  const [delPay, setDelPay] = useState<any | null>(null);
+  const [delReason, setDelReason] = useState("");
+
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; reason: string } | null>(null);
+  const [masterPassword, setMasterPassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
     queryFn: async () => {
@@ -85,17 +101,33 @@ function VendorDetail() {
   const { data } = useQuery({
     queryKey: ["vendor", user?.id, id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId || !user) return { v: null, grns: [], pays: [], owed: 0, amends: [] };
-      const [{ data: v }, { data: grns }, { data: pays }, { data: amends }] = await Promise.all([
+      if (!activeBusinessId || !user) return { v: null, grns: [], pays: [], owed: 0, amends: [], paymentAmends: [] };
+      const [vRes, grnsRes, vpayResult, amendsRes] = await Promise.all([
         supabase.from("vendors").select("*").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
         supabase.from("vendor_grns").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("grn_date", { ascending: false }),
-        supabase.from("vendor_payments").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
+        supabase.from("vendor_payments").select("*, assets(name)").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
         supabase.from("grn_amendments" as any).select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
-      const owed = Number(v?.opening_balance ?? 0)
-        + (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0)
-        - (pays ?? []).reduce((s, x) => s + Number(x.amount), 0);
-      return { v, grns: (grns ?? []) as GRN[], pays: pays ?? [], owed, amends: (amends ?? []) as any[] };
+
+      let pays = vpayResult.data || [];
+      if (vpayResult.error && vpayResult.error.code === "42703") {
+        const { data: fallback } = await supabase.from("vendor_payments").select("id, vendor_id, amount, payment_date, method, reference, notes, asset_id, assets(name)").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false });
+        pays = fallback || [];
+      }
+
+      // Fetch vendor_payment_amendments safely (handling missing table error)
+      const vpayAmendsResult = await supabase.from("vendor_payment_amendments" as any).select("*").eq("vendor_id", id).eq("user_id", user.id).order("created_at", { ascending: false });
+      const paymentAmends = vpayAmendsResult.data || [];
+
+      const v = vRes.data;
+      const grns = grnsRes.data || [];
+      const amends = amendsRes.data || [];
+
+      const grnTotal = (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0);
+      const paid = (pays ?? []).filter((p: any) => (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);
+      const owed = Number(v?.opening_balance ?? 0) + grnTotal - paid;
+
+      return { v, grns: grns as GRN[], pays, owed, amends, paymentAmends };
     },
     enabled: !!user,
   });
@@ -103,10 +135,18 @@ function VendorDetail() {
   const grnIds = new Set((data?.grns ?? []).map((g) => g.id));
   const vendorAmends = (data?.amends ?? []).filter((a) => grnIds.has(a.grn_id));
 
-  const logPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const logPayment = async (status: "draft" | "posted") => {
+    if (!pay.amount) {
+      toast.error("Please enter an amount");
+      return;
+    }
     if (!user || !activeBusinessId) return;
-    const { error } = await supabase.from("vendor_payments").insert({
+
+    // Check if the database has status column
+    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const hasStatusCol = !checkColError || checkColError.code !== "42703";
+
+    const payload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
       vendor_id: id,
@@ -116,9 +156,189 @@ function VendorDetail() {
       reference: pay.reference || null,
       notes: pay.notes || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
-    });
+    };
+
+    if (hasStatusCol) {
+      payload.status = status;
+      payload.posted_at = status === "posted" ? new Date().toISOString() : null;
+    }
+
+    const { error } = await supabase.from("vendor_payments").insert(payload);
     if (error) toast.error(error.message);
-    else { toast.success("Payment logged"); setPayOpen(false); setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: bankCashAssets[0]?.id || "" }); qc.invalidateQueries({ queryKey: ["vendor", id] }); }
+    else {
+      toast.success(status === "draft" && hasStatusCol ? "Payment logged as Draft" : "Payment posted — balance updated");
+      setPayOpen(false);
+      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: bankCashAssets[0]?.id || "" });
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  };
+
+  const openEditPay = (p: any) => {
+    setEditPay(p);
+    setEditAmount(String(p.amount));
+    setEditDate(p.payment_date);
+    setEditMethod(p.method);
+    setEditReference(p.reference || "");
+    setEditNotes(p.notes || "");
+    setEditPayReason("");
+    setEditAssetId(p.asset_id || "");
+  };
+
+  const applyEditPay = async () => {
+    if (!editPay || !user) return;
+    const isPosted = (editPay.status || "posted") === "posted";
+    const newAmt = parseFloat(editAmount) || 0;
+
+    if (newAmt <= 0) {
+      toast.error("Amount must be greater than zero");
+      return;
+    }
+
+    if (isPosted && editPayReason.trim().length < 5) {
+      toast.error("Reason must be at least 5 characters");
+      return;
+    }
+
+    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const hasStatusCol = !checkColError || checkColError.code !== "42703";
+
+    let error = null;
+    if (hasStatusCol) {
+      const { error: rpcError } = await supabase.rpc("update_vendor_payment" as any, {
+        p_payment_id: editPay.id,
+        p_amount: newAmt,
+        p_date: editDate,
+        p_method: editMethod,
+        p_reference: editReference,
+        p_notes: editNotes,
+        p_reason: isPosted ? editPayReason.trim() : "",
+        p_user_id: user.id,
+        p_asset_id: editAssetId === "" ? null : editAssetId,
+      });
+      error = rpcError;
+    } else {
+      const { error: updateError } = await supabase
+        .from("vendor_payments")
+        .update({
+          amount: newAmt,
+          payment_date: editDate,
+          method: editMethod as any,
+          reference: editReference || null,
+          notes: editNotes || null,
+          asset_id: editAssetId === "" ? null : editAssetId,
+        })
+        .eq("id", editPay.id)
+        .eq("user_id", user.id);
+      error = updateError;
+    }
+
+    if (error) {
+      toast.error(error.message || "Failed to update payment");
+    } else {
+      toast.success(isPosted ? "Payment amended" : "Payment updated");
+      setEditPay(null);
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  };
+
+  const applyDeletePay = async () => {
+    if (!delPay || !user) return;
+    const isPosted = (delPay.status || "posted") === "posted";
+
+    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const hasStatusCol = !checkColError || checkColError.code !== "42703";
+
+    if (isPosted && hasStatusCol) {
+      if (delReason.trim().length < 5) {
+        toast.error("Reason must be at least 5 characters");
+        return;
+      }
+      
+      const { error: amendError } = await supabase.from("vendor_payment_amendments" as any).insert({
+        user_id: user.id,
+        payment_id: delPay.id,
+        vendor_id: id,
+        action: "delete",
+        previous_amount: delPay.amount,
+        new_amount: 0,
+        reason: delReason.trim(),
+      });
+      if (amendError) {
+        toast.error("Failed to log deletion audit: " + amendError.message);
+        return;
+      }
+    }
+
+    const { error: deleteError } = await supabase.from("vendor_payments").delete().eq("id", delPay.id).eq("user_id", user.id);
+    if (deleteError) {
+      toast.error("Failed to delete payment: " + deleteError.message);
+    } else {
+      toast.success(isPosted ? "Payment deleted" : "Draft Payment deleted");
+      setDelPay(null);
+      setDelReason("");
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  };
+
+  const postPaymentDirect = async (p: any) => {
+    if (!user) return;
+    const { error } = await supabase.from("vendor_payments").update({
+      status: "posted",
+      posted_at: new Date().toISOString()
+    } as any).eq("id", p.id).eq("user_id", user.id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Payment posted — balance updated");
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+      qc.invalidateQueries({ queryKey: ["vendors"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+    }
+  };
+
+  const handleDeleteConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deleteTarget) return;
+    if (!masterPassword) {
+      toast.error("Master password is required");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const { data: isValid, error: checkError } = await supabase.rpc("check_master_password", {
+        p_user_id: user?.id || "",
+        p_password: masterPassword,
+      });
+
+      if (checkError || !isValid) {
+        throw new Error(checkError?.message || "Incorrect master password");
+      }
+
+      const { error: deleteError } = await supabase
+        .from("vendor_payment_amendments")
+        .delete()
+        .eq("id", deleteTarget.id)
+        .eq("user_id", user?.id || "");
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+
+      toast.success("Audit log entry deleted successfully");
+      setDeleteTarget(null);
+      setMasterPassword("");
+      qc.invalidateQueries({ queryKey: ["vendor", id] });
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const openEdit = (g: GRN) => {
@@ -306,12 +526,12 @@ function VendorDetail() {
 
         <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div><CardTitle>Payments to vendor</CardTitle><CardDescription>Money we have paid them</CardDescription></div>
+            <div><CardTitle>Payments to vendor</CardTitle><CardDescription>Money we have paid them — drafts can be updated/deleted freely</CardDescription></div>
             <Dialog open={payOpen} onOpenChange={setPayOpen}>
               <DialogTrigger asChild><Button size="sm" disabled={isReadOnly}><Plus className="mr-1 h-4 w-4" />Log Payment</Button></DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Log Payment to {data.v.name}</DialogTitle></DialogHeader>
-                <form onSubmit={logPayment} className="space-y-3">
+                <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
                    <Field label="Amount"><FormattedInput mode="currency" required rawValue={pay.amount} onRawChange={(raw) => setPay({ ...pay, amount: raw })} placeholder="0.00" autoFocus /></Field>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Date"><Input type="date" required value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} /></Field>
@@ -342,7 +562,10 @@ function VendorDetail() {
                   </Field>
                   <Field label="Reference"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} placeholder="Cheque # / Txn ID" /></Field>
                   <Field label="Notes"><Textarea value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} /></Field>
-                  <DialogFooter><Button type="submit" disabled={isReadOnly}>Save payment</Button></DialogFooter>
+                  <DialogFooter className="flex gap-2 justify-end">
+                    <Button type="button" variant="secondary" onClick={() => logPayment("draft")} disabled={isReadOnly}>Save as Draft</Button>
+                    <Button type="button" onClick={() => logPayment("posted")} disabled={isReadOnly}>Post Payment</Button>
+                  </DialogFooter>
                 </form>
               </DialogContent>
             </Dialog>
@@ -350,15 +573,42 @@ function VendorDetail() {
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Method</TableHead><TableHead>Ref</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Withdrawal Account</TableHead>
+                    <TableHead>Ref</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="w-36 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {data.pays.length === 0 && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
+                  {data.pays.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
                   {data.pays.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>
+                      <TableCell className="text-sm font-medium text-muted-foreground">{p.assets?.name ?? "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{p.reference ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={(p.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">
+                          {p.status || "posted"}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-right figure text-success">{formatMoney(p.amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-1">
+                          {(p.status || "posted") === "draft" && (
+                            <Button size="icon" variant="ghost" onClick={() => postPaymentDirect(p)} disabled={isReadOnly} title="Post Payment" className="text-primary hover:text-primary hover:bg-primary/10">
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} disabled={isReadOnly} title="Edit / Amend"><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -533,6 +783,177 @@ function VendorDetail() {
             <Button variant="outline" onClick={() => setDeleteGrn(null)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmDelete} disabled={isReadOnly}>Delete GRN</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {data.paymentAmends && data.paymentAmends.length > 0 && (
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><History className="h-4 w-4" />Payment amendment history</CardTitle>
+            <CardDescription>Audit trail of edits and deletions of posted payments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="text-right">Was</TableHead>
+                    <TableHead className="text-right">Became</TableHead>
+                    <TableHead className="text-right w-[80px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.paymentAmends.map((a: any) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="tabular">{formatDate(a.created_at)}</TableCell>
+                      <TableCell><Badge variant={a.action === "delete" ? "destructive" : "secondary"} className="capitalize">{a.action}</Badge></TableCell>
+                      <TableCell>{a.reason}</TableCell>
+                      <TableCell className="text-right figure">{formatMoney(a.previous_amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right figure font-medium">{formatMoney(a.new_amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                          onClick={() => setDeleteTarget({ id: a.id, reason: a.reason })}
+                          title="Delete entry"
+                          disabled={isReadOnly}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Amend payment dialog */}
+      <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{(editPay?.status || "posted") === "posted" ? "Amend Payment to Vendor" : "Edit Payment to Vendor"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {(editPay?.status || "posted") === "posted"
+              ? "A reason is required for the audit trail. The vendor balance will be recalculated."
+              : "Update the draft payment details."}
+          </p>
+          <div className="space-y-3 py-2">
+            <Field label="Amount">
+              <FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Date">
+                <Input type="date" required value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+              </Field>
+              <Field label="Method">
+                <Select value={editMethod} onValueChange={setEditMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank">Bank transfer</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="mobile">Mobile / wallet</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label="Withdrawal Account">
+              <Select value={editAssetId} onValueChange={setEditAssetId}>
+                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectContent>
+                  {bankCashAssets.map((asset) => (
+                    <SelectItem key={asset.id} value={asset.id}>
+                      {asset.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Reference">
+              <Input value={editReference} onChange={(e) => setEditReference(e.target.value)} />
+            </Field>
+            <Field label="Notes">
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} />
+            </Field>
+            {(editPay?.status || "posted") === "posted" && (
+              <Field label="Reason">
+                <Textarea autoFocus rows={3} value={editPayReason} onChange={(e) => setEditPayReason(e.target.value)} placeholder="e.g. Corrected from bank statement" />
+              </Field>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>
+            <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete payment dialog */}
+      <Dialog open={!!delPay} onOpenChange={(v) => !v && setDelPay(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{(delPay?.status || "posted") === "posted" ? "Delete Payment to Vendor?" : "Delete Draft Payment?"}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {(delPay?.status || "posted") === "posted"
+              ? "This will remove the payment and add it back to our owed balance. A reason is required."
+              : "This will permanently delete this draft payment."}
+          </p>
+          {(delPay?.status || "posted") === "posted" && (
+            <Field label="Reason"><Textarea autoFocus rows={3} value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="Reason for deletion" /></Field>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDelPay(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>Delete payment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Privileged Deletion Challenge Modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setMasterPassword(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Confirm Privileged Deletion
+            </DialogTitle>
+            <DialogDescription>
+              You are about to delete a payment amendment history entry: <strong>{deleteTarget?.reason}</strong>. This operation requires verification of the Master Password.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDeleteConfirm} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="master-password-input">Master Password</Label>
+              <Input
+                id="master-password-input"
+                type="password"
+                required
+                placeholder="Enter Master Password"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setDeleteTarget(null);
+                  setMasterPassword("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" disabled={isDeleting}>
+                {isDeleting ? "Deleting..." : "Confirm Delete"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

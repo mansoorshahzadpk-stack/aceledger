@@ -202,10 +202,10 @@ function VendorDetail() {
       const amends = (amendsRes.data || []) as any[];
 
       const grnTotal = (grns ?? [])
-        .filter((g) => (g.status || "posted") === "posted")
+        .filter((g) => g.status === "posted" || g.status == null)
         .reduce((s, x) => s + Number(x.total_amount), 0);
       const paid = (pays ?? [])
-        .filter((p: any) => (p.status || "posted") === "posted")
+        .filter((p: any) => p.status === "posted")
         .reduce((s, x) => s + Number(x.amount), 0);
       const owed = Number(v?.opening_balance ?? 0) + grnTotal - paid;
 
@@ -252,13 +252,6 @@ function VendorDetail() {
     }
     if (!user || !activeBusinessId) return;
 
-    // Check if the database has status column
-    const { error: checkColError } = await supabase
-      .from("vendor_payments")
-      .select("status")
-      .limit(1);
-    const hasStatusCol = !checkColError || checkColError.code !== "42703";
-
     const payload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
@@ -269,33 +262,64 @@ function VendorDetail() {
       reference: pay.reference || null,
       notes: pay.notes || null,
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
+      // Always explicitly set status — never leave it null so the
+      // legacy (p.status || "posted") fallback cannot misclassify a draft as posted.
+      status: status,
+      posted_at: status === "posted" ? new Date().toISOString() : null,
     };
 
-    if (hasStatusCol) {
-      payload.status = status;
-      payload.posted_at = status === "posted" ? new Date().toISOString() : null;
-    }
-
     const { error } = await supabase.from("vendor_payments").insert(payload);
-    if (error) toast.error(error.message);
-    else {
+    if (error) {
+      // If the status column doesn't exist yet in the DB, retry without it
+      // (backwards-compat for older deployments without the column)
+      if (error.code === "42703") {
+        const { amount, payment_date, method, reference, notes, asset_id } = payload;
+        const { error: retryError } = await supabase.from("vendor_payments").insert({
+          user_id: user.id,
+          business_id: activeBusinessId,
+          vendor_id: id,
+          amount,
+          payment_date,
+          method,
+          reference,
+          notes,
+          asset_id,
+        });
+        if (retryError) {
+          toast.error(retryError.message);
+          return;
+        }
+        // Column doesn't exist — treat as posted (legacy mode)
+        toast.success("Payment posted — balance updated");
+      } else {
+        toast.error(error.message);
+        return;
+      }
+    } else {
       toast.success(
-        status === "draft" && hasStatusCol
-          ? "Payment logged as Draft"
+        status === "draft"
+          ? "Payment saved as Draft — balance not yet affected"
           : "Payment posted — balance updated",
       );
-      setPayOpen(false);
-      setPay({
-        amount: "",
-        payment_date: new Date().toISOString().slice(0, 10),
-        method: "bank",
-        reference: "",
-        notes: "",
-        asset_id: bankCashAssets[0]?.id || "",
-      });
-      qc.invalidateQueries({ queryKey: ["vendor", id] });
+    }
+
+    setPayOpen(false);
+    setPay({
+      amount: "",
+      payment_date: new Date().toISOString().slice(0, 10),
+      method: "bank",
+      reference: "",
+      notes: "",
+      asset_id: bankCashAssets[0]?.id || "",
+    });
+    qc.invalidateQueries({ queryKey: ["vendor", id] });
+    // Only refresh the vendors list balance when actually posting
+    if (status === "posted") {
       qc.invalidateQueries({ queryKey: ["vendors"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+    } else {
+      // Refresh vendor detail only (draft doesn't affect global balances)
+      qc.invalidateQueries({ queryKey: ["vendor"] });
     }
   };
 

@@ -152,10 +152,10 @@ function VendorsPage() {
         const owed =
           Number(v.opening_balance) +
           (grns ?? [])
-            .filter((g) => g.vendor_id === v.id && (g.status || "posted") === "posted")
+            .filter((g) => g.vendor_id === v.id && (g.status === "posted" || g.status == null))
             .reduce((s, x) => s + Number(x.total_amount), 0) -
           (pays ?? [])
-            .filter((p: any) => p.vendor_id === v.id && (p.status || "posted") === "posted")
+            .filter((p: any) => p.vendor_id === v.id && p.status === "posted")
             .reduce((s, x) => s + Number(x.amount), 0);
         return { ...v, owed };
       });

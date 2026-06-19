@@ -106,10 +106,10 @@ function Dashboard() {
 
       const vendorOpening = (vendors.data ?? []).reduce((s, x) => s + Number(x.opening_balance), 0);
       const grnTotal = (grns.data ?? [])
-        .filter((g) => (g.status || "posted") === "posted")
+        .filter((g) => g.status === "posted" || g.status == null)
         .reduce((s, x) => s + Number(x.total_amount), 0);
       const paidOut = vpayData
-        .filter((p: any) => (p.status || "posted") === "posted")
+        .filter((p: any) => p.status === "posted")
         .reduce((s, x) => s + Number(x.amount), 0);
       const owed = vendorOpening + grnTotal - paidOut;
 

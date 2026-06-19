@@ -8,21 +8,41 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { CURRENCY_LABELS, type CurrencyCode } from "@/lib/format";
 import { toast } from "sonner";
 import type { DocTemplate, UiTheme } from "@/lib/app-context";
 import { Upload, Trash2, Plus } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
   head: () => ({
     meta: [
       { title: "Settings — Ace Ledger" },
-      { name: "description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
+      {
+        name: "description",
+        content:
+          "Configure business profile, currency, document templates, and branding for Ace Ledger.",
+      },
       { property: "og:title", content: "Settings — Ace Ledger" },
-      { property: "og:description", content: "Configure business profile, currency, document templates, and branding for Ace Ledger." },
+      {
+        property: "og:description",
+        content:
+          "Configure business profile, currency, document templates, and branding for Ace Ledger.",
+      },
       { property: "og:url", content: "https://aceledger.top/settings" },
     ],
     links: [{ rel: "canonical", href: "https://aceledger.top/settings" }],
@@ -30,10 +50,26 @@ export const Route = createFileRoute("/_authenticated/settings")({
 });
 
 const TEMPLATES: { id: DocTemplate; name: string; desc: string }[] = [
-  { id: "acelog", name: "Ace Design (Recommended)", desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample" },
-  { id: "classic", name: "Classic", desc: "Formal serif masthead, centered title, ruled tables — traditional letterhead feel" },
-  { id: "modern", name: "Modern", desc: "Bold layout with a blue and red header band, logo alignment, and clean tables" },
-  { id: "compact", name: "Simple", desc: "Elegant single-column layout with grouped metadata and payment info" },
+  {
+    id: "acelog",
+    name: "Ace Design (Recommended)",
+    desc: "Clean header, balance-due card, GRN/vehicle refs per line — matches the supplied sample",
+  },
+  {
+    id: "classic",
+    name: "Classic",
+    desc: "Formal serif masthead, centered title, ruled tables — traditional letterhead feel",
+  },
+  {
+    id: "modern",
+    name: "Modern",
+    desc: "Bold layout with a blue and red header band, logo alignment, and clean tables",
+  },
+  {
+    id: "compact",
+    name: "Simple",
+    desc: "Elegant single-column layout with grouped metadata and payment info",
+  },
 ];
 
 function SettingsPage() {
@@ -120,7 +156,7 @@ function SettingsPage() {
     try {
       let success = false;
       let message = "";
-      
+
       // 1. Try calling the API endpoint
       try {
         const { data: sessionData } = await supabase.auth.getSession();
@@ -168,7 +204,9 @@ function SettingsPage() {
         if (setError) throw new Error(setError.message);
 
         success = true;
-        message = isMasterPasswordSet ? "Master password updated successfully" : "Master password set successfully";
+        message = isMasterPasswordSet
+          ? "Master password updated successfully"
+          : "Master password set successfully";
       }
 
       toast.success(message);
@@ -224,10 +262,13 @@ function SettingsPage() {
 
       // 2. Fallback to Supabase RPC
       if (!success) {
-        const { data: resetOk, error: resetError } = await supabase.rpc("reset_master_password_with_token", {
-          p_token: resetTokenValue,
-          p_new_password: newPassword,
-        });
+        const { data: resetOk, error: resetError } = await supabase.rpc(
+          "reset_master_password_with_token",
+          {
+            p_token: resetTokenValue,
+            p_new_password: newPassword,
+          },
+        );
         if (resetError) throw new Error(resetError.message);
         if (!resetOk) throw new Error("Invalid or expired recovery token");
 
@@ -276,11 +317,18 @@ function SettingsPage() {
           const res = await response.json();
           if (response.ok && res.success) {
             success = true;
-            toast.success(res.message || `A secure master password reset link has been dispatched to ${user.email}.`);
+            toast.success(
+              res.message ||
+                `A secure master password reset link has been dispatched to ${user.email}.`,
+            );
           } else {
-            errorMsg = res.error || res.message || `Failed to send recovery email (Status ${response.status})`;
+            errorMsg =
+              res.error ||
+              res.message ||
+              `Failed to send recovery email (Status ${response.status})`;
             if (res.debug) {
-              const debugStr = typeof res.debug === 'object' ? JSON.stringify(res.debug) : res.debug;
+              const debugStr =
+                typeof res.debug === "object" ? JSON.stringify(res.debug) : res.debug;
               console.error("Master password recovery debug details:", res.debug);
               errorMsg += ` | Debug: ${debugStr}`;
             }
@@ -296,17 +344,23 @@ function SettingsPage() {
       // 2. Fallback: Try calling the Supabase Edge Function directly
       if (!success) {
         try {
-          const { data, error: functionError } = await supabase.functions.invoke("forgot-master-password", {
-            method: "POST",
-          });
-          
+          const { data, error: functionError } = await supabase.functions.invoke(
+            "forgot-master-password",
+            {
+              method: "POST",
+            },
+          );
+
           if (functionError) {
             throw functionError;
           }
 
           if (data && data.success) {
             success = true;
-            toast.success(data.message || `A secure master password reset link has been dispatched to ${user.email}.`);
+            toast.success(
+              data.message ||
+                `A secure master password reset link has been dispatched to ${user.email}.`,
+            );
           } else if (data && data.error) {
             throw new Error(data.error);
           } else {
@@ -324,8 +378,6 @@ function SettingsPage() {
       setIsSubmitting(false);
     }
   };
-
-
 
   // Sync state with active business when it loads/changes
   useEffect(() => {
@@ -358,13 +410,21 @@ function SettingsPage() {
 
   const uploadLogo = async (file: File) => {
     if (!user || !activeBusiness) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error("Logo must be 2 MB or smaller"); return; }
-    if (!/^image\/(png|jpeg|jpg|webp|svg\+xml)$/.test(file.type)) { toast.error("Use PNG, JPG, WebP, or SVG"); return; }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be 2 MB or smaller");
+      return;
+    }
+    if (!/^image\/(png|jpeg|jpg|webp|svg\+xml)$/.test(file.type)) {
+      toast.error("Use PNG, JPG, WebP, or SVG");
+      return;
+    }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() || "png";
       const path = `${user.id}/logo-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("business-assets").upload(path, file, { upsert: true, contentType: file.type });
+      const { error: upErr } = await supabase.storage
+        .from("business-assets")
+        .upload(path, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from("business-assets").getPublicUrl(path);
       await updateBusiness({ logo_url: pub.publicUrl });
@@ -400,21 +460,52 @@ function SettingsPage() {
       }
 
       const vendors = [
-        { name: "Khan Cotton Mills", contact_person: "Ali Khan", phone: "+92 300 1234567", address: "Faisalabad, PK", opening_balance: 0 },
-        { name: "Steel & Rod Co.", contact_person: "Sara N.", phone: "+92 321 9876543", opening_balance: 15000 },
+        {
+          name: "Khan Cotton Mills",
+          contact_person: "Ali Khan",
+          phone: "+92 300 1234567",
+          address: "Faisalabad, PK",
+          opening_balance: 0,
+        },
+        {
+          name: "Steel & Rod Co.",
+          contact_person: "Sara N.",
+          phone: "+92 321 9876543",
+          opening_balance: 15000,
+        },
         { name: "Polymer Source Ltd", phone: "+92 333 5556677", opening_balance: 0 },
-        { name: "Eastern Pigments", contact_person: "Bilal", phone: "+92 345 2223344", opening_balance: 5000 },
-      ].map((v) => ({ ...v, user_id: user.id, business_id: activeBusiness.id, code_prefix: v.name.slice(0, 3).toUpperCase() }));
+        {
+          name: "Eastern Pigments",
+          contact_person: "Bilal",
+          phone: "+92 345 2223344",
+          opening_balance: 5000,
+        },
+      ].map((v) => ({
+        ...v,
+        user_id: user.id,
+        business_id: activeBusiness.id,
+        code_prefix: v.name.slice(0, 3).toUpperCase(),
+      }));
       const { data: vRows } = await supabase.from("vendors").insert(vendors).select();
 
       const clients = [
-        { name: "Apex Textiles", contact_person: "M. Rauf", phone: "+92 300 1111111", opening_balance: 0 },
+        {
+          name: "Apex Textiles",
+          contact_person: "M. Rauf",
+          phone: "+92 300 1111111",
+          opening_balance: 0,
+        },
         { name: "Continental Plastics", phone: "+92 321 2222222", opening_balance: 0 },
         { name: "Karachi Fabrics Pvt", phone: "+92 333 3333333", opening_balance: 20000 },
         { name: "Metro Steel Works", phone: "+92 345 4444444", opening_balance: 0 },
         { name: "Punjab Garments", phone: "+92 312 5555555", opening_balance: 0 },
         { name: "United Industries", phone: "+92 301 6666666", opening_balance: 8000 },
-      ].map((c) => ({ ...c, user_id: user.id, business_id: activeBusiness.id, code_prefix: c.name.slice(0, 3).toUpperCase() }));
+      ].map((c) => ({
+        ...c,
+        user_id: user.id,
+        business_id: activeBusiness.id,
+        code_prefix: c.name.slice(0, 3).toUpperCase(),
+      }));
       const { data: cRows } = await supabase.from("clients").insert(clients).select();
 
       const products = [
@@ -424,7 +515,13 @@ function SettingsPage() {
         { name: "Pigment red oxide", sku: "PG-RED", unit: "kg", default_price: 180 },
         { name: "Packaging — woven sack", sku: "PK-50", unit: "pcs", default_price: 65 },
         { name: "Delivery / freight", sku: "FRT", unit: "trip", default_price: 5000 },
-      ].map((p) => ({ ...p, user_id: user.id, business_id: activeBusiness.id, active: true, default_tax_rate: 0 }));
+      ].map((p) => ({
+        ...p,
+        user_id: user.id,
+        business_id: activeBusiness.id,
+        active: true,
+        default_tax_rate: 0,
+      }));
       await supabase.from("products" as any).insert(products);
 
       // GRNs
@@ -433,53 +530,68 @@ function SettingsPage() {
         for (let i = 0; i < 2; i++) {
           const qty = 100 + Math.round(Math.random() * 400);
           const price = 150 + Math.round(Math.random() * 300);
-          const date = new Date(); date.setDate(date.getDate() - (idx * 7 + i * 3));
+          const date = new Date();
+          date.setDate(date.getDate() - (idx * 7 + i * 3));
           grns.push({
             user_id: user.id,
             business_id: activeBusiness.id,
             vendor_id: v.id,
             grn_number: `GRN-${1000 + grns.length}`,
             material: ["Cotton lint", "Steel rod", "PE pellets", "Pigment"][idx % 4],
-            quantity: qty, unit: "kg", unit_price: price, total_amount: qty * price,
-            grn_date: date.toISOString().slice(0, 10), doc_template: "classic",
+            quantity: qty,
+            unit: "kg",
+            unit_price: price,
+            total_amount: qty * price,
+            grn_date: date.toISOString().slice(0, 10),
+            doc_template: "classic",
           });
         }
       });
       await supabase.from("vendor_grns").insert(grns);
 
-      const { error: checkVpayColError } = await supabase.from("vendor_payments").select("status").limit(1);
+      const { error: checkVpayColError } = await supabase
+        .from("vendor_payments")
+        .select("status")
+        .limit(1);
       const hasVpayStatusCol = !checkVpayColError || checkVpayColError.code !== "42703";
 
-      const vpays = vRows?.slice(0, 3).map((v, i) => {
-        const payDate = new Date(Date.now() - i * 5 * 86400000);
-        const p: any = {
-          user_id: user.id,
-          business_id: activeBusiness.id,
-          vendor_id: v.id, amount: 20000 + i * 10000,
-          payment_date: payDate.toISOString().slice(0, 10),
-          method: "bank" as const, reference: `TX-${1000 + i}`,
-        };
-        if (hasVpayStatusCol) {
-          p.status = "posted";
-          p.posted_at = payDate.toISOString();
-        }
-        return p;
-      }) ?? [];
+      const vpays =
+        vRows?.slice(0, 3).map((v, i) => {
+          const payDate = new Date(Date.now() - i * 5 * 86400000);
+          const p: any = {
+            user_id: user.id,
+            business_id: activeBusiness.id,
+            vendor_id: v.id,
+            amount: 20000 + i * 10000,
+            payment_date: payDate.toISOString().slice(0, 10),
+            method: "bank" as const,
+            reference: `TX-${1000 + i}`,
+          };
+          if (hasVpayStatusCol) {
+            p.status = "posted";
+            p.posted_at = payDate.toISOString();
+          }
+          return p;
+        }) ?? [];
       await supabase.from("vendor_payments").insert(vpays);
 
       const invoices: any[] = [];
       cRows?.forEach((c, idx) => {
         for (let i = 0; i < 2; i++) {
           const status = i === 1 && idx === 0 ? "draft" : "posted";
-          const date = new Date(); date.setDate(date.getDate() - (idx * 6 + i * 4));
+          const date = new Date();
+          date.setDate(date.getDate() - (idx * 6 + i * 4));
           const sub = 50000 + Math.round(Math.random() * 150000);
           invoices.push({
             user_id: user.id,
             business_id: activeBusiness.id,
             client_id: c.id,
             invoice_number: `INV-${2000 + invoices.length}`,
-            status, issue_date: date.toISOString().slice(0, 10),
-            subtotal: sub, tax: 0, total: sub,
+            status,
+            issue_date: date.toISOString().slice(0, 10),
+            subtotal: sub,
+            tax: 0,
+            total: sub,
             doc_template: "classic",
             posted_at: status === "posted" ? date.toISOString() : null,
           });
@@ -489,8 +601,12 @@ function SettingsPage() {
       const items: any[] = [];
       invRows?.forEach((inv) => {
         items.push({
-          invoice_id: inv.id, description: "Raw material supply (per delivery note)",
-          quantity: 1, unit_price: inv.total, line_total: inv.total, sort_order: 0,
+          invoice_id: inv.id,
+          description: "Raw material supply (per delivery note)",
+          quantity: 1,
+          unit_price: inv.total,
+          line_total: inv.total,
+          sort_order: 0,
         });
       });
       await supabase.from("invoice_items").insert(items);
@@ -498,7 +614,8 @@ function SettingsPage() {
       const cpays: any[] = [];
       cRows?.forEach((c, idx) => {
         for (let w = 0; w < 4; w++) {
-          const date = new Date(); date.setDate(date.getDate() - (w * 7 + (idx % 3)));
+          const date = new Date();
+          date.setDate(date.getDate() - (w * 7 + (idx % 3)));
           cpays.push({
             user_id: user.id,
             business_id: activeBusiness.id,
@@ -515,14 +632,18 @@ function SettingsPage() {
       toast.success("Demo data loaded — explore the dashboard!");
     } catch (e: any) {
       toast.error(e.message ?? "Seed failed");
-    } finally { setSeeding(false); }
+    } finally {
+      setSeeding(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Global preferences for currency, theme, and document templates</p>
+        <p className="text-sm text-muted-foreground">
+          Global preferences for currency, theme, and document templates
+        </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -538,7 +659,9 @@ function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Currency</CardTitle>
-              <CardDescription>Applies to the active business's dashboard, invoices, GRNs, and payments</CardDescription>
+              <CardDescription>
+                Applies to the active business's dashboard, invoices, GRNs, and payments
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <Select
@@ -551,55 +674,109 @@ function SettingsPage() {
                   }
                 }}
               >
-                <SelectTrigger className="max-w-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="max-w-sm">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {(Object.keys(CURRENCY_LABELS) as CurrencyCode[]).map((c) => <SelectItem key={c} value={c}>{CURRENCY_LABELS[c]}</SelectItem>)}
+                  {(Object.keys(CURRENCY_LABELS) as CurrencyCode[]).map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CURRENCY_LABELS[c]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle>Theme</CardTitle><CardDescription>High-contrast is optimised for bright sunlight. Lavender, Maroon and Green use elegant gradients.</CardDescription></CardHeader>
+            <CardHeader>
+              <CardTitle>Theme</CardTitle>
+              <CardDescription>
+                High-contrast is optimised for bright sunlight. Lavender, Maroon and Green use
+                elegant gradients.
+              </CardDescription>
+            </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {(["light", "dark", "contrast", "lavender", "maroon", "green"] as UiTheme[]).map((t) => {
-                const label = t === "contrast" ? "High Contrast" : t.charAt(0).toUpperCase() + t.slice(1);
-                const desc =
-                  t === "light" ? "Clean & bright" :
-                  t === "dark" ? "Easy on eyes" :
-                  t === "contrast" ? "Outdoor / sunlight" :
-                  t === "lavender" ? "Indigo, teal & coral" :
-                  t === "maroon" ? "Burgundy & warm gold" :
-                  "Forest, sage & mint";
-                const swatch =
-                  t === "lavender" ? "linear-gradient(90deg, #6366f1, #06b6d4, #f97316, #ec4899)" :
-                  t === "maroon" ? "linear-gradient(90deg, #6b1f2e, #9a3645, #c9a14a, #f5ecd6)" :
-                  t === "green" ? "linear-gradient(90deg, #1f4d36, #3a7d57, #8fbf9f, #e6f0e2)" :
-                  null;
-                return (
-                  <button key={t} onClick={() => updateSettings({ theme: t })} className={`rounded-md border p-4 text-left transition-colors cursor-pointer ${settings.theme === t ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
-                    <div className="font-medium">{label}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{desc}</div>
-                    {swatch && <div className="mt-2 h-6 rounded" style={{ background: swatch }} />}
-                  </button>
-                );
-              })}
+              {(["light", "dark", "contrast", "lavender", "maroon", "green"] as UiTheme[]).map(
+                (t) => {
+                  const label =
+                    t === "contrast" ? "High Contrast" : t.charAt(0).toUpperCase() + t.slice(1);
+                  const desc =
+                    t === "light"
+                      ? "Clean & bright"
+                      : t === "dark"
+                        ? "Easy on eyes"
+                        : t === "contrast"
+                          ? "Outdoor / sunlight"
+                          : t === "lavender"
+                            ? "Indigo, teal & coral"
+                            : t === "maroon"
+                              ? "Burgundy & warm gold"
+                              : "Forest, sage & mint";
+                  const swatch =
+                    t === "lavender"
+                      ? "linear-gradient(90deg, #6366f1, #06b6d4, #f97316, #ec4899)"
+                      : t === "maroon"
+                        ? "linear-gradient(90deg, #6b1f2e, #9a3645, #c9a14a, #f5ecd6)"
+                        : t === "green"
+                          ? "linear-gradient(90deg, #1f4d36, #3a7d57, #8fbf9f, #e6f0e2)"
+                          : null;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => updateSettings({ theme: t })}
+                      className={`rounded-md border p-4 text-left transition-colors cursor-pointer ${settings.theme === t ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}
+                    >
+                      <div className="font-medium">{label}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+                      {swatch && (
+                        <div className="mt-2 h-6 rounded" style={{ background: swatch }} />
+                      )}
+                    </button>
+                  );
+                },
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="documents">
           <Card>
-            <CardHeader><CardTitle>Default document template</CardTitle><CardDescription>Choose the default layout for invoices and GRNs. You can override per document.</CardDescription></CardHeader>
+            <CardHeader>
+              <CardTitle>Default document template</CardTitle>
+              <CardDescription>
+                Choose the default layout for invoices and GRNs. You can override per document.
+              </CardDescription>
+            </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {TEMPLATES.map((t) => (
-                <button key={t.id} onClick={() => updateSettings({ default_doc_template: t.id })} className={`rounded-md border p-4 text-left transition-colors cursor-pointer ${settings.default_doc_template === t.id ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}>
+                <button
+                  key={t.id}
+                  onClick={() => updateSettings({ default_doc_template: t.id })}
+                  className={`rounded-md border p-4 text-left transition-colors cursor-pointer ${settings.default_doc_template === t.id ? "border-primary ring-2 ring-primary/30" : "hover:bg-muted/30"}`}
+                >
                   <div className="font-medium">{t.name}</div>
                   <div className="mt-1 text-xs text-muted-foreground">{t.desc}</div>
                   <div className="mt-3 h-16 rounded border bg-muted/40 px-2 py-1 text-[8px] leading-tight overflow-hidden">
-                    {t.id === "acelog" && <div className="text-right text-xs font-light">Invoice <span className="text-[#4a90c2]">INV-0001</span></div>}
-                    {t.id === "classic" && <div className="border-b-2 border-current pb-1 mb-1 font-serif font-bold">INVOICE</div>}
-                    {t.id === "modern" && <div className="bg-[#1e3a8a] text-white p-1 mb-1 text-[10px] font-bold text-center rounded">INVOICE</div>}
-                    {t.id === "compact" && <div className="border-l-2 border-black pl-1 mb-1 text-[10px] font-bold">INVOICE</div>}
+                    {t.id === "acelog" && (
+                      <div className="text-right text-xs font-light">
+                        Invoice <span className="text-[#4a90c2]">INV-0001</span>
+                      </div>
+                    )}
+                    {t.id === "classic" && (
+                      <div className="border-b-2 border-current pb-1 mb-1 font-serif font-bold">
+                        INVOICE
+                      </div>
+                    )}
+                    {t.id === "modern" && (
+                      <div className="bg-[#1e3a8a] text-white p-1 mb-1 text-[10px] font-bold text-center rounded">
+                        INVOICE
+                      </div>
+                    )}
+                    {t.id === "compact" && (
+                      <div className="border-l-2 border-black pl-1 mb-1 text-[10px] font-bold">
+                        INVOICE
+                      </div>
+                    )}
                     <div>Line · Line · Line</div>
                     <div>Line · Line · Line</div>
                   </div>
@@ -613,12 +790,18 @@ function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Company Logo</CardTitle>
-              <CardDescription>Shown on invoices, GRNs, and in the app switcher. PNG / JPG / SVG, up to 2 MB.</CardDescription>
+              <CardDescription>
+                Shown on invoices, GRNs, and in the app switcher. PNG / JPG / SVG, up to 2 MB.
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center gap-4">
               <div className="flex h-24 w-24 items-center justify-center rounded-md border bg-muted/30">
                 {activeBusiness?.logo_url ? (
-                  <img src={activeBusiness.logo_url} alt="Company logo" className="max-h-full max-w-full object-contain" />
+                  <img
+                    src={activeBusiness.logo_url}
+                    alt="Company logo"
+                    className="max-h-full max-w-full object-contain"
+                  />
                 ) : (
                   <span className="text-xs text-muted-foreground">No logo</span>
                 )}
@@ -629,13 +812,24 @@ function SettingsPage() {
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/svg+xml"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); }}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadLogo(f);
+                  }}
                 />
                 <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  <Upload className="mr-2 h-4 w-4" />{uploading ? "Uploading…" : activeBusiness?.logo_url ? "Replace logo" : "Upload logo"}
+                  <Upload className="mr-2 h-4 w-4" />
+                  {uploading
+                    ? "Uploading…"
+                    : activeBusiness?.logo_url
+                      ? "Replace logo"
+                      : "Upload logo"}
                 </Button>
                 {activeBusiness?.logo_url && (
-                  <Button variant="outline" onClick={removeLogo}><Trash2 className="mr-2 h-4 w-4" />Remove</Button>
+                  <Button variant="outline" onClick={removeLogo}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Remove
+                  </Button>
                 )}
               </div>
             </CardContent>
@@ -644,23 +838,46 @@ function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Business Details — {activeBusiness?.name}</CardTitle>
-              <CardDescription>Shown on generated invoices and GRNs, except confidential fields.</CardDescription>
+              <CardDescription>
+                Shown on generated invoices and GRNs, except confidential fields.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 max-w-xl">
-              <div><Label>Business Name</Label><Input value={bizName} onChange={(e) => setBizName(e.target.value)} /></div>
-              <div><Label>Address</Label><Textarea value={bizAddr} onChange={(e) => setBizAddr(e.target.value)} /></div>
-              <div><Label>Phone</Label><Input value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} /></div>
-              
+              <div>
+                <Label>Business Name</Label>
+                <Input value={bizName} onChange={(e) => setBizName(e.target.value)} />
+              </div>
+              <div>
+                <Label>Address</Label>
+                <Textarea value={bizAddr} onChange={(e) => setBizAddr(e.target.value)} />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input value={bizPhone} onChange={(e) => setBizPhone(e.target.value)} />
+              </div>
+
               <div className="border-t pt-4 mt-4 space-y-3">
-                <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-500">Confidential Information</h3>
-                <p className="text-xs text-muted-foreground">These fields are stored securely but are NEVER rendered on invoices or GRNs.</p>
+                <h3 className="text-sm font-semibold text-amber-600 dark:text-amber-500">
+                  Confidential Information
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  These fields are stored securely but are NEVER rendered on invoices or GRNs.
+                </p>
                 <div>
                   <Label>Company Owner Name</Label>
-                  <Input value={ownerName} placeholder="e.g. Mansoor Shahzad" onChange={(e) => setOwnerName(e.target.value)} />
+                  <Input
+                    value={ownerName}
+                    placeholder="e.g. Mansoor Shahzad"
+                    onChange={(e) => setOwnerName(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label>Business Code / Reference Number</Label>
-                  <Input value={bizCode} placeholder="e.g. BC-12345" onChange={(e) => setBizCode(e.target.value)} />
+                  <Input
+                    value={bizCode}
+                    placeholder="e.g. BC-12345"
+                    onChange={(e) => setBizCode(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -674,7 +891,10 @@ function SettingsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <div>
                 <CardTitle>Manage Businesses ({businesses.length} of 10)</CardTitle>
-                <CardDescription className="mt-1">View, switch, or delete businesses. Deleting a business will delete all associated transactions cascadingly.</CardDescription>
+                <CardDescription className="mt-1">
+                  View, switch, or delete businesses. Deleting a business will delete all associated
+                  transactions cascadingly.
+                </CardDescription>
               </div>
               <Button
                 size="sm"
@@ -697,15 +917,25 @@ function SettingsPage() {
                       <div>
                         <div className="font-semibold flex items-center gap-2">
                           {biz.name}
-                          {isActive && <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] text-primary">Active</span>}
+                          {isActive && (
+                            <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+                              Active
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          Currency: {biz.currency} {biz.owner_name ? `| Owner: ${biz.owner_name}` : ""} {biz.business_code ? `| Code: ${biz.business_code}` : ""}
+                          Currency: {biz.currency}{" "}
+                          {biz.owner_name ? `| Owner: ${biz.owner_name}` : ""}{" "}
+                          {biz.business_code ? `| Code: ${biz.business_code}` : ""}
                         </div>
                       </div>
                       <div className="flex gap-2">
                         {!isActive && (
-                          <Button variant="outline" size="sm" onClick={() => setActiveBusinessId(biz.id)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setActiveBusinessId(biz.id)}
+                          >
                             Switch
                           </Button>
                         )}
@@ -714,7 +944,11 @@ function SettingsPage() {
                           size="icon"
                           disabled={businesses.length <= 1}
                           onClick={() => {
-                            if (confirm(`Are you sure you want to delete "${biz.name}" and all its invoices, payments, GRNs, inventory, and materials? This action cannot be undone.`)) {
+                            if (
+                              confirm(
+                                `Are you sure you want to delete "${biz.name}" and all its invoices, payments, GRNs, inventory, and materials? This action cannot be undone.`,
+                              )
+                            ) {
                               deleteBusiness(biz.id)
                                 .then(() => toast.success("Business deleted"))
                                 .catch((err) => toast.error(err.message || "Failed to delete"));
@@ -735,9 +969,17 @@ function SettingsPage() {
 
         <TabsContent value="demo">
           <Card>
-            <CardHeader><CardTitle>Load demo data</CardTitle><CardDescription>Adds 4 vendors, 6 clients, products, GRNs, invoices and weekly payments. Skipped if data exists for this business.</CardDescription></CardHeader>
+            <CardHeader>
+              <CardTitle>Load demo data</CardTitle>
+              <CardDescription>
+                Adds 4 vendors, 6 clients, products, GRNs, invoices and weekly payments. Skipped if
+                data exists for this business.
+              </CardDescription>
+            </CardHeader>
             <CardContent>
-              <Button onClick={seedDemo} disabled={seeding}>{seeding ? "Loading…" : "Load demo data"}</Button>
+              <Button onClick={seedDemo} disabled={seeding}>
+                {seeding ? "Loading…" : "Load demo data"}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -748,7 +990,8 @@ function SettingsPage() {
               <CardHeader>
                 <CardTitle>Reset Master Password</CardTitle>
                 <CardDescription>
-                  You are resetting the master password using a secure recovery link. This token is time-sensitive and will expire soon.
+                  You are resetting the master password using a secure recovery link. This token is
+                  time-sensitive and will expire soon.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -797,7 +1040,9 @@ function SettingsPage() {
             <div className="space-y-4 max-w-xl">
               <Card>
                 <CardHeader>
-                  <CardTitle>{isMasterPasswordSet ? "Change Master Password" : "Set Master Password"}</CardTitle>
+                  <CardTitle>
+                    {isMasterPasswordSet ? "Change Master Password" : "Set Master Password"}
+                  </CardTitle>
                   <CardDescription>
                     {isMasterPasswordSet
                       ? "Update the current master password used for privileged operations like deleting audit trail entries."
@@ -851,8 +1096,8 @@ function SettingsPage() {
                           {isSubmitting
                             ? "Saving..."
                             : isMasterPasswordSet
-                            ? "Change Master Password"
-                            : "Set Master Password"}
+                              ? "Change Master Password"
+                              : "Set Master Password"}
                         </Button>
                       </div>
                     </form>
@@ -865,7 +1110,8 @@ function SettingsPage() {
                   <CardHeader>
                     <CardTitle>Master Password Recovery</CardTitle>
                     <CardDescription>
-                      If you've forgotten your master password, you can request a secure recovery email link sent to your registered address.
+                      If you've forgotten your master password, you can request a secure recovery
+                      email link sent to your registered address.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -905,7 +1151,10 @@ function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="biz-currency">Default Currency</Label>
-              <Select value={newBizCurrency} onValueChange={(v) => setNewBizCurrency(v as CurrencyCode)}>
+              <Select
+                value={newBizCurrency}
+                onValueChange={(v) => setNewBizCurrency(v as CurrencyCode)}
+              >
                 <SelectTrigger id="biz-currency">
                   <SelectValue />
                 </SelectTrigger>

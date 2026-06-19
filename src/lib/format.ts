@@ -36,8 +36,11 @@ export const CURRENCY_LABELS: Record<CurrencyCode, string> = {
   CNY: "China – Yuan (¥)",
 };
 
-export function formatMoney(value: number | string | null | undefined, currency: CurrencyCode = "PKR") {
-  const n = typeof value === "string" ? parseFloat(value) : value ?? 0;
+export function formatMoney(
+  value: number | string | null | undefined,
+  currency: CurrencyCode = "PKR",
+) {
+  const n = typeof value === "string" ? parseFloat(value) : (value ?? 0);
   const safe = Number.isFinite(n) ? n : 0;
   const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 2,

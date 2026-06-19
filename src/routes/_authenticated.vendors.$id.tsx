@@ -5,19 +5,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send } from "lucide-react";
 import { renderDocument } from "@/lib/document-templates";
-import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
+import {
+  parseMath,
+  parsePercentageOrMath,
+  formatOnFocus,
+  formatOnBlur,
+  getFormulaPart,
+} from "@/lib/math-parser";
 
 export const Route = createFileRoute("/_authenticated/vendors/$id")({
   component: VendorDetail,
@@ -52,7 +79,14 @@ function VendorDetail() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const qc = useQueryClient();
   const [payOpen, setPayOpen] = useState(false);
-  const [pay, setPay] = useState({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: "" });
+  const [pay, setPay] = useState({
+    amount: "",
+    payment_date: new Date().toISOString().slice(0, 10),
+    method: "bank",
+    reference: "",
+    notes: "",
+    asset_id: "",
+  });
 
   const [editPay, setEditPay] = useState<any | null>(null);
   const [editPayReason, setEditPayReason] = useState("");
@@ -69,6 +103,8 @@ function VendorDetail() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; reason: string } | null>(null);
   const [masterPassword, setMasterPassword] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showGrnHistory, setShowGrnHistory] = useState(false);
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
 
   const { data: bankCashAssets = [] } = useQuery({
     queryKey: ["bank_cash_assets", user?.id, activeBusinessId],
@@ -88,7 +124,7 @@ function VendorDetail() {
 
   useEffect(() => {
     if (bankCashAssets.length > 0 && !pay.asset_id) {
-      setPay(prev => ({ ...prev, asset_id: bankCashAssets[0].id }));
+      setPay((prev) => ({ ...prev, asset_id: bankCashAssets[0].id }));
     }
   }, [bankCashAssets, pay.asset_id]);
 
@@ -102,30 +138,70 @@ function VendorDetail() {
   const { data } = useQuery({
     queryKey: ["vendor", user?.id, id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId || !user) return { v: null, grns: [], pays: [], owed: 0, amends: [], paymentAmends: [] };
+      if (!activeBusinessId || !user)
+        return { v: null, grns: [], pays: [], owed: 0, amends: [], paymentAmends: [] };
       const [vRes, grnsRes, vpayResult, amendsRes] = await Promise.all([
-        supabase.from("vendors").select("*").eq("id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).single(),
-        supabase.from("vendor_grns").select("*").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("grn_date", { ascending: false }),
-        supabase.from("vendor_payments").select("*, assets(name)").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false }),
-        supabase.from("grn_amendments" as any).select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+        supabase
+          .from("vendors")
+          .select("*")
+          .eq("id", id)
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .single(),
+        supabase
+          .from("vendor_grns")
+          .select("*")
+          .eq("vendor_id", id)
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("grn_date", { ascending: false }),
+        supabase
+          .from("vendor_payments")
+          .select("*, assets(name)")
+          .eq("vendor_id", id)
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("payment_date", { ascending: false }),
+        supabase
+          .from("grn_amendments" as any)
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
       ]);
 
       let pays: any[] = vpayResult.data || [];
       if (vpayResult.error && vpayResult.error.code === "42703") {
-        const { data: fallback } = await supabase.from("vendor_payments").select("id, vendor_id, amount, payment_date, method, reference, notes, asset_id, assets(name)").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false });
+        const { data: fallback } = await supabase
+          .from("vendor_payments")
+          .select(
+            "id, vendor_id, amount, payment_date, method, reference, notes, asset_id, assets(name)",
+          )
+          .eq("vendor_id", id)
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id)
+          .order("payment_date", { ascending: false });
         pays = (fallback || []) as any[];
       }
 
       // Fetch vendor_payment_amendments safely (handling missing table error)
-      const vpayAmendsResult = await supabase.from("vendor_payment_amendments" as any).select("*").eq("vendor_id", id).eq("user_id", user.id).order("created_at", { ascending: false });
+      const vpayAmendsResult = await supabase
+        .from("vendor_payment_amendments" as any)
+        .select("*")
+        .eq("vendor_id", id)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       const paymentAmends = (vpayAmendsResult.data || []) as any[];
 
       const v = vRes.data;
       const grns = grnsRes.data || [];
       const amends = (amendsRes.data || []) as any[];
 
-      const grnTotal = (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0);
-      const paid = (pays ?? []).filter((p: any) => (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);
+      const grnTotal = (grns ?? [])
+        .filter((g) => (g.status || "posted") === "posted")
+        .reduce((s, x) => s + Number(x.total_amount), 0);
+      const paid = (pays ?? [])
+        .filter((p: any) => (p.status || "posted") === "posted")
+        .reduce((s, x) => s + Number(x.amount), 0);
       const owed = Number(v?.opening_balance ?? 0) + grnTotal - paid;
 
       return { v, grns: grns as GRN[], pays, owed, amends, paymentAmends };
@@ -144,7 +220,10 @@ function VendorDetail() {
     if (!user || !activeBusinessId) return;
 
     // Check if the database has status column
-    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const { error: checkColError } = await supabase
+      .from("vendor_payments")
+      .select("status")
+      .limit(1);
     const hasStatusCol = !checkColError || checkColError.code !== "42703";
 
     const payload: any = {
@@ -167,9 +246,20 @@ function VendorDetail() {
     const { error } = await supabase.from("vendor_payments").insert(payload);
     if (error) toast.error(error.message);
     else {
-      toast.success(status === "draft" && hasStatusCol ? "Payment logged as Draft" : "Payment posted — balance updated");
+      toast.success(
+        status === "draft" && hasStatusCol
+          ? "Payment logged as Draft"
+          : "Payment posted — balance updated",
+      );
       setPayOpen(false);
-      setPay({ amount: "", payment_date: new Date().toISOString().slice(0, 10), method: "bank", reference: "", notes: "", asset_id: bankCashAssets[0]?.id || "" });
+      setPay({
+        amount: "",
+        payment_date: new Date().toISOString().slice(0, 10),
+        method: "bank",
+        reference: "",
+        notes: "",
+        asset_id: bankCashAssets[0]?.id || "",
+      });
       qc.invalidateQueries({ queryKey: ["vendor", id] });
       qc.invalidateQueries({ queryKey: ["vendors"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -202,7 +292,10 @@ function VendorDetail() {
       return;
     }
 
-    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const { error: checkColError } = await supabase
+      .from("vendor_payments")
+      .select("status")
+      .limit(1);
     const hasStatusCol = !checkColError || checkColError.code !== "42703";
 
     let error = null;
@@ -250,7 +343,10 @@ function VendorDetail() {
     if (!delPay || !user) return;
     const isPosted = (delPay.status || "posted") === "posted";
 
-    const { error: checkColError } = await supabase.from("vendor_payments").select("status").limit(1);
+    const { error: checkColError } = await supabase
+      .from("vendor_payments")
+      .select("status")
+      .limit(1);
     const hasStatusCol = !checkColError || checkColError.code !== "42703";
 
     if (isPosted && hasStatusCol) {
@@ -258,7 +354,7 @@ function VendorDetail() {
         toast.error("Reason must be at least 5 characters");
         return;
       }
-      
+
       const { error: amendError } = await supabase.from("vendor_payment_amendments" as any).insert({
         user_id: user.id,
         payment_id: delPay.id,
@@ -274,7 +370,11 @@ function VendorDetail() {
       }
     }
 
-    const { error: deleteError } = await supabase.from("vendor_payments").delete().eq("id", delPay.id).eq("user_id", user.id);
+    const { error: deleteError } = await supabase
+      .from("vendor_payments")
+      .delete()
+      .eq("id", delPay.id)
+      .eq("user_id", user.id);
     if (deleteError) {
       toast.error("Failed to delete payment: " + deleteError.message);
     } else {
@@ -289,10 +389,14 @@ function VendorDetail() {
 
   const postPaymentDirect = async (p: any) => {
     if (!user) return;
-    const { error } = await supabase.from("vendor_payments").update({
-      status: "posted",
-      posted_at: new Date().toISOString()
-    } as any).eq("id", p.id).eq("user_id", user.id);
+    const { error } = await supabase
+      .from("vendor_payments")
+      .update({
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      } as any)
+      .eq("id", p.id)
+      .eq("user_id", user.id);
     if (error) {
       toast.error(error.message);
     } else {
@@ -345,13 +449,29 @@ function VendorDetail() {
   const openEdit = (g: GRN) => {
     setEditGrn(g);
     setEditForm({
-      grn_number: g.grn_number, grn_date: g.grn_date, material: g.material,
+      grn_number: g.grn_number,
+      grn_date: g.grn_date,
+      material: g.material,
       quantity: g.quantity_formula ? `${g.quantity_formula} = ${g.quantity}` : String(g.quantity),
       unit: g.unit,
-      unit_price: g.unit_price_formula ? `${g.unit_price_formula} = ${g.unit_price}` : String(g.unit_price),
-      discount: g.discount_formula ? (g.discount_formula.endsWith("%") ? g.discount_formula : `${g.discount_formula} = ${g.discount}`) : String(g.discount ?? 0),
-      tax: g.tax_formula ? (g.tax_formula.endsWith("%") ? g.tax_formula : `${g.tax_formula} = ${g.tax}`) : String(g.tax ?? 0),
-      shipping: g.shipping_formula ? (g.shipping_formula.endsWith("%") ? g.shipping_formula : `${g.shipping_formula} = ${g.shipping}`) : String(g.shipping ?? 0),
+      unit_price: g.unit_price_formula
+        ? `${g.unit_price_formula} = ${g.unit_price}`
+        : String(g.unit_price),
+      discount: g.discount_formula
+        ? g.discount_formula.endsWith("%")
+          ? g.discount_formula
+          : `${g.discount_formula} = ${g.discount}`
+        : String(g.discount ?? 0),
+      tax: g.tax_formula
+        ? g.tax_formula.endsWith("%")
+          ? g.tax_formula
+          : `${g.tax_formula} = ${g.tax}`
+        : String(g.tax ?? 0),
+      shipping: g.shipping_formula
+        ? g.shipping_formula.endsWith("%")
+          ? g.shipping_formula
+          : `${g.shipping_formula} = ${g.shipping}`
+        : String(g.shipping ?? 0),
       notes: g.notes ?? "",
     });
     setEditReason("");
@@ -360,7 +480,10 @@ function VendorDetail() {
   const saveEdit = async () => {
     if (!editGrn || !user || !editForm) return;
     const targetNum = editForm.grn_number.trim();
-    if (!targetNum) { toast.error("GRN number cannot be empty"); return; }
+    if (!targetNum) {
+      toast.error("GRN number cannot be empty");
+      return;
+    }
 
     // Validate uniqueness of grn_number within activeBusinessId
     const { data: existing, error: checkError } = await supabase
@@ -369,7 +492,7 @@ function VendorDetail() {
       .eq("business_id", editGrn.business_id)
       .eq("grn_number", targetNum)
       .neq("id", editGrn.id);
-      
+
     if (checkError) {
       toast.error("Error checking GRN uniqueness: " + checkError.message);
       return;
@@ -388,22 +511,41 @@ function VendorDetail() {
     const newTotal = subtotal - discount + tax + shipping;
     const isPosted = (editGrn.status || "posted") === "posted";
     if (isPosted) {
-      if (editReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+      if (editReason.trim().length < 5) {
+        toast.error("Reason must be at least 5 characters");
+        return;
+      }
       await supabase.from("grn_amendments" as any).insert({
-        user_id: user.id, grn_id: editGrn.id, reason: editReason.trim(),
-        previous_total: editGrn.total_amount, new_total: newTotal, action: "edit",
+        user_id: user.id,
+        grn_id: editGrn.id,
+        reason: editReason.trim(),
+        previous_total: editGrn.total_amount,
+        new_total: newTotal,
+        action: "edit",
       });
     }
-    await supabase.from("vendor_grns").update({
-      grn_number: targetNum, grn_date: editForm.grn_date,
-      material: editForm.material, quantity: qty, unit: editForm.unit,
-      unit_price: price, discount: discount, tax: tax, shipping: shipping, total_amount: newTotal, notes: editForm.notes || null,
-      quantity_formula: getFormulaPart(editForm.quantity),
-      unit_price_formula: getFormulaPart(editForm.unit_price),
-      discount_formula: getFormulaPart(editForm.discount),
-      tax_formula: getFormulaPart(editForm.tax),
-      shipping_formula: getFormulaPart(editForm.shipping),
-    } as any).eq("id", editGrn.id).eq("user_id", user.id);
+    await supabase
+      .from("vendor_grns")
+      .update({
+        grn_number: targetNum,
+        grn_date: editForm.grn_date,
+        material: editForm.material,
+        quantity: qty,
+        unit: editForm.unit,
+        unit_price: price,
+        discount: discount,
+        tax: tax,
+        shipping: shipping,
+        total_amount: newTotal,
+        notes: editForm.notes || null,
+        quantity_formula: getFormulaPart(editForm.quantity),
+        unit_price_formula: getFormulaPart(editForm.unit_price),
+        discount_formula: getFormulaPart(editForm.discount),
+        tax_formula: getFormulaPart(editForm.tax),
+        shipping_formula: getFormulaPart(editForm.shipping),
+      } as any)
+      .eq("id", editGrn.id)
+      .eq("user_id", user.id);
     toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
     setEditReason("");
@@ -414,26 +556,38 @@ function VendorDetail() {
   const confirmDelete = async () => {
     if (!deleteGrn || !user) return;
     const isPosted = (deleteGrn.status || "posted") === "posted";
-    if (isPosted && deleteReason.trim().length < 5) { toast.error("Reason must be at least 5 characters"); return; }
+    if (isPosted && deleteReason.trim().length < 5) {
+      toast.error("Reason must be at least 5 characters");
+      return;
+    }
     if (isPosted) {
       await supabase.from("grn_amendments" as any).insert({
-        user_id: user.id, grn_id: deleteGrn.id, reason: `[DELETED] ${deleteReason.trim()}`,
-        previous_total: deleteGrn.total_amount, new_total: 0, action: "delete",
+        user_id: user.id,
+        grn_id: deleteGrn.id,
+        reason: `[DELETED] ${deleteReason.trim()}`,
+        previous_total: deleteGrn.total_amount,
+        new_total: 0,
+        action: "delete",
       });
     }
     await supabase.from("vendor_grns").delete().eq("id", deleteGrn.id).eq("user_id", user.id);
     toast.success("GRN deleted");
-    setDeleteGrn(null); setDeleteReason("");
+    setDeleteGrn(null);
+    setDeleteReason("");
     qc.invalidateQueries({ queryKey: ["vendor", id] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
   };
 
   const postGrnDirect = async (grn: GRN) => {
     if (!user) return;
-    const { error } = await supabase.from("vendor_grns").update({
-      status: "posted",
-      posted_at: new Date().toISOString()
-    } as any).eq("id", grn.id).eq("user_id", user.id);
+    const { error } = await supabase
+      .from("vendor_grns")
+      .update({
+        status: "posted",
+        posted_at: new Date().toISOString(),
+      } as any)
+      .eq("id", grn.id)
+      .eq("user_id", user.id);
     if (error) {
       toast.error(error.message);
     } else {
@@ -457,10 +611,33 @@ function VendorDetail() {
       number: grn.grn_number,
       date: grn.grn_date,
       currency: settings.currency,
-      business: { name: settings.business_name, address: settings.business_address, phone: settings.business_phone, logo_url: settings.business_logo_url },
-      counterparty: { label: "Received From", name: data?.v?.name, address: data?.v?.address, phone: data?.v?.phone },
-      items: [{ description: grn.material, quantity: displayQty, unit_price: displayUnitPrice, line_total: grn.quantity * grn.unit_price, unit: grn.unit }],
-      subtotal: grn.quantity * grn.unit_price, tax: grn.tax || 0, shipping: grn.shipping || 0, discount: grn.discount, total: grn.total_amount, notes: grn.notes,
+      business: {
+        name: settings.business_name,
+        address: settings.business_address,
+        phone: settings.business_phone,
+        logo_url: settings.business_logo_url,
+      },
+      counterparty: {
+        label: "Received From",
+        name: data?.v?.name,
+        address: data?.v?.address,
+        phone: data?.v?.phone,
+      },
+      items: [
+        {
+          description: grn.material,
+          quantity: displayQty,
+          unit_price: displayUnitPrice,
+          line_total: grn.quantity * grn.unit_price,
+          unit: grn.unit,
+        },
+      ],
+      subtotal: grn.quantity * grn.unit_price,
+      tax: grn.tax || 0,
+      shipping: grn.shipping || 0,
+      discount: grn.discount,
+      total: grn.total_amount,
+      notes: grn.notes,
       showBalanceDue: false,
     });
   };
@@ -469,15 +646,24 @@ function VendorDetail() {
   return (
     <div className="space-y-6">
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2"><Link to="/vendors"><ArrowLeft className="mr-1 h-4 w-4" />Vendors</Link></Button>
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link to="/vendors">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Vendors
+          </Link>
+        </Button>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{data.v.name}</h1>
-            <p className="text-sm text-muted-foreground">{data.v.phone ?? ""} {data.v.email ? ` · ${data.v.email}` : ""}</p>
+            <p className="text-sm text-muted-foreground">
+              {data.v.phone ?? ""} {data.v.email ? ` · ${data.v.email}` : ""}
+            </p>
           </div>
           <div className="flex items-center gap-3 rounded-md border bg-muted/30 px-4 py-2">
             <span className="text-xs uppercase tracking-wide text-muted-foreground">We owe</span>
-            <span className="figure text-xl font-semibold text-destructive">{formatMoney(data.owed, settings.currency)}</span>
+            <span className="figure text-xl font-semibold text-destructive">
+              {formatMoney(data.owed, settings.currency)}
+            </span>
           </div>
         </div>
       </div>
@@ -485,36 +671,113 @@ function VendorDetail() {
       <div className="grid gap-6 lg:grid-cols-2 min-w-0 w-full">
         <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div><CardTitle>Goods Received (GRNs)</CardTitle><CardDescription>Material logged from this vendor</CardDescription></div>
-            <Button asChild size="sm" className={isReadOnly ? "pointer-events-none opacity-50" : ""}><Link to="/vendors/grn/new"><Plus className="mr-1 h-4 w-4" />New GRN</Link></Button>
+            <div>
+              <CardTitle>Goods Received (GRNs)</CardTitle>
+              <CardDescription>Material logged from this vendor</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {vendorAmends.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowGrnHistory(!showGrnHistory)}
+                >
+                  <History className="h-4 w-4 mr-1.5" />
+                  {showGrnHistory ? "Hide History" : "View History"}
+                </Button>
+              )}
+              <Button
+                asChild
+                size="sm"
+                className={isReadOnly ? "pointer-events-none opacity-50" : ""}
+              >
+                <Link to="/vendors/grn/new">
+                  <Plus className="mr-1 h-4 w-4" />
+                  New GRN
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>GRN #</TableHead><TableHead>Material</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead><TableHead className="w-36 text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>GRN #</TableHead>
+                    <TableHead>Material</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="w-36 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {data.grns.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No GRNs yet</TableCell></TableRow>}
+                  {data.grns.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
+                        No GRNs yet
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {data.grns.map((g) => (
                     <TableRow key={g.id}>
                       <TableCell className="tabular">{formatDate(g.grn_date)}</TableCell>
                       <TableCell className="font-mono text-xs">{g.grn_number}</TableCell>
                       <TableCell>{g.material}</TableCell>
                       <TableCell>
-                        <Badge variant={(g.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">
+                        <Badge
+                          variant={(g.status || "posted") === "posted" ? "default" : "secondary"}
+                          className="capitalize"
+                        >
                           {g.status || "posted"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right figure">{formatMoney(g.total_amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(g.total_amount, settings.currency)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {(g.status || "posted") === "draft" && (
-                            <Button size="icon" variant="ghost" onClick={() => postGrnDirect(g)} disabled={isReadOnly} title="Post GRN" className="text-primary hover:text-primary hover:bg-primary/10">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => postGrnDirect(g)}
+                              disabled={isReadOnly}
+                              title="Post GRN"
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                            >
                               <Send className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => printGrn(g)} title="Print"><Printer className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(g)} disabled={isReadOnly} title="Edit"><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => { setDeleteGrn(g); setDeleteReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-4 w-4" /></Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => printGrn(g)}
+                            title="Print"
+                          >
+                            <Printer className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openEdit(g)}
+                            disabled={isReadOnly}
+                            title="Edit"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setDeleteGrn(g);
+                              setDeleteReason("");
+                            }}
+                            disabled={isReadOnly}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -527,49 +790,123 @@ function VendorDetail() {
 
         <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div><CardTitle>Payments to vendor</CardTitle><CardDescription>Money we have paid them — drafts can be updated/deleted freely</CardDescription></div>
-            <Dialog open={payOpen} onOpenChange={setPayOpen}>
-              <DialogTrigger asChild><Button size="sm" disabled={isReadOnly}><Plus className="mr-1 h-4 w-4" />Log Payment</Button></DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Log Payment to {data.v.name}</DialogTitle></DialogHeader>
-                <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
-                   <Field label="Amount"><FormattedInput mode="currency" required rawValue={pay.amount} onRawChange={(raw) => setPay({ ...pay, amount: raw })} placeholder="0.00" autoFocus /></Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Date"><Input type="date" required value={pay.payment_date} onChange={(e) => setPay({ ...pay, payment_date: e.target.value })} /></Field>
-                    <Field label="Method">
-                      <Select value={pay.method} onValueChange={(v) => setPay({ ...pay, method: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+            <div>
+              <CardTitle>Payments to vendor</CardTitle>
+              <CardDescription>
+                Money we have paid them — drafts can be updated/deleted freely
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              {data.paymentAmends && data.paymentAmends.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+                >
+                  <History className="h-4 w-4 mr-1.5" />
+                  {showPaymentHistory ? "Hide History" : "View History"}
+                </Button>
+              )}
+              <Dialog open={payOpen} onOpenChange={setPayOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" disabled={isReadOnly}>
+                    <Plus className="mr-1 h-4 w-4" />
+                    Log Payment
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Log Payment to {data.v.name}</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                    <Field label="Amount">
+                      <FormattedInput
+                        mode="currency"
+                        required
+                        rawValue={pay.amount}
+                        onRawChange={(raw) => setPay({ ...pay, amount: raw })}
+                        placeholder="0.00"
+                        autoFocus
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Date">
+                        <Input
+                          type="date"
+                          required
+                          value={pay.payment_date}
+                          onChange={(e) => setPay({ ...pay, payment_date: e.target.value })}
+                        />
+                      </Field>
+                      <Field label="Method">
+                        <Select
+                          value={pay.method}
+                          onValueChange={(v) => setPay({ ...pay, method: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="cash">Cash</SelectItem>
+                            <SelectItem value="bank">Bank transfer</SelectItem>
+                            <SelectItem value="cheque">Cheque</SelectItem>
+                            <SelectItem value="mobile">Mobile / wallet</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    </div>
+                    <Field label="Withdrawal Account">
+                      <Select
+                        value={pay.asset_id}
+                        onValueChange={(v) => setPay({ ...pay, asset_id: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="bank">Bank transfer</SelectItem>
-                          <SelectItem value="cheque">Cheque</SelectItem>
-                          <SelectItem value="mobile">Mobile / wallet</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          {bankCashAssets.map((asset) => (
+                            <SelectItem key={asset.id} value={asset.id}>
+                              {asset.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </Field>
-                  </div>
-                  <Field label="Withdrawal Account">
-                    <Select value={pay.asset_id} onValueChange={(v) => setPay({ ...pay, asset_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
-                      <SelectContent>
-                        {bankCashAssets.map((asset) => (
-                          <SelectItem key={asset.id} value={asset.id}>
-                            {asset.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Reference"><Input value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} placeholder="Cheque # / Txn ID" /></Field>
-                  <Field label="Notes"><Textarea value={pay.notes} onChange={(e) => setPay({ ...pay, notes: e.target.value })} /></Field>
-                  <DialogFooter className="flex gap-2 justify-end">
-                    <Button type="button" variant="secondary" onClick={() => logPayment("draft")} disabled={isReadOnly}>Save as Draft</Button>
-                    <Button type="button" onClick={() => logPayment("posted")} disabled={isReadOnly}>Post Payment</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+                    <Field label="Reference">
+                      <Input
+                        value={pay.reference}
+                        onChange={(e) => setPay({ ...pay, reference: e.target.value })}
+                        placeholder="Cheque # / Txn ID"
+                      />
+                    </Field>
+                    <Field label="Notes">
+                      <Textarea
+                        value={pay.notes}
+                        onChange={(e) => setPay({ ...pay, notes: e.target.value })}
+                      />
+                    </Field>
+                    <DialogFooter className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => logPayment("draft")}
+                        disabled={isReadOnly}
+                      >
+                        Save as Draft
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => logPayment("posted")}
+                        disabled={isReadOnly}
+                      >
+                        Post Payment
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
@@ -586,28 +923,73 @@ function VendorDetail() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.pays.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No payments yet</TableCell></TableRow>}
+                  {data.pays.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                        No payments yet
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {data.pays.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="tabular">{formatDate(p.payment_date)}</TableCell>
-                      <TableCell><Badge variant="secondary" className="capitalize">{p.method}</Badge></TableCell>
-                      <TableCell className="text-sm font-medium text-muted-foreground">{p.assets?.name ?? "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{p.reference ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant={(p.status || "posted") === "posted" ? "default" : "secondary"} className="capitalize">
+                        <Badge variant="secondary" className="capitalize">
+                          {p.method}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium text-muted-foreground">
+                        {p.assets?.name ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {p.reference ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={(p.status || "posted") === "posted" ? "default" : "secondary"}
+                          className="capitalize"
+                        >
                           {p.status || "posted"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right figure text-success">{formatMoney(p.amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right figure text-success">
+                        {formatMoney(p.amount, settings.currency)}
+                      </TableCell>
                       <TableCell className="text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           {(p.status || "posted") === "draft" && (
-                            <Button size="icon" variant="ghost" onClick={() => postPaymentDirect(p)} disabled={isReadOnly} title="Post Payment" className="text-primary hover:text-primary hover:bg-primary/10">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => postPaymentDirect(p)}
+                              disabled={isReadOnly}
+                              title="Post Payment"
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                            >
                               <Send className="h-4 w-4" />
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => openEditPay(p)} disabled={isReadOnly} title="Edit / Amend"><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => { setDelPay(p); setDelReason(""); }} disabled={isReadOnly} title="Delete"><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => openEditPay(p)}
+                            disabled={isReadOnly}
+                            title="Edit / Amend"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setDelPay(p);
+                              setDelReason("");
+                            }}
+                            disabled={isReadOnly}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -619,21 +1001,43 @@ function VendorDetail() {
         </Card>
       </div>
 
-      {vendorAmends.length > 0 && (
-        <Card className="min-w-0">
-          <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-4 w-4" />GRN Amendments</CardTitle><CardDescription>Edits and deletions of posted GRNs</CardDescription></CardHeader>
+      {vendorAmends.length > 0 && showGrnHistory && (
+        <Card className="min-w-0 animate-in fade-in slide-in-from-top-4 duration-300">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              GRN Amendments
+            </CardTitle>
+            <CardDescription>Edits and deletions of posted GRNs</CardDescription>
+          </CardHeader>
           <CardContent>
             <div className="overflow-auto rounded-md border">
               <Table>
-                <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Action</TableHead><TableHead>Reason</TableHead><TableHead className="text-right">Was</TableHead><TableHead className="text-right">Became</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="text-right">Was</TableHead>
+                    <TableHead className="text-right">Became</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {vendorAmends.map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="tabular">{formatDate(a.created_at)}</TableCell>
-                      <TableCell><Badge variant={a.action === "delete" ? "destructive" : "secondary"}>{a.action}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={a.action === "delete" ? "destructive" : "secondary"}>
+                          {a.action}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{a.reason}</TableCell>
-                      <TableCell className="text-right figure">{formatMoney(a.previous_total, settings.currency)}</TableCell>
-                      <TableCell className="text-right figure font-medium">{formatMoney(a.new_total, settings.currency)}</TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(a.previous_total, settings.currency)}
+                      </TableCell>
+                      <TableCell className="text-right figure font-medium">
+                        {formatMoney(a.new_total, settings.currency)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -646,22 +1050,44 @@ function VendorDetail() {
       {/* Edit GRN dialog */}
       <Dialog open={!!editGrn} onOpenChange={(o) => !o && setEditGrn(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit GRN {editGrn?.grn_number}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Edit GRN {editGrn?.grn_number}</DialogTitle>
+          </DialogHeader>
           {editForm && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <Field label="GRN #"><Input value={editForm.grn_number} onChange={(e) => setEditForm({ ...editForm, grn_number: e.target.value })} /></Field>
-                <Field label="Date"><Input type="date" value={editForm.grn_date} onChange={(e) => setEditForm({ ...editForm, grn_date: e.target.value })} /></Field>
+                <Field label="GRN #">
+                  <Input
+                    value={editForm.grn_number}
+                    onChange={(e) => setEditForm({ ...editForm, grn_number: e.target.value })}
+                  />
+                </Field>
+                <Field label="Date">
+                  <Input
+                    type="date"
+                    value={editForm.grn_date}
+                    onChange={(e) => setEditForm({ ...editForm, grn_date: e.target.value })}
+                  />
+                </Field>
               </div>
-              <Field label="Material"><Input value={editForm.material} onChange={(e) => setEditForm({ ...editForm, material: e.target.value })} /></Field>
+              <Field label="Material">
+                <Input
+                  value={editForm.material}
+                  onChange={(e) => setEditForm({ ...editForm, material: e.target.value })}
+                />
+              </Field>
               <div className="grid grid-cols-4 gap-3">
                 <Field label="Qty">
                   <Input
                     type="text"
                     value={editForm.quantity}
                     onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                    onFocus={() => setEditForm({ ...editForm, quantity: formatOnFocus(editForm.quantity) })}
-                    onBlur={() => setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) })}
+                    onFocus={() =>
+                      setEditForm({ ...editForm, quantity: formatOnFocus(editForm.quantity) })
+                    }
+                    onBlur={() =>
+                      setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) })
+                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) });
@@ -670,14 +1096,23 @@ function VendorDetail() {
                     }}
                   />
                 </Field>
-                <Field label="Unit"><Input value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })} /></Field>
+                <Field label="Unit">
+                  <Input
+                    value={editForm.unit}
+                    onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                  />
+                </Field>
                 <Field label="Unit price">
                   <Input
                     type="text"
                     value={editForm.unit_price}
                     onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })}
-                    onFocus={() => setEditForm({ ...editForm, unit_price: formatOnFocus(editForm.unit_price) })}
-                    onBlur={() => setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) })}
+                    onFocus={() =>
+                      setEditForm({ ...editForm, unit_price: formatOnFocus(editForm.unit_price) })
+                    }
+                    onBlur={() =>
+                      setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) })
+                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) });
@@ -691,7 +1126,9 @@ function VendorDetail() {
                     type="text"
                     value={editForm.discount}
                     onChange={(e) => setEditForm({ ...editForm, discount: e.target.value })}
-                    onFocus={() => setEditForm({ ...editForm, discount: formatOnFocus(editForm.discount) })}
+                    onFocus={() =>
+                      setEditForm({ ...editForm, discount: formatOnFocus(editForm.discount) })
+                    }
                     onBlur={() => {
                       if (!editForm.discount.trim().endsWith("%")) {
                         setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount) });
@@ -731,7 +1168,9 @@ function VendorDetail() {
                     type="text"
                     value={editForm.shipping}
                     onChange={(e) => setEditForm({ ...editForm, shipping: e.target.value })}
-                    onFocus={() => setEditForm({ ...editForm, shipping: formatOnFocus(editForm.shipping) })}
+                    onFocus={() =>
+                      setEditForm({ ...editForm, shipping: formatOnFocus(editForm.shipping) })
+                    }
                     onBlur={() => {
                       if (!editForm.shipping.trim().endsWith("%")) {
                         setEditForm({ ...editForm, shipping: formatOnBlur(editForm.shipping) });
@@ -746,18 +1185,34 @@ function VendorDetail() {
                   />
                 </Field>
               </div>
-              <Field label="Notes"><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></Field>
+              <Field label="Notes">
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                />
+              </Field>
               {(editGrn?.status || "posted") === "posted" && (
                 <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">Reason for change (required)</Label>
-                  <Textarea value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="e.g. Corrected quantity per weighbridge slip" rows={3} />
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Reason for change (required)
+                  </Label>
+                  <Textarea
+                    value={editReason}
+                    onChange={(e) => setEditReason(e.target.value)}
+                    placeholder="e.g. Corrected quantity per weighbridge slip"
+                    rows={3}
+                  />
                 </div>
               )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditGrn(null)}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={isReadOnly}>Save amendment</Button>
+            <Button variant="outline" onClick={() => setEditGrn(null)}>
+              Cancel
+            </Button>
+            <Button onClick={saveEdit} disabled={isReadOnly}>
+              Save amendment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -778,19 +1233,32 @@ function VendorDetail() {
               : "This will permanently delete this draft GRN."}
           </p>
           {(deleteGrn?.status || "posted") === "posted" && (
-            <Textarea autoFocus value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="Reason for deletion" rows={4} />
+            <Textarea
+              autoFocus
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Reason for deletion"
+              rows={4}
+            />
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteGrn(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={isReadOnly}>Delete GRN</Button>
+            <Button variant="outline" onClick={() => setDeleteGrn(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isReadOnly}>
+              Delete GRN
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {data.paymentAmends && data.paymentAmends.length > 0 && (
-        <Card className="min-w-0">
+      {data.paymentAmends && data.paymentAmends.length > 0 && showPaymentHistory && (
+        <Card className="min-w-0 animate-in fade-in slide-in-from-top-4 duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><History className="h-4 w-4" />Payment amendment history</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Payment amendment history
+            </CardTitle>
             <CardDescription>Audit trail of edits and deletions of posted payments</CardDescription>
           </CardHeader>
           <CardContent>
@@ -810,10 +1278,21 @@ function VendorDetail() {
                   {data.paymentAmends.map((a: any) => (
                     <TableRow key={a.id}>
                       <TableCell className="tabular">{formatDate(a.created_at)}</TableCell>
-                      <TableCell><Badge variant={a.action === "delete" ? "destructive" : "secondary"} className="capitalize">{a.action}</Badge></TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={a.action === "delete" ? "destructive" : "secondary"}
+                          className="capitalize"
+                        >
+                          {a.action}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{a.reason}</TableCell>
-                      <TableCell className="text-right figure">{formatMoney(a.previous_amount, settings.currency)}</TableCell>
-                      <TableCell className="text-right figure font-medium">{formatMoney(a.new_amount, settings.currency)}</TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(a.previous_amount, settings.currency)}
+                      </TableCell>
+                      <TableCell className="text-right figure font-medium">
+                        {formatMoney(a.new_amount, settings.currency)}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -838,7 +1317,13 @@ function VendorDetail() {
       {/* Amend payment dialog */}
       <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{(editPay?.status || "posted") === "posted" ? "Amend Payment to Vendor" : "Edit Payment to Vendor"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {(editPay?.status || "posted") === "posted"
+                ? "Amend Payment to Vendor"
+                : "Edit Payment to Vendor"}
+            </DialogTitle>
+          </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {(editPay?.status || "posted") === "posted"
               ? "A reason is required for the audit trail. The vendor balance will be recalculated."
@@ -846,15 +1331,27 @@ function VendorDetail() {
           </p>
           <div className="space-y-3 py-2">
             <Field label="Amount">
-              <FormattedInput mode="currency" rawValue={editAmount} onRawChange={setEditAmount} placeholder="0.00" />
+              <FormattedInput
+                mode="currency"
+                rawValue={editAmount}
+                onRawChange={setEditAmount}
+                placeholder="0.00"
+              />
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date">
-                <Input type="date" required value={editDate} onChange={(e) => setEditDate(e.target.value)} />
+                <Input
+                  type="date"
+                  required
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                />
               </Field>
               <Field label="Method">
                 <Select value={editMethod} onValueChange={setEditMethod}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
                     <SelectItem value="bank">Bank transfer</SelectItem>
@@ -867,7 +1364,9 @@ function VendorDetail() {
             </div>
             <Field label="Withdrawal Account">
               <Select value={editAssetId} onValueChange={setEditAssetId}>
-                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select account" />
+                </SelectTrigger>
                 <SelectContent>
                   {bankCashAssets.map((asset) => (
                     <SelectItem key={asset.id} value={asset.id}>
@@ -885,13 +1384,23 @@ function VendorDetail() {
             </Field>
             {(editPay?.status || "posted") === "posted" && (
               <Field label="Reason">
-                <Textarea autoFocus rows={3} value={editPayReason} onChange={(e) => setEditPayReason(e.target.value)} placeholder="e.g. Corrected from bank statement" />
+                <Textarea
+                  autoFocus
+                  rows={3}
+                  value={editPayReason}
+                  onChange={(e) => setEditPayReason(e.target.value)}
+                  placeholder="e.g. Corrected from bank statement"
+                />
               </Field>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditPay(null)}>Cancel</Button>
-            <Button onClick={applyEditPay} disabled={isReadOnly}>Confirm changes</Button>
+            <Button variant="outline" onClick={() => setEditPay(null)}>
+              Cancel
+            </Button>
+            <Button onClick={applyEditPay} disabled={isReadOnly}>
+              Confirm changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -899,31 +1408,59 @@ function VendorDetail() {
       {/* Delete payment dialog */}
       <Dialog open={!!delPay} onOpenChange={(v) => !v && setDelPay(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{(delPay?.status || "posted") === "posted" ? "Delete Payment to Vendor?" : "Delete Draft Payment?"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {(delPay?.status || "posted") === "posted"
+                ? "Delete Payment to Vendor?"
+                : "Delete Draft Payment?"}
+            </DialogTitle>
+          </DialogHeader>
           <p className="text-sm text-muted-foreground">
             {(delPay?.status || "posted") === "posted"
               ? "This will remove the payment and add it back to our owed balance. A reason is required."
               : "This will permanently delete this draft payment."}
           </p>
           {(delPay?.status || "posted") === "posted" && (
-            <Field label="Reason"><Textarea autoFocus rows={3} value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="Reason for deletion" /></Field>
+            <Field label="Reason">
+              <Textarea
+                autoFocus
+                rows={3}
+                value={delReason}
+                onChange={(e) => setDelReason(e.target.value)}
+                placeholder="Reason for deletion"
+              />
+            </Field>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDelPay(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>Delete payment</Button>
+            <Button variant="outline" onClick={() => setDelPay(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={applyDeletePay} disabled={isReadOnly}>
+              Delete payment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Privileged Deletion Challenge Modal */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) { setDeleteTarget(null); setMasterPassword(""); } }}>
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setMasterPassword("");
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-destructive flex items-center gap-2">
               <Trash2 className="h-5 w-5" /> Confirm Privileged Deletion
             </DialogTitle>
             <DialogDescription>
-              You are about to delete a payment amendment history entry: <strong>{deleteTarget?.reason}</strong>. This operation requires verification of the Master Password.
+              You are about to delete a payment amendment history entry:{" "}
+              <strong>{deleteTarget?.reason}</strong>. This operation requires verification of the
+              Master Password.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleDeleteConfirm} className="space-y-4">
@@ -962,5 +1499,10 @@ function VendorDetail() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>{children}</div>;
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
 }

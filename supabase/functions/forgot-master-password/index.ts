@@ -27,9 +27,10 @@ serve(async (req) => {
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // 2. Get User from JWT
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
+    const {
+      data: { user },
+      error: userError,
+    } = await supabaseClient.auth.getUser(authHeader.replace("Bearer ", ""));
 
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized user session" }), {
@@ -51,7 +52,7 @@ serve(async (req) => {
     // 3. Generate token via RPC
     const { data: token, error: rpcError } = await supabaseClient.rpc(
       "request_master_password_recovery",
-      { p_user_id: userId }
+      { p_user_id: userId },
     );
 
     if (rpcError || !token) {
@@ -60,7 +61,7 @@ serve(async (req) => {
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -71,7 +72,7 @@ serve(async (req) => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const sendgridApiKey = Deno.env.get("SENDGRID_API_KEY");
     const smtpFrom = Deno.env.get("SMTP_FROM") ?? "noreply@aceledger.top";
-    
+
     const subject = "Reset Master Password — Ace Ledger";
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f4f5f6; margin: 0; padding: 40px 0; color: #1f2937;">
@@ -109,7 +110,7 @@ serve(async (req) => {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${resendApiKey}`,
+          Authorization: `Bearer ${resendApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -125,7 +126,7 @@ serve(async (req) => {
       const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${sendgridApiKey}`,
+          Authorization: `Bearer ${sendgridApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -148,7 +149,7 @@ serve(async (req) => {
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -163,22 +164,26 @@ serve(async (req) => {
         {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     } else {
       return new Response(
-        JSON.stringify({ error: `Failed to deliver email via ${method}. Please check email service logs.` }),
+        JSON.stringify({
+          error: `Failed to deliver email via ${method}. Please check email service logs.`,
+        }),
         {
           status: 502,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        },
       );
     }
-
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message || "An unexpected error occurred" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message || "An unexpected error occurred" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });

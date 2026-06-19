@@ -4,24 +4,66 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Wallet, Landmark, Home, ArrowUpRight, ArrowDownLeft, ReceiptText, ArrowLeftRight, Calendar, Info, RefreshCw, Pencil } from "lucide-react";
+import {
+  Plus,
+  Wallet,
+  Landmark,
+  Home,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ReceiptText,
+  ArrowLeftRight,
+  Calendar,
+  Info,
+  RefreshCw,
+  Pencil,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assets")({
   component: AssetsPage,
   head: () => ({
     meta: [
       { title: "Asset Management — Ace Ledger" },
-      { name: "description", content: "Manage Bank Accounts, Petty Cash, and Property & Equipment in Ace Ledger ERP." },
+      {
+        name: "description",
+        content: "Manage Bank Accounts, Petty Cash, and Property & Equipment in Ace Ledger ERP.",
+      },
     ],
   }),
 });
@@ -64,7 +106,11 @@ function AssetsPage() {
   const [selectedAssetLedger, setSelectedAssetLedger] = useState<Asset | null>(null);
 
   // Query assets
-  const { data: assets = [], isLoading, isSuccess } = useQuery({
+  const {
+    data: assets = [],
+    isLoading,
+    isSuccess,
+  } = useQuery({
     queryKey: ["assets", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return [];
@@ -85,11 +131,24 @@ function AssetsPage() {
     queryKey: ["asset_flows", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
-      
-      const clientPaysPromise = supabase.from("client_payments").select("amount, asset_id").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user.id);
-      const ledgerTxsPromise = supabase.from("ledger_transactions" as any).select("amount, asset_id, type").eq("business_id", activeBusinessId).eq("user_id", user.id);
-      const vendorPaysPromise = supabase.from("vendor_payments").select("amount, asset_id, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
-      
+
+      const clientPaysPromise = supabase
+        .from("client_payments")
+        .select("amount, asset_id")
+        .eq("status", "posted")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id);
+      const ledgerTxsPromise = supabase
+        .from("ledger_transactions" as any)
+        .select("amount, asset_id, type")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id);
+      const vendorPaysPromise = supabase
+        .from("vendor_payments")
+        .select("amount, asset_id, status")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id);
+
       const [resClient, resLedger, resVendor] = await Promise.all([
         clientPaysPromise,
         ledgerTxsPromise,
@@ -98,7 +157,11 @@ function AssetsPage() {
 
       let vendorPaysResult: any[] = resVendor.data || [];
       if (resVendor.error && resVendor.error.code === "42703") {
-        const { data: fallback } = await supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id);
+        const { data: fallback } = await supabase
+          .from("vendor_payments")
+          .select("amount, asset_id")
+          .eq("business_id", activeBusinessId)
+          .eq("user_id", user.id);
         vendorPaysResult = fallback || [];
       } else {
         vendorPaysResult = vendorPaysResult.filter((p: any) => (p.status || "posted") === "posted");
@@ -126,7 +189,7 @@ function AssetsPage() {
         .eq("asset_id", assetId)
         .eq("status", "posted")
         .eq("user_id", user.id);
-        
+
       const ledgerTxsPromise = supabase
         .from("ledger_transactions" as any)
         .select("id, amount, transaction_date, type, description, category")
@@ -197,7 +260,7 @@ function AssetsPage() {
           list.push({
             id: tx.id,
             date: tx.transaction_date,
-            type: isFundTransfer ? "Internal Funds Transfer" : (tx.category || "General Ledger"),
+            type: isFundTransfer ? "Internal Funds Transfer" : tx.category || "General Ledger",
             description: tx.description || "—",
             reference: "—",
             flowType: tx.type, // 'debit' or 'credit'
@@ -206,7 +269,10 @@ function AssetsPage() {
         });
       }
 
-      if (selectedAssetLedger.type !== "property_equipment" && Number(selectedAssetLedger.initial_balance) > 0) {
+      if (
+        selectedAssetLedger.type !== "property_equipment" &&
+        Number(selectedAssetLedger.initial_balance) > 0
+      ) {
         list.push({
           id: `initial_${selectedAssetLedger.id}`,
           date: selectedAssetLedger.created_at.slice(0, 10),
@@ -258,7 +324,15 @@ function AssetsPage() {
   });
 
   useEffect(() => {
-    if (isSuccess && assets.length === 0 && activeBusinessId && user && !isLoading && !provisionMutation.isPending && !isReadOnly) {
+    if (
+      isSuccess &&
+      assets.length === 0 &&
+      activeBusinessId &&
+      user &&
+      !isLoading &&
+      !provisionMutation.isPending &&
+      !isReadOnly
+    ) {
       provisionMutation.mutate();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,13 +350,11 @@ function AssetsPage() {
           .eq("user_id", user.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("assets" as any)
-          .insert({
-            user_id: user.id,
-            business_id: activeBusinessId,
-            ...payload,
-          });
+        const { error } = await supabase.from("assets" as any).insert({
+          user_id: user.id,
+          business_id: activeBusinessId,
+          ...payload,
+        });
         if (error) throw error;
       }
     },
@@ -330,8 +402,10 @@ function AssetsPage() {
     const payload = {
       name: form.name,
       type: form.type,
-      initial_balance: form.type === "property_equipment" ? 0 : parseFloat(form.initial_balance) || 0,
-      current_valuation: form.type === "property_equipment" ? parseFloat(form.current_valuation) || 0 : 0,
+      initial_balance:
+        form.type === "property_equipment" ? 0 : parseFloat(form.initial_balance) || 0,
+      current_valuation:
+        form.type === "property_equipment" ? parseFloat(form.current_valuation) || 0 : 0,
       notes: form.notes || null,
     };
 
@@ -450,7 +524,9 @@ function AssetsPage() {
 
   const selectedFromAsset = computedAssets.find((a) => a.id === transferForm.from_asset_id);
   const fromAssetBalance = selectedFromAsset ? selectedFromAsset.balance : 0;
-  const cashBankAssets = computedAssets.filter((a) => a.type === "bank_account" || a.type === "petty_cash");
+  const cashBankAssets = computedAssets.filter(
+    (a) => a.type === "bank_account" || a.type === "petty_cash",
+  );
   const destinationAssets = cashBankAssets.filter((a) => a.id !== transferForm.from_asset_id);
 
   const totalBankCash = computedAssets
@@ -467,7 +543,8 @@ function AssetsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Asset Management</h1>
           <p className="text-sm text-muted-foreground">
-            Track bank accounts, petty cash funds, and property/equipment valuations to represent your business capital.
+            Track bank accounts, petty cash funds, and property/equipment valuations to represent
+            your business capital.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -475,7 +552,9 @@ function AssetsPage() {
             variant="outline"
             disabled={isReadOnly}
             onClick={() => {
-              const cashBank = computedAssets.filter(a => a.type === "bank_account" || a.type === "petty_cash");
+              const cashBank = computedAssets.filter(
+                (a) => a.type === "bank_account" || a.type === "petty_cash",
+              );
               setTransferForm({
                 from_asset_id: cashBank[0]?.id || "",
                 to_asset_id: cashBank[1]?.id || "",
@@ -514,7 +593,9 @@ function AssetsPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Cash &amp; Bank Holdings</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Cash &amp; Bank Holdings
+                </p>
                 <p className="mt-2 figure text-2xl font-semibold font-serif text-success">
                   {formatMoney(totalBankCash, c)}
                 </p>
@@ -529,7 +610,9 @@ function AssetsPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Property &amp; Equipment Val</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Property &amp; Equipment Val
+                </p>
                 <p className="mt-2 figure text-2xl font-semibold font-serif text-primary">
                   {formatMoney(totalProperty, c)}
                 </p>
@@ -544,7 +627,9 @@ function AssetsPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Assets capital</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Total Assets capital
+                </p>
                 <p className="mt-2 figure text-2xl font-semibold font-serif text-foreground">
                   {formatMoney(totalBankCash + totalProperty, c)}
                 </p>
@@ -560,7 +645,9 @@ function AssetsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Asset Accounts &amp; Properties</CardTitle>
-          <CardDescription>Capital accounts linked to client receivables and vendor payments</CardDescription>
+          <CardDescription>
+            Capital accounts linked to client receivables and vendor payments
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto rounded-md border">
@@ -592,7 +679,7 @@ function AssetsPage() {
                   </TableRow>
                 )}
                 {computedAssets.map((asset) => (
-                  <TableRow 
+                  <TableRow
                     key={asset.id}
                     className="cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => setSelectedAssetLedger(asset)}
@@ -609,13 +696,19 @@ function AssetsPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right figure">
-                      {asset.type === "property_equipment" ? "—" : formatMoney(asset.initial_balance, c)}
+                      {asset.type === "property_equipment"
+                        ? "—"
+                        : formatMoney(asset.initial_balance, c)}
                     </TableCell>
                     <TableCell className="text-right figure text-success">
-                      {asset.type === "property_equipment" ? "—" : `+ ${formatMoney(asset.inflow, c)}`}
+                      {asset.type === "property_equipment"
+                        ? "—"
+                        : `+ ${formatMoney(asset.inflow, c)}`}
                     </TableCell>
                     <TableCell className="text-right figure text-destructive">
-                      {asset.type === "property_equipment" ? "—" : `- ${formatMoney(asset.outflow, c)}`}
+                      {asset.type === "property_equipment"
+                        ? "—"
+                        : `- ${formatMoney(asset.outflow, c)}`}
                     </TableCell>
                     <TableCell className="text-right figure font-bold text-foreground">
                       {formatMoney(asset.balance, c)}
@@ -657,7 +750,11 @@ function AssetsPage() {
                               deleteMutation.mutate(asset.id);
                             }
                           }}
-                          disabled={isReadOnly || (assets.length <= 2 && (asset.type === "bank_account" || asset.type === "petty_cash"))}
+                          disabled={
+                            isReadOnly ||
+                            (assets.length <= 2 &&
+                              (asset.type === "bank_account" || asset.type === "petty_cash"))
+                          }
                           title="Delete Account"
                         >
                           <Plus className="h-4 w-4 rotate-45" />
@@ -710,7 +807,9 @@ function AssetsPage() {
                   <SelectContent>
                     <SelectItem value="bank_account">Bank Account</SelectItem>
                     <SelectItem value="petty_cash">Petty Cash Fund</SelectItem>
-                    <SelectItem value="property_equipment">Property / Equipment Valuation</SelectItem>
+                    <SelectItem value="property_equipment">
+                      Property / Equipment Valuation
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -775,9 +874,7 @@ function AssetsPage() {
           <form onSubmit={handleTransferSubmit}>
             <DialogHeader>
               <DialogTitle>Transfer Funds</DialogTitle>
-              <DialogDescription>
-                Move money between cash/bank holding accounts.
-              </DialogDescription>
+              <DialogDescription>Move money between cash/bank holding accounts.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -787,10 +884,13 @@ function AssetsPage() {
                 <Select
                   value={transferForm.from_asset_id}
                   onValueChange={(val) => {
-                    const cb = computedAssets.filter(a => a.type === "bank_account" || a.type === "petty_cash");
-                    const nextTo = transferForm.to_asset_id === val 
-                      ? (cb.find(a => a.id !== val)?.id || "")
-                      : transferForm.to_asset_id;
+                    const cb = computedAssets.filter(
+                      (a) => a.type === "bank_account" || a.type === "petty_cash",
+                    );
+                    const nextTo =
+                      transferForm.to_asset_id === val
+                        ? cb.find((a) => a.id !== val)?.id || ""
+                        : transferForm.to_asset_id;
                     setTransferForm({ ...transferForm, from_asset_id: val, to_asset_id: nextTo });
                   }}
                 >
@@ -811,7 +911,9 @@ function AssetsPage() {
                 <div className="grid grid-cols-4 items-center gap-4 -mt-2">
                   <div className="col-start-2 col-span-3 text-xs text-muted-foreground flex justify-between">
                     <span>Available Balance:</span>
-                    <span className="font-semibold text-warning">{formatMoney(fromAssetBalance, c)}</span>
+                    <span className="font-semibold text-warning">
+                      {formatMoney(fromAssetBalance, c)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -860,7 +962,9 @@ function AssetsPage() {
                   id="transfer_date"
                   type="date"
                   value={transferForm.transfer_date}
-                  onChange={(e) => setTransferForm({ ...transferForm, transfer_date: e.target.value })}
+                  onChange={(e) =>
+                    setTransferForm({ ...transferForm, transfer_date: e.target.value })
+                  }
                   className="col-span-3"
                   required
                 />
@@ -892,7 +996,10 @@ function AssetsPage() {
       </Dialog>
 
       {/* Detailed Transaction Ledger Side Drawer */}
-      <Sheet open={!!selectedAssetLedger} onOpenChange={(open) => !open && setSelectedAssetLedger(null)}>
+      <Sheet
+        open={!!selectedAssetLedger}
+        onOpenChange={(open) => !open && setSelectedAssetLedger(null)}
+      >
         <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader className="pb-4 border-b">
             <SheetTitle className="flex items-center gap-2 text-xl">
@@ -902,10 +1009,12 @@ function AssetsPage() {
             <SheetDescription>
               Chronological flow of funds for this account. Current running balance:{" "}
               <span className="font-bold text-foreground">
-                {selectedAssetLedger ? formatMoney(
-                  computedAssets.find((a) => a.id === selectedAssetLedger.id)?.balance || 0,
-                  c
-                ) : "—"}
+                {selectedAssetLedger
+                  ? formatMoney(
+                      computedAssets.find((a) => a.id === selectedAssetLedger.id)?.balance || 0,
+                      c,
+                    )
+                  : "—"}
               </span>
             </SheetDescription>
           </SheetHeader>
@@ -939,51 +1048,58 @@ function AssetsPage() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {!isLedgerLoading && ledgerTxsList.map((tx: any) => {
-                    const isDebit = tx.flowType === "debit";
-                    return (
-                      <TableRow key={tx.id} className="hover:bg-muted/30">
-                        <TableCell className="tabular text-xs whitespace-nowrap">{tx.date}</TableCell>
-                        <TableCell className="font-medium text-xs whitespace-nowrap flex items-center gap-1.5 py-3">
-                          <span
-                            className={`h-2 w-2 rounded-full ${
-                              tx.type === "Opening Balance"
-                                ? "bg-blue-500"
-                                : tx.type === "Internal Funds Transfer"
-                                  ? "bg-purple-500"
-                                  : isDebit
-                                    ? "bg-success"
-                                    : "bg-destructive"
+                  {!isLedgerLoading &&
+                    ledgerTxsList.map((tx: any) => {
+                      const isDebit = tx.flowType === "debit";
+                      return (
+                        <TableRow key={tx.id} className="hover:bg-muted/30">
+                          <TableCell className="tabular text-xs whitespace-nowrap">
+                            {tx.date}
+                          </TableCell>
+                          <TableCell className="font-medium text-xs whitespace-nowrap flex items-center gap-1.5 py-3">
+                            <span
+                              className={`h-2 w-2 rounded-full ${
+                                tx.type === "Opening Balance"
+                                  ? "bg-blue-500"
+                                  : tx.type === "Internal Funds Transfer"
+                                    ? "bg-purple-500"
+                                    : isDebit
+                                      ? "bg-success"
+                                      : "bg-destructive"
+                              }`}
+                            />
+                            {tx.type}
+                          </TableCell>
+                          <TableCell
+                            className="text-xs max-w-[180px] truncate"
+                            title={tx.description}
+                          >
+                            {tx.description}
+                            {tx.reference && tx.reference !== "—" && (
+                              <span className="block text-[10px] text-muted-foreground truncate">
+                                Ref: {tx.reference}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell
+                            className={`text-right font-semibold text-xs tabular figure whitespace-nowrap ${
+                              isDebit ? "text-success" : "text-destructive"
                             }`}
-                          />
-                          {tx.type}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[180px] truncate" title={tx.description}>
-                          {tx.description}
-                          {tx.reference && tx.reference !== "—" && (
-                            <span className="block text-[10px] text-muted-foreground truncate">
-                              Ref: {tx.reference}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right font-semibold text-xs tabular figure whitespace-nowrap ${
-                            isDebit ? "text-success" : "text-destructive"
-                          }`}
-                        >
-                          {isDebit ? "+" : "-"} {formatMoney(tx.amount, c)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                          >
+                            {isDebit ? "+" : "-"} {formatMoney(tx.amount, c)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                 </TableBody>
               </Table>
             </div>
-            
+
             <div className="text-[11px] text-muted-foreground flex items-center gap-1 bg-muted/40 p-3 rounded-lg border">
               <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
               <span>
-                Note: Inflows (Debits / +) represent money entering the account. Outflows (Credits / -) represent money leaving the account.
+                Note: Inflows (Debits / +) represent money entering the account. Outflows (Credits /
+                -) represent money leaving the account.
               </span>
             </div>
           </div>

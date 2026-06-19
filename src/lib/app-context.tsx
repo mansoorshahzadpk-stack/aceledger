@@ -50,15 +50,20 @@ interface AppContextValue {
   createBusiness: (
     name: string,
     currency: CurrencyCode,
-    details?: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
+    details?: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>,
   ) => Promise<void>;
   deleteBusiness: (id: string) => Promise<void>;
   updateBusiness: (
-    patch: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
+    patch: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>,
   ) => Promise<void>;
   refreshSettings: () => Promise<void>;
   updateSettings: (
-    patch: Partial<Omit<AppSettings, "business_name" | "business_address" | "business_phone" | "business_logo_url" | "currency">>
+    patch: Partial<
+      Omit<
+        AppSettings,
+        "business_name" | "business_address" | "business_phone" | "business_logo_url" | "currency"
+      >
+    >,
   ) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -88,12 +93,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tenantProfile, setTenantProfile] = useState<TenantProfile | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email ?? undefined } : null);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(
+        session?.user ? { id: session.user.id, email: session.user.email ?? undefined } : null,
+      );
       setLoadingAuth(false);
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ? { id: session.user.id, email: session.user.email ?? undefined } : null);
+      setUser(
+        session?.user ? { id: session.user.id, email: session.user.email ?? undefined } : null,
+      );
       setLoadingAuth(false);
     });
     return () => subscription.unsubscribe();
@@ -224,7 +235,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const createBusiness = async (
     name: string,
     currency: CurrencyCode,
-    details?: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
+    details?: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>,
   ) => {
     if (!user) return;
     if (isReadOnly) throw new Error("Subscription inactive. Read-only access.");
@@ -278,7 +289,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateBusiness = async (
-    patch: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>
+    patch: Partial<Omit<Business, "id" | "user_id" | "created_at" | "updated_at">>,
   ) => {
     if (!user || !activeBusinessId) return;
     if (isReadOnly) throw new Error("Subscription inactive. Read-only access.");
@@ -292,13 +303,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateSettings = async (
-    patch: Partial<Omit<AppSettings, "business_name" | "business_address" | "business_phone" | "business_logo_url" | "currency">>
+    patch: Partial<
+      Omit<
+        AppSettings,
+        "business_name" | "business_address" | "business_phone" | "business_logo_url" | "currency"
+      >
+    >,
   ) => {
     if (!user) return;
-    const { error } = await supabase
-      .from("app_settings")
-      .update(patch)
-      .eq("user_id", user.id);
+    const { error } = await supabase.from("app_settings").update(patch).eq("user_id", user.id);
     if (error) throw error;
     await refreshSettings();
   };

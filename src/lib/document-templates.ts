@@ -20,8 +20,18 @@ interface DocInput {
   date: string;
   due_date?: string | null;
   currency: CurrencyCode;
-  business: { name?: string | null; address?: string | null; phone?: string | null; logo_url?: string | null };
-  counterparty: { label: string; name?: string | null; address?: string | null; phone?: string | null };
+  business: {
+    name?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    logo_url?: string | null;
+  };
+  counterparty: {
+    label: string;
+    name?: string | null;
+    address?: string | null;
+    phone?: string | null;
+  };
   items: Array<DocItem>;
   subtotal: number | string;
   tax: number | string;
@@ -34,12 +44,15 @@ interface DocInput {
 }
 
 function num(n: number | string | null | undefined) {
-  const v = typeof n === "string" ? parseFloat(n) : n ?? 0;
+  const v = typeof n === "string" ? parseFloat(n) : (n ?? 0);
   return Number.isFinite(v as number) ? (v as number) : 0;
 }
 function money(n: number | string | null | undefined, c: CurrencyCode) {
   const v = num(n);
-  const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const abs = Math.abs(v).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   const sign = v < 0 ? "-" : "";
   const color = v < 0 ? ' style="color:#c0392b"' : "";
   return `<span${color}>${CURRENCY_SYMBOLS[c]}&nbsp;&nbsp;${sign}${abs}</span>`;
@@ -54,7 +67,10 @@ function fmtDate(d: string | null | undefined) {
   return `${dd}/${mm}/${yyyy}`;
 }
 function escapeHtml(s?: string | null) {
-  return (s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  return (s ?? "").replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  );
 }
 function formatPrintMath(val: number | string): string {
   const sVal = String(val).trim();
@@ -70,7 +86,10 @@ function formatPrintMath(val: number | string): string {
   }
 
   const numericVal = num(val);
-  const formattedRes = numericVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formattedRes = numericVal.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
   return `<span>${formattedRes}</span>`;
 }
 
@@ -82,7 +101,10 @@ function rateStr(it: DocItem) {
   return formatPrintMath(it.unit_price);
 }
 function amtStr(it: DocItem) {
-  return num(it.line_total).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return num(it.line_total).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 function itemMeta(it: DocItem) {
   const meta: string[] = [];
@@ -98,9 +120,10 @@ function acelogTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
   const discount = num(d.discount);
-  const items = d.items.map((it, idx) => {
-    const meta = itemMeta(it);
-    return `
+  const items = d.items
+    .map((it, idx) => {
+      const meta = itemMeta(it);
+      return `
       <tr>
         <td class="num">${idx + 1}</td>
         <td>
@@ -111,7 +134,8 @@ function acelogTemplate(d: DocInput): string {
         <td class="rate">${rateStr(it)}</td>
         <td class="amt">${amtStr(it)}</td>
       </tr>`;
-  }).join("");
+    })
+    .join("");
 
   const logo = d.business.logo_url
     ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:108px;max-width:300px;object-fit:contain;display:block;margin-bottom:10px;" />`
@@ -206,16 +230,18 @@ function classicTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
   const discount = num(d.discount);
-  const items = d.items.map((it, idx) => {
-    const meta = itemMeta(it);
-    return `<tr>
+  const items = d.items
+    .map((it, idx) => {
+      const meta = itemMeta(it);
+      return `<tr>
       <td class="num">${idx + 1}.</td>
       <td><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" &nbsp;·&nbsp; ")}</div>` : ""}</td>
       <td class="qty">${qtyStr(it)}</td>
       <td class="rate">${rateStr(it)}</td>
       <td class="amt">${amtStr(it)}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
   const logo = d.business.logo_url
     ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:80px;margin:0 auto 10px;display:block;" />`
     : "";
@@ -302,9 +328,10 @@ function modernTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
   const discount = num(d.discount);
-  const items = d.items.map((it) => {
-    const meta = itemMeta(it);
-    return `<tr>
+  const items = d.items
+    .map((it) => {
+      const meta = itemMeta(it);
+      return `<tr>
       <td class="desc">
         <div class="iname">${escapeHtml(it.description)}</div>
         ${meta.length ? `<div class="imeta">${meta.join(" &nbsp;·&nbsp; ")}</div>` : ""}
@@ -313,7 +340,8 @@ function modernTemplate(d: DocInput): string {
       <td class="cost">${rateStr(it)}</td>
       <td class="subtotal">${amtStr(it)}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   const logo = d.business.logo_url
     ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:56px;max-width:200px;object-fit:contain;display:block;margin-bottom:8px;margin-left:auto;" />`
@@ -436,18 +464,21 @@ function modernTemplate(d: DocInput): string {
       </div>
     </div>
 
-    ${d.notes ? `
+    ${
+      d.notes
+        ? `
       <div class="notes-section">
         <div class="lbl">Notes &amp; Remarks</div>
         <div class="notes-body">${escapeHtml(d.notes)}</div>
       </div>
-    ` : ""}
+    `
+        : ""
+    }
 
     <div class="footer-decor"></div>
   </div>
 </body></html>`;
 }
-
 
 /* =====================================================================
    SIMPLE — elegant single-column grayscale template with grouped details
@@ -456,9 +487,10 @@ function compactTemplate(d: DocInput): string {
   const ship = num(d.shipping);
   const tax = num(d.tax);
   const discount = num(d.discount);
-  const items = d.items.map((it, idx) => {
-    const meta = itemMeta(it);
-    return `<tr>
+  const items = d.items
+    .map((it, idx) => {
+      const meta = itemMeta(it);
+      return `<tr>
       <td class="desc">
         <span class="num">${idx + 1}.</span> <span class="iname">${escapeHtml(it.description)}</span>
         ${meta.length ? `<div class="imeta">${meta.join(" &nbsp;·&nbsp; ")}</div>` : ""}
@@ -467,7 +499,8 @@ function compactTemplate(d: DocInput): string {
       <td class="qty">${qtyStr(it)}</td>
       <td class="amt">${amtStr(it)}</td>
     </tr>`;
-  }).join("");
+    })
+    .join("");
 
   const logo = d.business.logo_url
     ? `<img src="${escapeHtml(d.business.logo_url)}" alt="logo" style="max-height:80px;max-width:240px;object-fit:contain;display:block;" />`
@@ -570,21 +603,29 @@ function compactTemplate(d: DocInput): string {
     </table>
   </div>
 
-  ${d.notes ? `
+  ${
+    d.notes
+      ? `
     <div class="notes-container">
       <div class="lbl">Payment Info / Notes</div>
       <div class="notes-body">${escapeHtml(d.notes)}</div>
     </div>
-  ` : ""}
+  `
+      : ""
+  }
 </body></html>`;
 }
 
 export function buildDocumentHtml(d: DocInput): string {
   switch (d.template) {
-    case "classic": return classicTemplate(d);
-    case "modern":  return modernTemplate(d);
-    case "compact": return compactTemplate(d);
-    default:        return acelogTemplate(d);
+    case "classic":
+      return classicTemplate(d);
+    case "modern":
+      return modernTemplate(d);
+    case "compact":
+      return compactTemplate(d);
+    default:
+      return acelogTemplate(d);
   }
 }
 
@@ -593,34 +634,38 @@ function injectToolbar(html: string, filename: string): string {
   const CDN = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js";
   const onclick =
     "(function(){" +
-      "var bar=document.querySelector('.doc-toolbar');" +
-      "function waitImgs(){" +
-        "var imgs=Array.prototype.slice.call(document.images||[]);" +
-        "return Promise.all(imgs.map(function(img){" +
-          "if(img.complete&&img.naturalWidth>0){return img.decode?img.decode().catch(function(){}):Promise.resolve();}" +
-          "return new Promise(function(res){" +
-            "var done=false;function fin(){if(done)return;done=true;res();}" +
-            "img.addEventListener('load',function(){(img.decode?img.decode().catch(function(){}):Promise.resolve()).then(fin);});" +
-            "img.addEventListener('error',fin);" +
-            "setTimeout(fin,6000);" +
-          "});" +
-        "}));" +
-      "}" +
-      "function run(){try{" +
-        "if(bar)bar.style.display='none';" +
-        "var opt={margin:10,filename:" + fnameJson + "," +
-          "image:{type:'jpeg',quality:0.95}," +
-          "html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',imageTimeout:15000}," +
-          "jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}," +
-          "pagebreak:{mode:['css','legacy']}};" +
-        "waitImgs().then(function(){return window.html2pdf().set(opt).from(document.body).save();})" +
-          ".then(function(){if(bar)bar.style.display='';})" +
-          ".catch(function(e){if(bar)bar.style.display='';alert('PDF failed: '+(e&&e.message||e));window.print();});" +
-      "}catch(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();}}" +
-      "if(window.html2pdf){run();return;}" +
-      "var s=document.createElement('script');s.src='" + CDN + "';" +
-      "s.onload=run;s.onerror=function(){alert('Could not load PDF library. Using Print instead.');window.print();};" +
-      "document.head.appendChild(s);" +
+    "var bar=document.querySelector('.doc-toolbar');" +
+    "function waitImgs(){" +
+    "var imgs=Array.prototype.slice.call(document.images||[]);" +
+    "return Promise.all(imgs.map(function(img){" +
+    "if(img.complete&&img.naturalWidth>0){return img.decode?img.decode().catch(function(){}):Promise.resolve();}" +
+    "return new Promise(function(res){" +
+    "var done=false;function fin(){if(done)return;done=true;res();}" +
+    "img.addEventListener('load',function(){(img.decode?img.decode().catch(function(){}):Promise.resolve()).then(fin);});" +
+    "img.addEventListener('error',fin);" +
+    "setTimeout(fin,6000);" +
+    "});" +
+    "}));" +
+    "}" +
+    "function run(){try{" +
+    "if(bar)bar.style.display='none';" +
+    "var opt={margin:10,filename:" +
+    fnameJson +
+    "," +
+    "image:{type:'jpeg',quality:0.95}," +
+    "html2canvas:{scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',imageTimeout:15000}," +
+    "jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}," +
+    "pagebreak:{mode:['css','legacy']}};" +
+    "waitImgs().then(function(){return window.html2pdf().set(opt).from(document.body).save();})" +
+    ".then(function(){if(bar)bar.style.display='';})" +
+    ".catch(function(e){if(bar)bar.style.display='';alert('PDF failed: '+(e&&e.message||e));window.print();});" +
+    "}catch(e){if(bar)bar.style.display='';alert('PDF failed: '+e.message);window.print();}}" +
+    "if(window.html2pdf){run();return;}" +
+    "var s=document.createElement('script');s.src='" +
+    CDN +
+    "';" +
+    "s.onload=run;s.onerror=function(){alert('Could not load PDF library. Using Print instead.');window.print();};" +
+    "document.head.appendChild(s);" +
     "})()";
   const toolbar = `
 <style>
@@ -645,7 +690,9 @@ function isIOS(): boolean {
   const ua = navigator.userAgent || "";
   if (/iPad|iPhone|iPod/.test(ua)) return true;
   // iPadOS 13+ reports as Mac; detect via touch points
-  return ua.includes("Mac") && typeof document !== "undefined" && (navigator as any).maxTouchPoints > 1;
+  return (
+    ua.includes("Mac") && typeof document !== "undefined" && (navigator as any).maxTouchPoints > 1
+  );
 }
 
 async function fetchAsDataUrl(url: string): Promise<string | null> {

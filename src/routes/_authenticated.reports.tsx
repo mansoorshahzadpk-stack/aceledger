@@ -5,12 +5,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { getIncomeStatementFn, getBalanceSheetFn } from "@/lib/financial-functions";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
@@ -50,12 +63,25 @@ export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
     meta: [
       { title: "Financial Reports — Ace Ledger" },
-      { name: "description", content: "Consolidated financial dashboard for Ace Ledger ERP, including Profit & Loss, Balance Sheet, Bank Reconciliation, and Analytics." },
+      {
+        name: "description",
+        content:
+          "Consolidated financial dashboard for Ace Ledger ERP, including Profit & Loss, Balance Sheet, Bank Reconciliation, and Analytics.",
+      },
     ],
   }),
 });
 
-const ANALYTICS_COLORS = ["#6366f1", "#06b6d4", "#f97316", "#ec4899", "#10b981", "#eab308", "#8b5cf6", "#ef4444"];
+const ANALYTICS_COLORS = [
+  "#6366f1",
+  "#06b6d4",
+  "#f97316",
+  "#ec4899",
+  "#10b981",
+  "#eab308",
+  "#8b5cf6",
+  "#ef4444",
+];
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -75,7 +101,8 @@ function ReportsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Financial Reports &amp; Analytics</h1>
         <p className="text-sm text-muted-foreground">
-          Consolidated tracking of Profit &amp; Loss, Balance Sheet, Bank Reconciliation, and Business Analytics.
+          Consolidated tracking of Profit &amp; Loss, Balance Sheet, Bank Reconciliation, and
+          Business Analytics.
         </p>
       </div>
 
@@ -90,7 +117,10 @@ function ReportsPage() {
             <Scale className="h-4 w-4" />
             <span>Balance Sheet</span>
           </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="flex items-center gap-2 cursor-pointer py-2">
+          <TabsTrigger
+            value="reconciliation"
+            className="flex items-center gap-2 cursor-pointer py-2"
+          >
             <ClipboardCheck className="h-4 w-4" />
             <span className="hidden sm:inline">Reconciliation</span>
             <span className="sm:hidden">Recon</span>
@@ -174,17 +204,25 @@ function PLTab() {
       ["GROSS PROFIT", data.grossProfit.toFixed(2)],
       [],
       ["OPERATIONAL EXPENSES", ""],
-      ...Object.entries(data.expensesByCategory || {}).map(([cat, val]) => [`  ${cat}`, (val as number).toFixed(2)]),
+      ...Object.entries(data.expensesByCategory || {}).map(([cat, val]) => [
+        `  ${cat}`,
+        (val as number).toFixed(2),
+      ]),
       ["TOTAL OPERATIONAL EXPENSES", data.totalExpenses.toFixed(2)],
       [],
       ["MINOR & INDIRECT INCOMES", ""],
-      ...Object.entries(data.minorIncomesByCategory || {}).map(([cat, val]) => [`  ${cat}`, (val as number).toFixed(2)]),
+      ...Object.entries(data.minorIncomesByCategory || {}).map(([cat, val]) => [
+        `  ${cat}`,
+        (val as number).toFixed(2),
+      ]),
       ["TOTAL MINOR INCOMES", data.totalMinorIncomes.toFixed(2)],
       [],
       ["NET PROFIT / LOSS", data.netProfit.toFixed(2)],
     ];
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map((e) => e.map(val => `"${val}"`).join(",")).join("\n");
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      rows.map((e) => e.map((val) => `"${val}"`).join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -198,13 +236,22 @@ function PLTab() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Income Statement (Profit &amp; Loss)</h2>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Income Statement (Profit &amp; Loss)
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Revenue from posted B2B invoices minus cost of inventory goods received (COGS) and operational overhead.
+            Revenue from posted B2B invoices minus cost of inventory goods received (COGS) and
+            operational overhead.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} title="Refresh">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh"
+          >
             <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
           <Button onClick={exportCSV} disabled={!data} variant="outline" size="sm">
@@ -229,7 +276,9 @@ function PLTab() {
               <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Quick presets</Label>
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Quick presets
+              </Label>
               <div className="flex gap-1.5 mt-0.5">
                 <Button size="sm" variant="outline" onClick={() => preset("month")}>
                   This Month
@@ -255,23 +304,47 @@ function PLTab() {
       {data && (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Kpi label="Sales Revenue" value={formatMoney(data.revenue, c)} icon={TrendingUp} tone="success" />
-            <Kpi label="COGS (GRNs)" value={formatMoney(data.cogs, c)} icon={TrendingDown} tone="warning" />
-            <Kpi label="Gross Profit" value={formatMoney(data.grossProfit, c)} icon={Wallet} tone={data.grossProfit >= 0 ? "success" : "destructive"} />
-            <Kpi label="Net Profit" value={formatMoney(data.netProfit, c)} icon={DollarSign} tone={data.netProfit >= 0 ? "success" : "destructive"} />
+            <Kpi
+              label="Sales Revenue"
+              value={formatMoney(data.revenue, c)}
+              icon={TrendingUp}
+              tone="success"
+            />
+            <Kpi
+              label="COGS (GRNs)"
+              value={formatMoney(data.cogs, c)}
+              icon={TrendingDown}
+              tone="warning"
+            />
+            <Kpi
+              label="Gross Profit"
+              value={formatMoney(data.grossProfit, c)}
+              icon={Wallet}
+              tone={data.grossProfit >= 0 ? "success" : "destructive"}
+            />
+            <Kpi
+              label="Net Profit"
+              value={formatMoney(data.netProfit, c)}
+              icon={DollarSign}
+              tone={data.netProfit >= 0 ? "success" : "destructive"}
+            />
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Trading Income &amp; COGS</CardTitle>
-                <CardDescription>Revenue minus directly attributable inventory costs</CardDescription>
+                <CardDescription>
+                  Revenue minus directly attributable inventory costs
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableBody>
                     <TableRow>
-                      <TableCell className="font-semibold">Gross Sales Revenue (Invoices)</TableCell>
+                      <TableCell className="font-semibold">
+                        Gross Sales Revenue (Invoices)
+                      </TableCell>
                       <TableCell className="text-right figure text-success font-medium">
                         + {formatMoney(data.revenue, c)}
                       </TableCell>
@@ -283,7 +356,9 @@ function PLTab() {
                       </TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/40 font-bold border-t border-double">
-                      <TableCell className="text-base text-foreground">GROSS TRADING PROFIT</TableCell>
+                      <TableCell className="text-base text-foreground">
+                        GROSS TRADING PROFIT
+                      </TableCell>
                       <TableCell className="text-right figure text-base text-foreground">
                         {formatMoney(data.grossProfit, c)}
                       </TableCell>
@@ -296,7 +371,9 @@ function PLTab() {
             <Card>
               <CardHeader>
                 <CardTitle>Overhead &amp; Indirect Revenues</CardTitle>
-                <CardDescription>Non-inventory expenses and secondary income streams</CardDescription>
+                <CardDescription>
+                  Non-inventory expenses and secondary income streams
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
@@ -307,7 +384,10 @@ function PLTab() {
                     <TableBody>
                       {Object.keys(data.expensesByCategory).length === 0 ? (
                         <TableRow>
-                          <TableCell className="text-muted-foreground italic text-center py-4" colSpan={2}>
+                          <TableCell
+                            className="text-muted-foreground italic text-center py-4"
+                            colSpan={2}
+                          >
                             No expenses logged in this range.
                           </TableCell>
                         </TableRow>
@@ -322,7 +402,9 @@ function PLTab() {
                         ))
                       )}
                       <TableRow className="bg-destructive/5 font-semibold">
-                        <TableCell className="text-sm font-semibold">Total Operating Expenses</TableCell>
+                        <TableCell className="text-sm font-semibold">
+                          Total Operating Expenses
+                        </TableCell>
                         <TableCell className="text-right figure text-destructive font-semibold">
                           {formatMoney(data.totalExpenses, c)}
                         </TableCell>
@@ -339,7 +421,10 @@ function PLTab() {
                     <TableBody>
                       {Object.keys(data.minorIncomesByCategory).length === 0 ? (
                         <TableRow>
-                          <TableCell className="text-muted-foreground italic text-center py-4" colSpan={2}>
+                          <TableCell
+                            className="text-muted-foreground italic text-center py-4"
+                            colSpan={2}
+                          >
                             No indirect incomes logged in this range.
                           </TableCell>
                         </TableRow>
@@ -354,7 +439,9 @@ function PLTab() {
                         ))
                       )}
                       <TableRow className="bg-success/5 font-semibold">
-                        <TableCell className="text-sm font-semibold">Total Indirect Revenues</TableCell>
+                        <TableCell className="text-sm font-semibold">
+                          Total Indirect Revenues
+                        </TableCell>
                         <TableCell className="text-right figure text-success font-semibold">
                           {formatMoney(data.totalMinorIncomes, c)}
                         </TableCell>
@@ -371,10 +458,14 @@ function PLTab() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-lg">Net Profit &amp; Bottom Line Summary</CardTitle>
-                  <CardDescription>Final net return representing the actual earnings of the business</CardDescription>
+                  <CardDescription>
+                    Final net return representing the actual earnings of the business
+                  </CardDescription>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs uppercase text-muted-foreground block font-semibold">Net Return</span>
+                  <span className="text-xs uppercase text-muted-foreground block font-semibold">
+                    Net Return
+                  </span>
                   <span
                     className={`figure text-3xl font-bold font-serif ${
                       data.netProfit >= 0 ? "text-success" : "text-destructive"
@@ -392,7 +483,17 @@ function PLTab() {
   );
 }
 
-function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string; icon: any; tone: "success" | "warning" | "destructive" }) {
+function Kpi({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: string;
+  icon: any;
+  tone: "success" | "warning" | "destructive";
+}) {
   const map = {
     success: "text-success bg-success/10",
     warning: "text-warning bg-warning/15",
@@ -403,7 +504,9 @@ function Kpi({ label, value, icon: Icon, tone }: { label: string; value: string;
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+              {label}
+            </p>
             <p className="mt-2 figure text-2xl font-semibold font-serif">{value}</p>
           </div>
           <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${map[tone]}`}>
@@ -446,7 +549,10 @@ function BalanceTab() {
       ["Currency", settings.currency],
       [],
       ["ASSETS", ""],
-      ...(data.cashBalances || []).map((b: any) => [`  Cash & Bank: ${b.name}`, b.balance.toFixed(2)]),
+      ...(data.cashBalances || []).map((b: any) => [
+        `  Cash & Bank: ${b.name}`,
+        b.balance.toFixed(2),
+      ]),
       ["  Accounts Receivable", data.totalReceivables.toFixed(2)],
       ["  Warehouse Inventory Value", data.inventoryValue.toFixed(2)],
       ["  Property & Equipment", data.totalProperty.toFixed(2)],
@@ -463,7 +569,9 @@ function BalanceTab() {
       ["TOTAL LIABILITIES & EQUITY", (data.totalLiabilities + data.equity).toFixed(2)],
     ];
 
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map((e) => e.map(val => `"${val}"`).join(",")).join("\n");
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      rows.map((e) => e.map((val) => `"${val}"`).join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -473,7 +581,9 @@ function BalanceTab() {
     document.body.removeChild(link);
   };
 
-  const isBalanced = data ? Math.abs(data.totalAssets - (data.totalLiabilities + data.equity)) < 0.01 : false;
+  const isBalanced = data
+    ? Math.abs(data.totalAssets - (data.totalLiabilities + data.equity)) < 0.01
+    : false;
 
   return (
     <div className="space-y-6">
@@ -481,11 +591,18 @@ function BalanceTab() {
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Balance Sheet Statement</h2>
           <p className="text-xs text-muted-foreground">
-            A real-time snapshot of what your business owns (Assets), owes (Liabilities), and its net worth (Equity).
+            A real-time snapshot of what your business owns (Assets), owes (Liabilities), and its
+            net worth (Equity).
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isFetching} title="Refresh">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            title="Refresh"
+          >
             <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
           </Button>
           <Button onClick={exportCSV} disabled={!data} variant="outline" size="sm">
@@ -498,7 +615,9 @@ function BalanceTab() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Statement Period</CardTitle>
-          <CardDescription>Select the date to view statement balances as of that date</CardDescription>
+          <CardDescription>
+            Select the date to view statement balances as of that date
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-4 max-w-sm">
@@ -544,24 +663,42 @@ function BalanceTab() {
                   </TableRow>
                   {(data.cashBalances || []).map((asset: any) => (
                     <TableRow key={asset.id}>
-                      <TableCell className="pl-6 text-muted-foreground text-sm">{asset.name}</TableCell>
-                      <TableCell className="text-right figure">{formatMoney(asset.balance, c)}</TableCell>
+                      <TableCell className="pl-6 text-muted-foreground text-sm">
+                        {asset.name}
+                      </TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(asset.balance, c)}
+                      </TableCell>
                     </TableRow>
                   ))}
                   <TableRow>
-                    <TableCell className="font-semibold">Accounts Receivable (Client Balances)</TableCell>
-                    <TableCell className="text-right figure">{formatMoney(data.totalReceivables, c)}</TableCell>
+                    <TableCell className="font-semibold">
+                      Accounts Receivable (Client Balances)
+                    </TableCell>
+                    <TableCell className="text-right figure">
+                      {formatMoney(data.totalReceivables, c)}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-semibold">Warehouse Inventory Valuation (W.A.C.)</TableCell>
-                    <TableCell className="text-right figure">{formatMoney(data.inventoryValue, c)}</TableCell>
+                    <TableCell className="font-semibold">
+                      Warehouse Inventory Valuation (W.A.C.)
+                    </TableCell>
+                    <TableCell className="text-right figure">
+                      {formatMoney(data.inventoryValue, c)}
+                    </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="font-semibold">Property &amp; Equipment Valuations</TableCell>
-                    <TableCell className="text-right figure">{formatMoney(data.totalProperty, c)}</TableCell>
+                    <TableCell className="font-semibold">
+                      Property &amp; Equipment Valuations
+                    </TableCell>
+                    <TableCell className="text-right figure">
+                      {formatMoney(data.totalProperty, c)}
+                    </TableCell>
                   </TableRow>
                   <TableRow className="bg-muted/50 border-t-2">
-                    <TableCell className="font-bold text-foreground text-base">TOTAL ASSETS</TableCell>
+                    <TableCell className="font-bold text-foreground text-base">
+                      TOTAL ASSETS
+                    </TableCell>
                     <TableCell className="text-right figure text-base font-bold text-foreground">
                       {formatMoney(data.totalAssets, c)}
                     </TableCell>
@@ -595,7 +732,9 @@ function BalanceTab() {
                       <TableCell className="pl-6 text-muted-foreground text-sm">
                         Accounts Payable (Vendor Balances)
                       </TableCell>
-                      <TableCell className="text-right figure">{formatMoney(data.totalPayables, c)}</TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(data.totalPayables, c)}
+                      </TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/30">
                       <TableCell className="font-semibold text-sm">TOTAL LIABILITIES</TableCell>
@@ -609,8 +748,12 @@ function BalanceTab() {
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="pl-6 text-muted-foreground text-sm">Owner's Capital / Net Assets</TableCell>
-                      <TableCell className="text-right figure">{formatMoney(data.equity, c)}</TableCell>
+                      <TableCell className="pl-6 text-muted-foreground text-sm">
+                        Owner's Capital / Net Assets
+                      </TableCell>
+                      <TableCell className="text-right figure">
+                        {formatMoney(data.equity, c)}
+                      </TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/30">
                       <TableCell className="font-semibold text-sm">TOTAL EQUITY</TableCell>
@@ -619,7 +762,9 @@ function BalanceTab() {
                       </TableCell>
                     </TableRow>
                     <TableRow className="bg-muted/50 border-t-2">
-                      <TableCell className="font-bold text-foreground text-base">TOTAL LIABILITIES &amp; EQUITY</TableCell>
+                      <TableCell className="font-bold text-foreground text-base">
+                        TOTAL LIABILITIES &amp; EQUITY
+                      </TableCell>
                       <TableCell className="text-right figure text-base font-bold text-foreground">
                         {formatMoney(data.totalLiabilities + data.equity, c)}
                       </TableCell>
@@ -634,8 +779,13 @@ function BalanceTab() {
                 <CardContent className="p-4 flex items-center gap-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div className="text-xs text-emerald-800 dark:text-emerald-200">
-                    <span className="font-bold">Ledger Balanced.</span> The balance sheet matches standard accounting
-                    formula: <code className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 px-1.5 py-0.5 rounded font-mono font-semibold">Assets ({formatMoney(data.totalAssets, c)}) = Liabilities + Equity ({formatMoney(data.totalLiabilities + data.equity, c)})</code>.
+                    <span className="font-bold">Ledger Balanced.</span> The balance sheet matches
+                    standard accounting formula:{" "}
+                    <code className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100 px-1.5 py-0.5 rounded font-mono font-semibold">
+                      Assets ({formatMoney(data.totalAssets, c)}) = Liabilities + Equity (
+                      {formatMoney(data.totalLiabilities + data.equity, c)})
+                    </code>
+                    .
                   </div>
                 </CardContent>
               </Card>
@@ -687,21 +837,29 @@ function ReconciliationTab() {
   });
 
   // Query transactions linked to the selected asset
-  const { data: rawTransactions, isLoading, refetch } = useQuery({
+  const {
+    data: rawTransactions,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["reconciliation_transactions", user?.id, activeBusinessId, selectedAssetId],
     queryFn: async () => {
       if (!activeBusinessId) return { clientPays: [], vendorPays: [], ledgerTxs: [] };
 
       const clientQuery = supabase
         .from("client_payments")
-        .select("id, amount, payment_date, method, reference, client_id, clients(name), asset_id, reconciled")
+        .select(
+          "id, amount, payment_date, method, reference, client_id, clients(name), asset_id, reconciled",
+        )
         .eq("status", "posted")
         .eq("business_id", activeBusinessId)
         .eq("user_id", user?.id || "");
 
       const vendorQuery = supabase
         .from("vendor_payments")
-        .select("id, amount, payment_date, method, reference, vendor_id, vendors(name), asset_id, reconciled")
+        .select(
+          "id, amount, payment_date, method, reference, vendor_id, vendors(name), asset_id, reconciled",
+        )
         .eq("business_id", activeBusinessId)
         .eq("user_id", user?.id || "");
 
@@ -733,7 +891,15 @@ function ReconciliationTab() {
   });
 
   const reconcileMutation = useMutation({
-    mutationFn: async ({ sourceTable, id, reconciled }: { sourceTable: string; id: string; reconciled: boolean }) => {
+    mutationFn: async ({
+      sourceTable,
+      id,
+      reconciled,
+    }: {
+      sourceTable: string;
+      id: string;
+      reconciled: boolean;
+    }) => {
       const { error } = await supabase
         .from(sourceTable as any)
         .update({ reconciled })
@@ -883,7 +1049,9 @@ function ReconciliationTab() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Initial Balance</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Initial Balance
+                </p>
                 <p className="mt-2 figure text-xl font-semibold font-serif text-muted-foreground">
                   {formatMoney(initialBalance, c)}
                 </p>
@@ -898,7 +1066,9 @@ function ReconciliationTab() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Running Book Balance</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Running Book Balance
+                </p>
                 <p className="mt-2 figure text-xl font-semibold font-serif">
                   {formatMoney(totalRunningBalance, c)}
                 </p>
@@ -913,7 +1083,9 @@ function ReconciliationTab() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Reconciled Statement Bal</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Reconciled Statement Bal
+                </p>
                 <p className="mt-2 figure text-xl font-semibold font-serif text-success">
                   {formatMoney(reconciledBalance, c)}
                 </p>
@@ -928,7 +1100,9 @@ function ReconciliationTab() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Unreconciled Items</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  Unreconciled Items
+                </p>
                 <p className="mt-2 figure text-xl font-semibold font-serif text-warning">
                   {unreconciledItems.length}
                 </p>
@@ -981,7 +1155,10 @@ function ReconciliationTab() {
                   const key = `${tx.sourceTable}-${tx.id}`;
                   const runBal = txRunningBalances.get(key) ?? 0;
                   return (
-                    <TableRow key={key} className={tx.reconciled ? "bg-muted/40 text-muted-foreground" : ""}>
+                    <TableRow
+                      key={key}
+                      className={tx.reconciled ? "bg-muted/40 text-muted-foreground" : ""}
+                    >
                       <TableCell className="text-center">
                         <Checkbox
                           checked={tx.reconciled}
@@ -991,8 +1168,12 @@ function ReconciliationTab() {
                       </TableCell>
                       <TableCell className="tabular">{tx.date}</TableCell>
                       <TableCell className="font-medium text-foreground">{tx.name}</TableCell>
-                      <TableCell className="capitalize text-xs font-mono">{tx.categoryOrMethod}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{tx.reference || "—"}</TableCell>
+                      <TableCell className="capitalize text-xs font-mono">
+                        {tx.categoryOrMethod}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {tx.reference || "—"}
+                      </TableCell>
                       <TableCell
                         className={`text-right figure font-semibold ${
                           tx.type === "inflow" ? "text-success" : "text-destructive"
@@ -1027,14 +1208,49 @@ function AnalyticsTab() {
     queryKey: ["analytics", user?.id, activeBusinessId, from, to],
     queryFn: async () => {
       if (!activeBusinessId) return { grns: [], invs: [], pays: [], vendors: [], clients: [] };
-      const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] = await Promise.all([
-        supabase.from("vendor_grns").select("*").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("grn_date", from).lte("grn_date", to),
-        supabase.from("invoices").select("*").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("issue_date", from).lte("issue_date", to),
-        supabase.from("client_payments").select("*").eq("status", "posted").eq("business_id", activeBusinessId).eq("user_id", user?.id || "").gte("payment_date", from).lte("payment_date", to),
-        supabase.from("vendors").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
-        supabase.from("clients").select("id, name").eq("business_id", activeBusinessId).eq("user_id", user?.id || ""),
-      ]);
-      return { grns: grns ?? [], invs: invs ?? [], pays: pays ?? [], vendors: vendors ?? [], clients: clients ?? [] };
+      const [{ data: grns }, { data: invs }, { data: pays }, { data: vendors }, { data: clients }] =
+        await Promise.all([
+          supabase
+            .from("vendor_grns")
+            .select("*")
+            .eq("status", "posted")
+            .eq("business_id", activeBusinessId)
+            .eq("user_id", user?.id || "")
+            .gte("grn_date", from)
+            .lte("grn_date", to),
+          supabase
+            .from("invoices")
+            .select("*")
+            .eq("business_id", activeBusinessId)
+            .eq("user_id", user?.id || "")
+            .gte("issue_date", from)
+            .lte("issue_date", to),
+          supabase
+            .from("client_payments")
+            .select("*")
+            .eq("status", "posted")
+            .eq("business_id", activeBusinessId)
+            .eq("user_id", user?.id || "")
+            .gte("payment_date", from)
+            .lte("payment_date", to),
+          supabase
+            .from("vendors")
+            .select("id, name")
+            .eq("business_id", activeBusinessId)
+            .eq("user_id", user?.id || ""),
+          supabase
+            .from("clients")
+            .select("id, name")
+            .eq("business_id", activeBusinessId)
+            .eq("user_id", user?.id || ""),
+        ]);
+      return {
+        grns: grns ?? [],
+        invs: invs ?? [],
+        pays: pays ?? [],
+        vendors: vendors ?? [],
+        clients: clients ?? [],
+      };
     },
     enabled: !!user && !!activeBusinessId,
   });
@@ -1053,7 +1269,10 @@ function AnalyticsTab() {
       }
       return d.toISOString().slice(0, 7);
     };
-    const map = new Map<string, { date: string; supplies: number; invoiced: number; received: number }>();
+    const map = new Map<
+      string,
+      { date: string; supplies: number; invoiced: number; received: number }
+    >();
     const ensure = (k: string) => {
       if (!map.has(k)) map.set(k, { date: k, supplies: 0, invoiced: 0, received: 0 });
       return map.get(k)!;
@@ -1061,9 +1280,11 @@ function AnalyticsTab() {
     data.grns.forEach((g: any) => {
       ensure(keyOf(g.grn_date)).supplies += Number(g.total_amount);
     });
-    data.invs.filter((i: any) => i.status === "posted").forEach((i: any) => {
-      ensure(keyOf(i.issue_date)).invoiced += Number(i.total);
-    });
+    data.invs
+      .filter((i: any) => i.status === "posted")
+      .forEach((i: any) => {
+        ensure(keyOf(i.issue_date)).invoiced += Number(i.total);
+      });
     data.pays.forEach((p: any) => {
       ensure(keyOf(p.payment_date)).received += Number(p.amount);
     });
@@ -1073,7 +1294,9 @@ function AnalyticsTab() {
   const topVendors = useMemo(() => {
     if (!data) return [];
     const m = new Map<string, number>();
-    data.grns.forEach((g: any) => m.set(g.vendor_id, (m.get(g.vendor_id) ?? 0) + Number(g.total_amount)));
+    data.grns.forEach((g: any) =>
+      m.set(g.vendor_id, (m.get(g.vendor_id) ?? 0) + Number(g.total_amount)),
+    );
     return Array.from(m.entries())
       .map(([id, value]) => ({ name: data.vendors.find((v) => v.id === id)?.name ?? "—", value }))
       .sort((a, b) => b.value - a.value)
@@ -1083,7 +1306,9 @@ function AnalyticsTab() {
   const topClients = useMemo(() => {
     if (!data) return [];
     const m = new Map<string, number>();
-    data.invs.filter((i: any) => i.status === "posted").forEach((i: any) => m.set(i.client_id, (m.get(i.client_id) ?? 0) + Number(i.total)));
+    data.invs
+      .filter((i: any) => i.status === "posted")
+      .forEach((i: any) => m.set(i.client_id, (m.get(i.client_id) ?? 0) + Number(i.total)));
     return Array.from(m.entries())
       .map(([id, value]) => ({ name: data.clients.find((c) => c.id === id)?.name ?? "—", value }))
       .sort((a, b) => b.value - a.value)
@@ -1104,7 +1329,9 @@ function AnalyticsTab() {
     if (!data) return { supplies: 0, invoiced: 0, received: 0 };
     return {
       supplies: data.grns.reduce((s, g: any) => s + Number(g.total_amount), 0),
-      invoiced: data.invs.filter((i: any) => i.status === "posted").reduce((s, i: any) => s + Number(i.total), 0),
+      invoiced: data.invs
+        .filter((i: any) => i.status === "posted")
+        .reduce((s, i: any) => s + Number(i.total), 0),
       received: data.pays.reduce((s, p: any) => s + Number(p.amount), 0),
     };
   }, [data]);
@@ -1116,34 +1343,94 @@ function AnalyticsTab() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold tracking-tight">Analytics Dashboard</h2>
-          <p className="text-xs text-muted-foreground">Select a date range to analyze supplies, sales, and money flows.</p>
+          <p className="text-xs text-muted-foreground">
+            Select a date range to analyze supplies, sales, and money flows.
+          </p>
         </div>
       </div>
 
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Date Range</CardTitle></CardHeader>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold">Date Range</CardTitle>
+        </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">From</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9" />
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+              From
+            </Label>
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="h-9"
+            />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">To</Label>
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+              To
+            </Label>
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(30)); setTo(todayISO()); }}>Last 30 days</Button>
-            <Button variant="outline" size="sm" onClick={() => { setFrom(isoDaysAgo(90)); setTo(todayISO()); }}>Last 90 days</Button>
-            <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)); setTo(todayISO()); }}>This month</Button>
-            <Button variant="outline" size="sm" onClick={() => { const d = new Date(); setFrom(new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10)); setTo(todayISO()); }}>This year</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFrom(isoDaysAgo(30));
+                setTo(todayISO());
+              }}
+            >
+              Last 30 days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFrom(isoDaysAgo(90));
+                setTo(todayISO());
+              }}
+            >
+              Last 90 days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const d = new Date();
+                setFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10));
+                setTo(todayISO());
+              }}
+            >
+              This month
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const d = new Date();
+                setFrom(new Date(d.getFullYear(), 0, 1).toISOString().slice(0, 10));
+                setTo(todayISO());
+              }}
+            >
+              This year
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Supplies Received" value={formatMoney(totals.supplies, settings.currency)} />
-        <StatCard label="Invoiced (Posted)" value={formatMoney(totals.invoiced, settings.currency)} />
-        <StatCard label="Payments Received" value={formatMoney(totals.received, settings.currency)} />
+        <StatCard
+          label="Supplies Received"
+          value={formatMoney(totals.supplies, settings.currency)}
+        />
+        <StatCard
+          label="Invoiced (Posted)"
+          value={formatMoney(totals.invoiced, settings.currency)}
+        />
+        <StatCard
+          label="Payments Received"
+          value={formatMoney(totals.received, settings.currency)}
+        />
       </div>
 
       <Card>
@@ -1159,8 +1446,20 @@ function AnalyticsTab() {
               <YAxis fontSize={11} />
               <Tooltip formatter={tooltipMoney} />
               <Legend />
-              <Line type="monotone" dataKey="invoiced" stroke="#6366f1" strokeWidth={2} name="Invoiced" />
-              <Line type="monotone" dataKey="received" stroke="#10b981" strokeWidth={2} name="Received" />
+              <Line
+                type="monotone"
+                dataKey="invoiced"
+                stroke="#6366f1"
+                strokeWidth={2}
+                name="Invoiced"
+              />
+              <Line
+                type="monotone"
+                dataKey="received"
+                stroke="#10b981"
+                strokeWidth={2}
+                name="Received"
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
@@ -1185,7 +1484,9 @@ function AnalyticsTab() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>Top Vendors (By Supplies)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Top Vendors (By Supplies)</CardTitle>
+          </CardHeader>
           <CardContent style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topVendors} layout="vertical">
@@ -1199,7 +1500,9 @@ function AnalyticsTab() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Top Clients (By Invoiced)</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Top Clients (By Invoiced)</CardTitle>
+          </CardHeader>
           <CardContent style={{ height: 280 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={topClients} layout="vertical">
@@ -1215,11 +1518,20 @@ function AnalyticsTab() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Material Mix (By Quantity)</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Material Mix (By Quantity)</CardTitle>
+        </CardHeader>
         <CardContent style={{ height: 320 }}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={materialMix} dataKey="value" nameKey="name" innerRadius={50} outerRadius={110} label>
+              <Pie
+                data={materialMix}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={50}
+                outerRadius={110}
+                label
+              >
                 {materialMix.map((_, i) => (
                   <Cell key={i} fill={ANALYTICS_COLORS[i % ANALYTICS_COLORS.length]} />
                 ))}
@@ -1238,7 +1550,9 @@ function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+          {label}
+        </div>
         <div className="figure mt-1 text-2xl font-semibold">{value}</div>
       </CardContent>
     </Card>

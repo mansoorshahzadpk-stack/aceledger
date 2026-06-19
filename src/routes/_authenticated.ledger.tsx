@@ -4,13 +4,33 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Search, Trash2, Edit, PlusCircle, ArrowUpRight, ArrowDownLeft } from "lucide-react";
@@ -20,7 +40,10 @@ export const Route = createFileRoute("/_authenticated/ledger")({
   head: () => ({
     meta: [
       { title: "General Ledger — Ace Ledger" },
-      { name: "description", content: "Track B2B expenses, salaries, and indirect revenues in Ace Ledger ERP." },
+      {
+        name: "description",
+        content: "Track B2B expenses, salaries, and indirect revenues in Ace Ledger ERP.",
+      },
     ],
   }),
 });
@@ -114,13 +137,11 @@ function LedgerPage() {
           .eq("user_id", user.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from("ledger_transactions" as any)
-          .insert({
-            user_id: user.id,
-            business_id: activeBusinessId,
-            ...payload,
-          });
+        const { error } = await supabase.from("ledger_transactions" as any).insert({
+          user_id: user.id,
+          business_id: activeBusinessId,
+          ...payload,
+        });
         if (error) throw error;
       }
     },
@@ -225,7 +246,8 @@ function LedgerPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">General Ledger</h1>
           <p className="text-sm text-muted-foreground">
-            Track business cash flows including marketing, salaries, administrative expenses, and other minor revenues.
+            Track business cash flows including marketing, salaries, administrative expenses, and
+            other minor revenues.
           </p>
         </div>
         <Button
@@ -253,7 +275,9 @@ function LedgerPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Inflows (Debits)</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Total Inflows (Debits)
+                </p>
                 <p className="mt-2 figure text-2xl font-semibold font-serif text-success">
                   {formatMoney(totalDebits, c)}
                 </p>
@@ -268,7 +292,9 @@ function LedgerPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Total Outflows (Credits)</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Total Outflows (Credits)
+                </p>
                 <p className="mt-2 figure text-2xl font-semibold font-serif text-destructive">
                   {formatMoney(totalCredits, c)}
                 </p>
@@ -283,7 +309,9 @@ function LedgerPage() {
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Net Ledger Flow</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Net Ledger Flow
+                </p>
                 <p
                   className={`mt-2 figure text-2xl font-semibold font-serif ${
                     totalDebits - totalCredits >= 0 ? "text-success" : "text-destructive"
@@ -378,7 +406,11 @@ function LedgerPage() {
                     <TableCell className="tabular">{tx.transaction_date}</TableCell>
                     <TableCell className="font-medium">{tx.category}</TableCell>
                     <TableCell className="text-muted-foreground">{tx.description || "—"}</TableCell>
-                    <TableCell>{tx.assets?.name || <span className="text-muted-foreground italic text-xs">Unlinked</span>}</TableCell>
+                    <TableCell>
+                      {tx.assets?.name || (
+                        <span className="text-muted-foreground italic text-xs">Unlinked</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -435,9 +467,12 @@ function LedgerPage() {
         <DialogContent className="sm:max-w-[425px]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>{editingTx ? "Edit Ledger Transaction" : "Log Ledger Transaction"}</DialogTitle>
+              <DialogTitle>
+                {editingTx ? "Edit Ledger Transaction" : "Log Ledger Transaction"}
+              </DialogTitle>
               <DialogDescription>
-                Record non-inventory business cash flow. Ensure category matches your report requirements.
+                Record non-inventory business cash flow. Ensure category matches your report
+                requirements.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

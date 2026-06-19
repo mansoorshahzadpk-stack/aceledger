@@ -1,16 +1,16 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
-import { supabase } from '@/integrations/supabase/client';
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 
-export const Route = createFileRoute('/auth/callback')({
+export const Route = createFileRoute("/auth/callback")({
   beforeLoad: async ({ search }) => {
     const code = (search as any).code;
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
-        console.error('Error exchanging code for session:', error.message);
+        console.error("Error exchanging code for session:", error.message);
       }
     }
-    throw redirect({ to: '/' });
+    throw redirect({ to: "/" });
   },
   component: () => (
     <div className="flex h-screen w-screen items-center justify-center bg-background">

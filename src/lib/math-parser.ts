@@ -7,7 +7,7 @@
 export function evaluateMath(str: string): number | null {
   const expr = str.replace(/\s+/g, "");
   if (!expr) return null;
-  
+
   // Safe validation: strictly allow only numbers, decimal points, operators, and parenthesis.
   if (!/^[0-9+\-*/().]+$/.test(expr)) {
     return null;
@@ -114,7 +114,7 @@ export function parseMath(val: string): number {
     const evaluatedExpr = evaluateMath(exprPart);
     if (evaluatedExpr !== null) return evaluatedExpr;
   }
-  
+
   const evaluated = evaluateMath(clean);
   if (evaluated !== null) {
     return evaluated;
@@ -124,7 +124,7 @@ export function parseMath(val: string): number {
   if (!isNaN(parsed)) {
     return parsed;
   }
-  
+
   return 0;
 }
 

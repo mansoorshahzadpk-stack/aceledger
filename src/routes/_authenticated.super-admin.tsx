@@ -4,15 +4,38 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Shield, Search, RefreshCw, Users, Activity, AlertTriangle, CalendarDays, Trash2 } from "lucide-react";
+import {
+  Shield,
+  Search,
+  RefreshCw,
+  Users,
+  Activity,
+  AlertTriangle,
+  CalendarDays,
+  Trash2,
+} from "lucide-react";
 import { formatDate } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/super-admin")({
@@ -20,7 +43,10 @@ export const Route = createFileRoute("/_authenticated/super-admin")({
   head: () => ({
     meta: [
       { title: "Super Admin Panel — Ace Ledger" },
-      { name: "description", content: "Global user account tracking and subscription access control." },
+      {
+        name: "description",
+        content: "Global user account tracking and subscription access control.",
+      },
     ],
   }),
 });
@@ -47,7 +73,12 @@ function SuperAdminPage() {
   }
 
   // Fetch all user tenant profiles
-  const { data: users = [], isLoading, refetch, isRefetching } = useQuery({
+  const {
+    data: users = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["admin_tenant_profiles"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_get_tenant_profiles" as any);
@@ -130,7 +161,7 @@ function SuperAdminPage() {
     },
     onError: (err: any) => {
       toast.error("Failed to delete user account: " + err.message);
-    }
+    },
   });
 
   const handleDeleteUser = (userId: string, email: string) => {
@@ -154,9 +185,7 @@ function SuperAdminPage() {
   };
 
   // Filter users by search input
-  const filteredUsers = users.filter((u) =>
-    u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter((u) => u.email.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -199,7 +228,9 @@ function SuperAdminPage() {
                 <Users className="h-6 w-6" />
               </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Total signups in your platform database</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Total signups in your platform database
+            </p>
           </CardContent>
         </Card>
 
@@ -218,7 +249,9 @@ function SuperAdminPage() {
                 <Activity className="h-6 w-6" />
               </div>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Users who logged in or were active in the last 24 hours</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Users who logged in or were active in the last 24 hours
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -228,7 +261,8 @@ function SuperAdminPage() {
         <CardHeader>
           <CardTitle>User Directory</CardTitle>
           <CardDescription>
-            Search, inspect trial balances, and manage status constraints. Suspended accounts are limited to read-only views.
+            Search, inspect trial balances, and manage status constraints. Suspended accounts are
+            limited to read-only views.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -281,18 +315,27 @@ function SuperAdminPage() {
                       <TableCell className="text-center tabular">
                         {u.status === "active" ? (
                           new Date(u.trial_ends_at).getFullYear() >= 2090 ? (
-                            <Badge variant="outline" className="border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+                            <Badge
+                              variant="outline"
+                              className="border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                            >
                               Unlimited (Paid)
                             </Badge>
                           ) : isTrialExpired ? (
-                            <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10">
+                            <Badge
+                              variant="destructive"
+                              className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10"
+                            >
                               Expired (0 days)
                             </Badge>
                           ) : (
                             <span className="font-semibold text-emerald-600">{trialDays} days</span>
                           )
                         ) : isTrialExpired ? (
-                          <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10">
+                          <Badge
+                            variant="destructive"
+                            className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10"
+                          >
                             Expired (0 days)
                           </Badge>
                         ) : (
@@ -301,7 +344,10 @@ function SuperAdminPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         {isUserSuspended ? (
-                          <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10 flex items-center gap-1 w-fit mx-auto">
+                          <Badge
+                            variant="destructive"
+                            className="bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/10 flex items-center gap-1 w-fit mx-auto"
+                          >
                             <AlertTriangle className="h-3 w-3 shrink-0" />
                             Suspended
                           </Badge>
@@ -345,7 +391,11 @@ function SuperAdminPage() {
                             size="icon"
                             className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 cursor-pointer shrink-0"
                             onClick={() => {
-                              if (confirm(`Are you absolutely sure you want to completely delete the account for ${u.email}? This action is permanent and will delete all their data.`)) {
+                              if (
+                                confirm(
+                                  `Are you absolutely sure you want to completely delete the account for ${u.email}? This action is permanent and will delete all their data.`,
+                                )
+                              ) {
                                 handleDeleteUser(u.user_id, u.email);
                               }
                             }}
@@ -372,7 +422,8 @@ function SuperAdminPage() {
             <DialogHeader>
               <DialogTitle>Enable for Selected Days</DialogTitle>
               <DialogDescription>
-                Set a specific number of access days for <span className="font-semibold text-foreground text-sm">{extendUser?.email}</span>.
+                Set a specific number of access days for{" "}
+                <span className="font-semibold text-foreground text-sm">{extendUser?.email}</span>.
                 This will set their status to active and update their expiration date.
               </DialogDescription>
             </DialogHeader>

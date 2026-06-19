@@ -1,7 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { parseMath, parsePercentageOrMath, formatOnFocus, formatOnBlur, getFormulaPart } from "@/lib/math-parser";
+import {
+  parseMath,
+  parsePercentageOrMath,
+  formatOnFocus,
+  formatOnBlur,
+  getFormulaPart,
+} from "@/lib/math-parser";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
@@ -9,9 +15,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
 import { formatMoney } from "@/lib/format";
 import { Package, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -21,14 +40,20 @@ export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
   component: NewGrnPage,
 });
 
-type Material = { id: string; name: string; sku: string | null; unit: string; default_price: number };
+type Material = {
+  id: string;
+  name: string;
+  sku: string | null;
+  unit: string;
+  default_price: number;
+};
 
 // Client-side fallback for sequential GRN numbering
 async function calculateNextGrnNumber(
   vendorId: string,
   vendorName: string,
   storedPrefix: string | undefined | null,
-  activeBusinessId: string
+  activeBusinessId: string,
 ): Promise<string> {
   const prefix = (storedPrefix || generateCodePrefix(vendorName) || "XXX").toUpperCase();
   const { data: grns, error } = await supabase
@@ -91,14 +116,16 @@ function NewGrnPage() {
           .eq("business_id", activeBusinessId)
           .eq("user_id", user.id)
           .order("name");
-        return (fallbackData ?? []).map(v => ({ ...v, code_prefix: undefined }));
+        return (fallbackData ?? []).map((v) => ({ ...v, code_prefix: undefined }));
       }
       return data ?? [];
     },
     enabled: !!user,
   });
 
-  useEffect(() => { setForm((f) => ({ ...f, doc_template: settings.default_doc_template })); }, [settings.default_doc_template]);
+  useEffect(() => {
+    setForm((f) => ({ ...f, doc_template: settings.default_doc_template }));
+  }, [settings.default_doc_template]);
 
   // Auto-suggest next vendor-specific GRN number
   useEffect(() => {
@@ -109,27 +136,35 @@ function NewGrnPage() {
     const selectedVendor = vendors.find((v) => v.id === form.vendor_id);
     if (!selectedVendor) return;
 
-    supabase.rpc("get_next_grn_number" as any, { _vendor_id: form.vendor_id }).then(async ({ data, error }) => {
-      if (error) {
-        console.warn("RPC failed, falling back to client-side calculation:", error);
-        const fallbackNum = await calculateNextGrnNumber(
-          form.vendor_id,
-          selectedVendor.name,
-          selectedVendor.code_prefix,
-          activeBusinessId
-        );
-        setForm((f) => ({ ...f, grn_number: fallbackNum }));
-      } else if (typeof data === "string") {
-        setForm((f) => ({ ...f, grn_number: data }));
-      }
-    });
+    supabase
+      .rpc("get_next_grn_number" as any, { _vendor_id: form.vendor_id })
+      .then(async ({ data, error }) => {
+        if (error) {
+          console.warn("RPC failed, falling back to client-side calculation:", error);
+          const fallbackNum = await calculateNextGrnNumber(
+            form.vendor_id,
+            selectedVendor.name,
+            selectedVendor.code_prefix,
+            activeBusinessId,
+          );
+          setForm((f) => ({ ...f, grn_number: fallbackNum }));
+        } else if (typeof data === "string") {
+          setForm((f) => ({ ...f, grn_number: data }));
+        }
+      });
   }, [user, activeBusinessId, form.vendor_id, vendors]);
 
   const { data: materials } = useQuery({
     queryKey: ["materials-active", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return [];
-      const { data } = await supabase.from("products" as any).select("id, name, sku, unit, default_price").eq("active", true).eq("business_id", activeBusinessId).eq("user_id", user.id).order("name");
+      const { data } = await supabase
+        .from("products" as any)
+        .select("id, name, sku, unit, default_price")
+        .eq("active", true)
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("name");
       return (data ?? []) as unknown as Material[];
     },
     enabled: !!user,
@@ -150,20 +185,35 @@ function NewGrnPage() {
     return (parseMath(form.quantity) || 0) * (parseMath(form.unit_price) || 0);
   }, [form.quantity, form.unit_price]);
 
-  const discountNum = useMemo(() => parsePercentageOrMath(form.discount, subtotal), [form.discount, subtotal]);
+  const discountNum = useMemo(
+    () => parsePercentageOrMath(form.discount, subtotal),
+    [form.discount, subtotal],
+  );
   const taxNum = useMemo(() => parsePercentageOrMath(form.tax, subtotal), [form.tax, subtotal]);
-  const shipNum = useMemo(() => parsePercentageOrMath(form.shipping, subtotal), [form.shipping, subtotal]);
+  const shipNum = useMemo(
+    () => parsePercentageOrMath(form.shipping, subtotal),
+    [form.shipping, subtotal],
+  );
 
   const total = useMemo(() => {
     return subtotal - discountNum + taxNum + shipNum;
   }, [subtotal, discountNum, taxNum, shipNum]);
 
   const handleSave = async (status: "draft" | "posted") => {
-    if (!user || !activeBusinessId || !form.vendor_id) { toast.error("Choose a vendor"); return; }
-    if (!form.material) { toast.error("Choose or enter a material"); return; }
-    
+    if (!user || !activeBusinessId || !form.vendor_id) {
+      toast.error("Choose a vendor");
+      return;
+    }
+    if (!form.material) {
+      toast.error("Choose or enter a material");
+      return;
+    }
+
     const targetNum = form.grn_number.trim();
-    if (!targetNum) { toast.error("GRN number cannot be empty"); return; }
+    if (!targetNum) {
+      toast.error("GRN number cannot be empty");
+      return;
+    }
 
     // Validate uniqueness of grn_number within activeBusinessId
     const { data: existing, error: checkError } = await supabase
@@ -171,7 +221,7 @@ function NewGrnPage() {
       .select("id")
       .eq("business_id", activeBusinessId)
       .eq("grn_number", targetNum);
-      
+
     if (checkError) {
       toast.error("Error checking GRN uniqueness: " + checkError.message);
       return;
@@ -220,18 +270,51 @@ function NewGrnPage() {
         <p className="text-sm text-muted-foreground">Record raw material received from a vendor</p>
       </div>
       <Card>
-        <CardHeader><CardTitle>GRN details</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>GRN details</CardTitle>
+        </CardHeader>
         <CardContent>
-          <form onSubmit={(e) => { e.preventDefault(); handleSave("posted"); }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave("posted");
+            }}
+            className="space-y-4"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Vendor">
-                <Select value={form.vendor_id} onValueChange={(v) => setForm({ ...form, vendor_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select vendor" /></SelectTrigger>
-                  <SelectContent>{vendors?.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}</SelectContent>
+                <Select
+                  value={form.vendor_id}
+                  onValueChange={(v) => setForm({ ...form, vendor_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors?.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </Field>
-              <Field label="GRN number"><Input required value={form.grn_number} onChange={(e) => setForm({ ...form, grn_number: e.target.value })} placeholder="GRN-0001" /></Field>
-              <Field label="Date"><Input type="date" required value={form.grn_date} onChange={(e) => setForm({ ...form, grn_date: e.target.value })} /></Field>
+              <Field label="GRN number">
+                <Input
+                  required
+                  value={form.grn_number}
+                  onChange={(e) => setForm({ ...form, grn_number: e.target.value })}
+                  placeholder="GRN-0001"
+                />
+              </Field>
+              <Field label="Date">
+                <Input
+                  type="date"
+                  required
+                  value={form.grn_date}
+                  onChange={(e) => setForm({ ...form, grn_date: e.target.value })}
+                />
+              </Field>
 
               <Field label="Material">
                 <div className="flex gap-2">
@@ -251,17 +334,33 @@ function NewGrnPage() {
                       <Command>
                         <CommandInput placeholder="Search materials…" />
                         <CommandList>
-                          <CommandEmpty>No materials found. Add some in <a className="underline" href="/materials">Materials</a>.</CommandEmpty>
+                          <CommandEmpty>
+                            No materials found. Add some in{" "}
+                            <a className="underline" href="/materials">
+                              Materials
+                            </a>
+                            .
+                          </CommandEmpty>
                           <CommandGroup>
                             {materials?.map((m) => (
-                              <CommandItem key={m.id} value={`${m.name} ${m.sku ?? ""}`} onSelect={() => pickMaterial(m)}>
+                              <CommandItem
+                                key={m.id}
+                                value={`${m.name} ${m.sku ?? ""}`}
+                                onSelect={() => pickMaterial(m)}
+                              >
                                 <Package className="mr-2 h-4 w-4 text-muted-foreground" />
                                 <div className="flex w-full items-center justify-between">
                                   <div>
                                     <div className="font-medium">{m.name}</div>
-                                    {m.sku && <div className="text-xs text-muted-foreground">{m.sku} · {m.unit}</div>}
+                                    {m.sku && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {m.sku} · {m.unit}
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="figure text-xs">{formatMoney(m.default_price, settings.currency)}</div>
+                                  <div className="figure text-xs">
+                                    {formatMoney(m.default_price, settings.currency)}
+                                  </div>
                                 </div>
                               </CommandItem>
                             ))}
@@ -290,14 +389,22 @@ function NewGrnPage() {
                   placeholder="e.g. 10 or 20*5"
                 />
               </Field>
-              <Field label="Unit"><Input required value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /></Field>
+              <Field label="Unit">
+                <Input
+                  required
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                />
+              </Field>
               <Field label="Unit price" helper="supports math, e.g. 200/2">
                 <Input
                   type="text"
                   required
                   value={form.unit_price}
                   onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
-                  onFocus={() => setForm((f) => ({ ...f, unit_price: formatOnFocus(f.unit_price) }))}
+                  onFocus={() =>
+                    setForm((f) => ({ ...f, unit_price: formatOnFocus(f.unit_price) }))
+                  }
                   onBlur={() => setForm((f) => ({ ...f, unit_price: formatOnBlur(f.unit_price) }))}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
@@ -310,7 +417,11 @@ function NewGrnPage() {
               </Field>
               <Field
                 label="Discount"
-                helper={form.discount.trim().endsWith("%") ? `(${formatMoney(discountNum, settings.currency)})` : "flat or %, e.g., 2%"}
+                helper={
+                  form.discount.trim().endsWith("%")
+                    ? `(${formatMoney(discountNum, settings.currency)})`
+                    : "flat or %, e.g., 2%"
+                }
               >
                 <Input
                   type="text"
@@ -333,7 +444,11 @@ function NewGrnPage() {
               </Field>
               <Field
                 label="Tax"
-                helper={form.tax.trim().endsWith("%") ? `(${formatMoney(taxNum, settings.currency)})` : "flat or %, e.g., 5%"}
+                helper={
+                  form.tax.trim().endsWith("%")
+                    ? `(${formatMoney(taxNum, settings.currency)})`
+                    : "flat or %, e.g., 5%"
+                }
               >
                 <Input
                   type="text"
@@ -356,7 +471,11 @@ function NewGrnPage() {
               </Field>
               <Field
                 label="Shipping / Freight"
-                helper={form.shipping.trim().endsWith("%") ? `(${formatMoney(shipNum, settings.currency)})` : "flat or %, e.g., 1.5%"}
+                helper={
+                  form.shipping.trim().endsWith("%")
+                    ? `(${formatMoney(shipNum, settings.currency)})`
+                    : "flat or %, e.g., 1.5%"
+                }
               >
                 <Input
                   type="text"
@@ -378,15 +497,33 @@ function NewGrnPage() {
                 />
               </Field>
             </div>
-            <Field label="Notes"><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
+            <Field label="Notes">
+              <Textarea
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </Field>
             <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">
               <span className="text-sm text-muted-foreground">Total bill amount</span>
-              <span className="figure text-xl font-semibold">{formatMoney(total, settings.currency)}</span>
+              <span className="figure text-xl font-semibold">
+                {formatMoney(total, settings.currency)}
+              </span>
             </div>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => window.history.back()}>Cancel</Button>
-              <Button type="button" variant="secondary" onClick={() => handleSave("draft")} disabled={isReadOnly}>Save as Draft</Button>
-              <Button type="button" onClick={() => handleSave("posted")} disabled={isReadOnly}>Post GRN</Button>
+              <Button type="button" variant="outline" onClick={() => window.history.back()}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => handleSave("draft")}
+                disabled={isReadOnly}
+              >
+                Save as Draft
+              </Button>
+              <Button type="button" onClick={() => handleSave("posted")} disabled={isReadOnly}>
+                Post GRN
+              </Button>
             </div>
           </form>
         </CardContent>
@@ -395,12 +532,22 @@ function NewGrnPage() {
   );
 }
 
-function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  helper,
+  children,
+}: {
+  label: string;
+  helper?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
-        {helper && <span className="text-[10px] text-muted-foreground font-normal lowercase">{helper}</span>}
+        {helper && (
+          <span className="text-[10px] text-muted-foreground font-normal lowercase">{helper}</span>
+        )}
       </div>
       {children}
     </div>

@@ -85,9 +85,7 @@ function formatDisplay(raw: string, mode: InputMode, keepTrailing = false): stri
   // Quantity blur: keep up to 2 decimal digits, but strip trailing zeros only
   // when the user didn't type anything meaningful.
   const trimmed = decRaw.slice(0, 2).replace(/0+$/, "");
-  return trimmed.length > 0
-    ? `${intFormatted}.${trimmed}`
-    : intFormatted;
+  return trimmed.length > 0 ? `${intFormatted}.${trimmed}` : intFormatted;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
@@ -112,7 +110,7 @@ export interface FormattedInputResult {
 
 export function useFormattedInput(
   mode: InputMode,
-  initialValue?: number | string
+  initialValue?: number | string,
 ): FormattedInputResult {
   const normalizeInitial = (v: number | string | undefined): string => {
     if (v === undefined || v === null || v === "") return "";
@@ -172,7 +170,7 @@ export function useFormattedInput(
         el.setSelectionRange(newCursor, newCursor);
       });
     },
-    [displayValue, mode]
+    [displayValue, mode],
   );
 
   /** onBlur applies final formatting (e.g. ".00" for currency). */
@@ -192,7 +190,7 @@ export function useFormattedInput(
       setRawValue(raw);
       setDisplayValue(raw ? formatDisplay(raw, mode) : "");
     },
-    [mode]
+    [mode],
   );
 
   /** Convert rawValue → JS number for the DB payload. */

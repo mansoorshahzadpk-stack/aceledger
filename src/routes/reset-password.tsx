@@ -28,7 +28,9 @@ function ResetPasswordPage() {
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) {
         setHasSession(true);
       }
@@ -78,21 +80,40 @@ function ResetPasswordPage() {
           ) : !hasSession ? (
             <div className="space-y-3 text-center">
               <p className="text-sm text-muted-foreground">
-                This reset link is invalid or has expired. Please request a new one from the sign-in page.
+                This reset link is invalid or has expired. Please request a new one from the sign-in
+                page.
               </p>
-              <Button className="w-full" onClick={() => navigate({ to: "/login" })}>Back to sign in</Button>
+              <Button className="w-full" onClick={() => navigate({ to: "/login" })}>
+                Back to sign in
+              </Button>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="newpw">New password</Label>
-                <Input id="newpw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                <Input
+                  id="newpw"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmpw">Confirm new password</Label>
-                <Input id="confirmpw" type="password" required minLength={6} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+                <Input
+                  id="confirmpw"
+                  type="password"
+                  required
+                  minLength={6}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>{loading ? "Updating…" : "Update password"}</Button>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Updating…" : "Update password"}
+              </Button>
             </form>
           )}
         </CardContent>

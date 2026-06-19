@@ -32,12 +32,11 @@ import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { useFormattedInput, type InputMode } from "@/lib/use-formatted-input";
 
-export interface FormattedInputProps
-  extends Omit<
-    React.InputHTMLAttributes<HTMLInputElement>,
-    // We replace these with our own controlled props
-    "type" | "value" | "defaultValue" | "onChange" | "onBlur"
-  > {
+export interface FormattedInputProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  // We replace these with our own controlled props
+  "type" | "value" | "defaultValue" | "onChange" | "onBlur"
+> {
   /** "currency" – always 2dp, forces .00 on blur.  "quantity" | "units" – up to 2dp, no forced zeros. */
   mode: InputMode;
   /**
@@ -59,7 +58,7 @@ export const FormattedInput = React.forwardRef<HTMLInputElement, FormattedInputP
     // Derive display from rawValue via the hook.
     // We use an internal state for the display that stays in sync.
     const [internalDisplay, setInternalDisplay] = React.useState<string>(() =>
-      rawValue ? applyInitialFormat(rawValue, mode) : ""
+      rawValue ? applyInitialFormat(rawValue, mode) : "",
     );
 
     // Track previous rawValue to detect external programmatic changes.
@@ -126,7 +125,7 @@ export const FormattedInput = React.forwardRef<HTMLInputElement, FormattedInputP
         onBlur={handleBlur}
       />
     );
-  }
+  },
 );
 
 FormattedInput.displayName = "FormattedInput";

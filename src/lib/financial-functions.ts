@@ -20,7 +20,9 @@ export interface IncomeStatementResult {
   minorIncomesList: any[];
 }
 
-export async function getIncomeStatementFn(input: IncomeStatementInput): Promise<IncomeStatementResult> {
+export async function getIncomeStatementFn(
+  input: IncomeStatementInput,
+): Promise<IncomeStatementResult> {
   const { businessId, userId, fromDate, toDate } = input;
 
   // Fetch posted invoices in date range
@@ -79,7 +81,10 @@ export async function getIncomeStatementFn(input: IncomeStatementInput): Promise
   });
 
   const totalExpenses = Object.values(expensesByCategory).reduce((sum, val) => sum + val, 0);
-  const totalMinorIncomes = Object.values(minorIncomesByCategory).reduce((sum, val) => sum + val, 0);
+  const totalMinorIncomes = Object.values(minorIncomesByCategory).reduce(
+    (sum, val) => sum + val,
+    0,
+  );
   const netProfit = grossProfit - totalExpenses + totalMinorIncomes;
 
   return {
@@ -160,7 +165,9 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     vendorPaymentsResult = fallbackPays || [];
   } else {
     if (vendorPaysError) throw vendorPaysError;
-    vendorPaymentsResult = (rawVendorPays || []).filter((p: any) => (p.status || "posted") === "posted");
+    vendorPaymentsResult = (rawVendorPays || []).filter(
+      (p: any) => (p.status || "posted") === "posted",
+    );
   }
   const vendorPayments = vendorPaymentsResult;
 
@@ -192,7 +199,8 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
         .filter((tx) => tx.asset_id === id && tx.type === "credit")
         .reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-      const balance = Number(asset.initial_balance) + clientInflow + ledgerInflow - vendorOutflow - ledgerOutflow;
+      const balance =
+        Number(asset.initial_balance) + clientInflow + ledgerInflow - vendorOutflow - ledgerOutflow;
       return {
         id: asset.id,
         name: asset.name,
@@ -237,7 +245,10 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
     };
   });
 
-  const totalReceivables = clientOutstandingBalances.reduce((sum, c) => sum + Math.max(0, c.outstanding), 0);
+  const totalReceivables = clientOutstandingBalances.reduce(
+    (sum, c) => sum + Math.max(0, c.outstanding),
+    0,
+  );
 
   // 6. Fetch Vendor Outstanding Balances (Payables)
   const { data: vendors, error: vendorsError } = await supabase
@@ -250,7 +261,9 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
 
   const { data: vendorGrns, error: vendorGrnsError } = await supabase
     .from("vendor_grns")
-    .select("id, total_amount, status, grn_date, vendor_id, product_id, material, quantity, unit, unit_price")
+    .select(
+      "id, total_amount, status, grn_date, vendor_id, product_id, material, quantity, unit, unit_price",
+    )
     .eq("status", "posted")
     .eq("business_id", businessId)
     .eq("user_id", userId)
@@ -301,17 +314,41 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   }
 
   // Weighted Average Cost calculation
-  const materialMap = new Map<string, { name: string; sku: string | null; unit: string; received: number; delivered: number; receivedValue: number }>();
-  
+  const materialMap = new Map<
+    string,
+    {
+      name: string;
+      sku: string | null;
+      unit: string;
+      received: number;
+      delivered: number;
+      receivedValue: number;
+    }
+  >();
+
   (products ?? []).forEach((m) => {
-    materialMap.set(m.id, { name: m.name, sku: m.sku, unit: m.unit, received: 0, delivered: 0, receivedValue: 0 });
+    materialMap.set(m.id, {
+      name: m.name,
+      sku: m.sku,
+      unit: m.unit,
+      received: 0,
+      delivered: 0,
+      receivedValue: 0,
+    });
   });
 
   (vendorGrns ?? []).forEach((g) => {
     const key = g.product_id ?? `_name:${(g.material || "").toLowerCase().trim()}`;
     let row = materialMap.get(key);
     if (!row) {
-      row = { name: g.material || "(unlinked)", sku: null, unit: g.unit || "", received: 0, delivered: 0, receivedValue: 0 };
+      row = {
+        name: g.material || "(unlinked)",
+        sku: null,
+        unit: g.unit || "",
+        received: 0,
+        delivered: 0,
+        receivedValue: 0,
+      };
       materialMap.set(key, row);
     }
     row.received += Number(g.quantity);
@@ -319,7 +356,8 @@ export async function getBalanceSheetFn(input: BalanceSheetInput): Promise<Balan
   });
 
   invoiceItems.forEach((it) => {
-    const key = it.product_id ?? `_name:${(it.description || "").toLowerCase().trim().split(" (")[0]}`;
+    const key =
+      it.product_id ?? `_name:${(it.description || "").toLowerCase().trim().split(" (")[0]}`;
     const row = materialMap.get(key);
     if (row) {
       row.delivered += Number(it.quantity);

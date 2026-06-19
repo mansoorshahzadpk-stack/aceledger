@@ -9,11 +9,31 @@ import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
@@ -27,9 +47,15 @@ export const Route = createFileRoute("/_authenticated/materials/")({
   head: () => ({
     meta: [
       { title: "Materials — Ace Ledger" },
-      { name: "description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
+      {
+        name: "description",
+        content: "Maintain the raw materials catalog with SKUs, units, and pricing.",
+      },
       { property: "og:title", content: "Materials — Ace Ledger" },
-      { property: "og:description", content: "Maintain the raw materials catalog with SKUs, units, and pricing." },
+      {
+        property: "og:description",
+        content: "Maintain the raw materials catalog with SKUs, units, and pricing.",
+      },
       { property: "og:url", content: "https://aceledger.top/materials" },
     ],
     links: [{ rel: "canonical", href: "https://aceledger.top/materials" }],
@@ -47,7 +73,16 @@ type MaterialRow = {
   active: boolean;
 };
 
-const emptyForm = { id: "", name: "", sku: "", description: "", unit: "kg", default_price: "0", default_tax_rate: "0", active: true };
+const emptyForm = {
+  id: "",
+  name: "",
+  sku: "",
+  description: "",
+  unit: "kg",
+  default_price: "0",
+  default_tax_rate: "0",
+  active: true,
+};
 
 function MaterialsPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
@@ -60,17 +95,30 @@ function MaterialsPage() {
     queryKey: ["materials", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return [];
-      const { data } = await supabase.from("products" as any).select("*").eq("business_id", activeBusinessId).eq("user_id", user.id).order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("products" as any)
+        .select("*")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
       return (data ?? []) as unknown as MaterialRow[];
     },
     enabled: !!user,
   });
 
-  const openNew = () => { setForm(emptyForm); setOpen(true); };
+  const openNew = () => {
+    setForm(emptyForm);
+    setOpen(true);
+  };
   const openEdit = (p: MaterialRow) => {
     setForm({
-      id: p.id, name: p.name, sku: p.sku ?? "", description: p.description ?? "",
-      unit: p.unit, default_price: String(p.default_price), default_tax_rate: String(p.default_tax_rate),
+      id: p.id,
+      name: p.name,
+      sku: p.sku ?? "",
+      description: p.description ?? "",
+      unit: p.unit,
+      default_price: String(p.default_price),
+      default_tax_rate: String(p.default_tax_rate),
       active: p.active,
     });
     setOpen(true);
@@ -89,9 +137,18 @@ function MaterialsPage() {
       active: form.active,
     };
     const res = form.id
-      ? await supabase.from("products" as any).update(payload).eq("id", form.id).eq("user_id", user.id)
-      : await supabase.from("products" as any).insert({ ...payload, user_id: user.id, business_id: activeBusinessId });
-    if (res.error) { toast.error(res.error.message); return; }
+      ? await supabase
+          .from("products" as any)
+          .update(payload)
+          .eq("id", form.id)
+          .eq("user_id", user.id)
+      : await supabase
+          .from("products" as any)
+          .insert({ ...payload, user_id: user.id, business_id: activeBusinessId });
+    if (res.error) {
+      toast.error(res.error.message);
+      return;
+    }
     toast.success(form.id ? "Material updated" : "Material added");
     setOpen(false);
     qc.invalidateQueries({ queryKey: ["materials"] });
@@ -100,7 +157,11 @@ function MaterialsPage() {
 
   const toggleActive = async (p: MaterialRow) => {
     if (!user) return;
-    await supabase.from("products" as any).update({ active: !p.active }).eq("id", p.id).eq("user_id", user.id);
+    await supabase
+      .from("products" as any)
+      .update({ active: !p.active })
+      .eq("id", p.id)
+      .eq("user_id", user.id);
     qc.invalidateQueries({ queryKey: ["materials"] });
     qc.invalidateQueries({ queryKey: ["materials-active"] });
   };
@@ -119,8 +180,15 @@ function MaterialsPage() {
   const deleteSelected = async () => {
     const ids = Array.from(selected);
     if (ids.length === 0 || !user) return;
-    const { error } = await supabase.from("products" as any).delete().in("id", ids).eq("user_id", user.id);
-    if (error) { toast.error(error.message); return; }
+    const { error } = await supabase
+      .from("products" as any)
+      .delete()
+      .in("id", ids)
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(`Deleted ${ids.length} material${ids.length === 1 ? "" : "s"}`);
     setSelected(new Set());
     qc.invalidateQueries({ queryKey: ["materials"] });
@@ -132,77 +200,136 @@ function MaterialsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
-          <p className="text-sm text-muted-foreground">Catalog of raw materials and supplies — selectable when logging GRNs and creating invoices</p>
+          <p className="text-sm text-muted-foreground">
+            Catalog of raw materials and supplies — selectable when logging GRNs and creating
+            invoices
+          </p>
         </div>
         <div className="flex gap-2">
           {selected.size > 0 && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isReadOnly}><Trash2 className="mr-2 h-4 w-4" />Delete ({selected.size})</Button>
+                <Button variant="destructive" disabled={isReadOnly}>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete ({selected.size})
+                </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Delete {selected.size} material{selected.size === 1 ? "" : "s"}?</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    Delete {selected.size} material{selected.size === 1 ? "" : "s"}?
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This removes the materials from your catalog. Existing GRNs and invoice line items already using them are not affected.
+                    This removes the materials from your catalog. Existing GRNs and invoice line
+                    items already using them are not affected.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={deleteSelected} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                  <AlertDialogAction
+                    onClick={deleteSelected}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
           )}
-          <Button onClick={openNew} disabled={isReadOnly}><Plus className="mr-2 h-4 w-4" />New Material</Button>
+          <Button onClick={openNew} disabled={isReadOnly}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Material
+          </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Package className="h-4 w-4" />Catalog</CardTitle>
-          <CardDescription>Active materials appear in the GRN material picker and invoice line-item picker</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Catalog
+          </CardTitle>
+          <CardDescription>
+            Active materials appear in the GRN material picker and invoice line-item picker
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-auto rounded-md border">
             <Table>
-              <TableHeader><TableRow>
-                <TableHead className="w-10">
-                  <Checkbox
-                    checked={!!materials && materials.length > 0 && selected.size === materials.length}
-                    onCheckedChange={toggleAll}
-                    aria-label="Select all"
-                  />
-                </TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead className="text-right">Default price</TableHead>
-                <TableHead className="text-center">Active</TableHead>
-                <TableHead></TableHead>
-              </TableRow></TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={
+                        !!materials && materials.length > 0 && selected.size === materials.length
+                      }
+                      onCheckedChange={toggleAll}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead className="text-right">Default price</TableHead>
+                  <TableHead className="text-center">Active</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
               <TableBody>
-                {isLoading && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Loading…</TableCell></TableRow>}
+                {isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      Loading…
+                    </TableCell>
+                  </TableRow>
+                )}
                 {!isLoading && (materials?.length ?? 0) === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No materials yet — add your first one</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      No materials yet — add your first one
+                    </TableCell>
+                  </TableRow>
                 )}
                 {materials?.map((p) => (
                   <TableRow key={p.id} data-state={selected.has(p.id) ? "selected" : undefined}>
                     <TableCell>
-                      <Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggle(p.id)} aria-label={`Select ${p.name}`} />
+                      <Checkbox
+                        checked={selected.has(p.id)}
+                        onCheckedChange={() => toggle(p.id)}
+                        aria-label={`Select ${p.name}`}
+                      />
                     </TableCell>
                     <TableCell className="font-medium">
                       {p.name}
-                      {p.description && <div className="text-xs text-muted-foreground truncate max-w-xs">{p.description}</div>}
+                      {p.description && (
+                        <div className="text-xs text-muted-foreground truncate max-w-xs">
+                          {p.description}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="font-mono text-xs">{p.sku ?? "—"}</TableCell>
-                    <TableCell><Badge variant="secondary">{p.unit}</Badge></TableCell>
-                    <TableCell className="text-right figure">{formatMoney(p.default_price, settings.currency)}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{p.unit}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right figure">
+                      {formatMoney(p.default_price, settings.currency)}
+                    </TableCell>
                     <TableCell className="text-center">
-                      <Switch checked={p.active} onCheckedChange={() => toggleActive(p)} disabled={isReadOnly} />
+                      <Switch
+                        checked={p.active}
+                        onCheckedChange={() => toggleActive(p)}
+                        disabled={isReadOnly}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)} disabled={isReadOnly}><Pencil className="h-4 w-4" /></Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEdit(p)}
+                        disabled={isReadOnly}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -214,26 +341,76 @@ function MaterialsPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{form.id ? "Edit Material" : "Add Material"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{form.id ? "Edit Material" : "Add Material"}</DialogTitle>
+          </DialogHeader>
           <form onSubmit={save} className="space-y-3">
-            <Field label="Name"><Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Maize Red" /></Field>
+            <Field label="Name">
+              <Input
+                required
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Maize Red"
+              />
+            </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="SKU"><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="optional" /></Field>
-              <Field label="Unit"><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="kg / pcs / bag" /></Field>
+              <Field label="SKU">
+                <Input
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  placeholder="optional"
+                />
+              </Field>
+              <Field label="Unit">
+                <Input
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  placeholder="kg / pcs / bag"
+                />
+              </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Default price"><FormattedInput mode="currency" required rawValue={form.default_price} onRawChange={(raw) => setForm({ ...form, default_price: raw })} placeholder="0.00" /></Field>
-              <Field label="Default tax rate (%)"><FormattedInput mode="quantity" rawValue={form.default_tax_rate} onRawChange={(raw) => setForm({ ...form, default_tax_rate: raw })} placeholder="e.g. 5" /></Field>
+              <Field label="Default price">
+                <FormattedInput
+                  mode="currency"
+                  required
+                  rawValue={form.default_price}
+                  onRawChange={(raw) => setForm({ ...form, default_price: raw })}
+                  placeholder="0.00"
+                />
+              </Field>
+              <Field label="Default tax rate (%)">
+                <FormattedInput
+                  mode="quantity"
+                  rawValue={form.default_tax_rate}
+                  onRawChange={(raw) => setForm({ ...form, default_tax_rate: raw })}
+                  placeholder="e.g. 5"
+                />
+              </Field>
             </div>
-            <Field label="Description"><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field>
+            <Field label="Description">
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </Field>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <div className="text-sm font-medium">Active</div>
-                <div className="text-xs text-muted-foreground">Only active materials appear in pickers</div>
+                <div className="text-xs text-muted-foreground">
+                  Only active materials appear in pickers
+                </div>
               </div>
-              <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
+              <Switch
+                checked={form.active}
+                onCheckedChange={(v) => setForm({ ...form, active: v })}
+              />
             </div>
-            <DialogFooter><Button type="submit" disabled={isReadOnly}>{form.id ? "Save changes" : "Add material"}</Button></DialogFooter>
+            <DialogFooter>
+              <Button type="submit" disabled={isReadOnly}>
+                {form.id ? "Save changes" : "Add material"}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -242,5 +419,10 @@ function MaterialsPage() {
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>{children}</div>;
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
 }

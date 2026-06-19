@@ -109,7 +109,7 @@ function Dashboard() {
         .filter((g) => g.status === "posted" || g.status == null)
         .reduce((s, x) => s + Number(x.total_amount), 0);
       const paidOut = vpayData
-        .filter((p: any) => p.status === "posted")
+        .filter((p: any) => (p.status ?? "posted") !== "draft")
         .reduce((s, x) => s + Number(x.amount), 0);
       const owed = vendorOpening + grnTotal - paidOut;
 

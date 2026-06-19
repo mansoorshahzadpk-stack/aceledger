@@ -204,26 +204,13 @@ function VendorDetail() {
       const grns = grnsRes.data || [];
       const amends = (amendsRes.data || []) as any[];
 
-      // Check once whether the status column exists (cache in ref for all writes)
-      if (hasStatusColRef.current === null) {
-        const { error: colErr } = await supabase
-          .from("vendor_payments")
-          .select("status")
-          .limit(0);
-        // PostgREST returns code PGRST204 or message containing column name for missing columns
-        const colMissing =
-          colErr &&
-          (colErr.code === "42703" ||
-            colErr.message?.toLowerCase().includes("status") ||
-            colErr.message?.toLowerCase().includes("could not find"));
-        hasStatusColRef.current = !colMissing;
-      }
-
       const grnTotal = (grns ?? [])
         .filter((g) => g.status === "posted" || g.status == null)
         .reduce((s, x) => s + Number(x.total_amount), 0);
+      // Payments: null status = legacy pre-column record → treat as posted for backwards compat.
+      // Explicit "draft" status = intentionally not posted → exclude from balance.
       const paid = (pays ?? [])
-        .filter((p: any) => p.status === "posted")
+        .filter((p: any) => (p.status ?? "posted") !== "draft")
         .reduce((s, x) => s + Number(x.amount), 0);
       const owed = Number(v?.opening_balance ?? 0) + grnTotal - paid;
 
@@ -270,8 +257,6 @@ function VendorDetail() {
     }
     if (!user || !activeBusinessId) return;
 
-    const hasStatusCol = hasStatusColRef.current !== false; // default true, false only if confirmed missing
-
     const basePayload: any = {
       user_id: user.id,
       business_id: activeBusinessId,
@@ -284,26 +269,27 @@ function VendorDetail() {
       asset_id: pay.asset_id === "" ? null : pay.asset_id,
     };
 
-    // Only include status if the column is confirmed to exist
-    const payload = hasStatusCol
-      ? { ...basePayload, status }
-      : basePayload;
+    // Always send status explicitly so DB DEFAULT 'posted' is never triggered accidentally
+    const payloadWithStatus = { ...basePayload, status };
 
-    const { error } = await supabase.from("vendor_payments").insert(payload);
+    const { error } = await supabase.from("vendor_payments").insert(payloadWithStatus);
+
     if (error) {
-      // If we get a column-not-found error despite our check, mark col as missing and retry
-      const isColError =
+      // Only retry without status if the error is specifically about the status column missing
+      const isStatusColMissing =
         error.code === "42703" ||
-        error.message?.toLowerCase().includes("could not find") ||
-        error.message?.toLowerCase().includes("'status'");
-      if (isColError) {
-        hasStatusColRef.current = false;
+        (error.message?.toLowerCase().includes("could not find") &&
+          error.message?.toLowerCase().includes("status")) ||
+        error.message?.toLowerCase().includes("schema cache");
+
+      if (isStatusColMissing) {
+        // Column doesn't exist — fall back to insert without status (legacy mode)
         const { error: retryError } = await supabase.from("vendor_payments").insert(basePayload);
         if (retryError) {
           toast.error(retryError.message);
           return;
         }
-        // No status column — all payments treated as posted in legacy mode
+        // In legacy mode all payments count as posted (no draft support without the column)
         toast.success("Payment posted — balance updated");
       } else {
         toast.error(error.message);
@@ -311,7 +297,7 @@ function VendorDetail() {
       }
     } else {
       toast.success(
-        status === "draft" && hasStatusCol
+        status === "draft"
           ? "Payment saved as Draft — balance not yet affected"
           : "Payment posted — balance updated",
       );
@@ -327,13 +313,9 @@ function VendorDetail() {
       asset_id: bankCashAssets[0]?.id || "",
     });
     qc.invalidateQueries({ queryKey: ["vendor", id] });
-    // Only refresh the vendors list balance when actually posting
     if (status === "posted") {
       qc.invalidateQueries({ queryKey: ["vendors"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-    } else {
-      // Refresh vendor detail only (draft doesn't affect global balances)
-      qc.invalidateQueries({ queryKey: ["vendor"] });
     }
   };
 

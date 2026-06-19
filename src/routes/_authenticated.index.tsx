@@ -39,7 +39,7 @@ function Dashboard() {
         supabase.from("vendor_grns").select("id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
         supabase.from("vendor_payments").select("id, amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id),
       ]);
-      let vpayData = vpayResult.data || [];
+      let vpayData: any[] = vpayResult.data || [];
       if (vpayResult.error && vpayResult.error.code === "42703") {
         const { data: fallback } = await supabase.from("vendor_payments").select("id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
         vpayData = fallback || [];

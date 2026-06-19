@@ -404,7 +404,7 @@ function SettingsPage() {
         { name: "Steel & Rod Co.", contact_person: "Sara N.", phone: "+92 321 9876543", opening_balance: 15000 },
         { name: "Polymer Source Ltd", phone: "+92 333 5556677", opening_balance: 0 },
         { name: "Eastern Pigments", contact_person: "Bilal", phone: "+92 345 2223344", opening_balance: 5000 },
-      ].map((v) => ({ ...v, user_id: user.id, business_id: activeBusiness.id }));
+      ].map((v) => ({ ...v, user_id: user.id, business_id: activeBusiness.id, code_prefix: v.name.slice(0, 3).toUpperCase() }));
       const { data: vRows } = await supabase.from("vendors").insert(vendors).select();
 
       const clients = [
@@ -414,7 +414,7 @@ function SettingsPage() {
         { name: "Metro Steel Works", phone: "+92 345 4444444", opening_balance: 0 },
         { name: "Punjab Garments", phone: "+92 312 5555555", opening_balance: 0 },
         { name: "United Industries", phone: "+92 301 6666666", opening_balance: 8000 },
-      ].map((c) => ({ ...c, user_id: user.id, business_id: activeBusiness.id }));
+      ].map((c) => ({ ...c, user_id: user.id, business_id: activeBusiness.id, code_prefix: c.name.slice(0, 3).toUpperCase() }));
       const { data: cRows } = await supabase.from("clients").insert(clients).select();
 
       const products = [

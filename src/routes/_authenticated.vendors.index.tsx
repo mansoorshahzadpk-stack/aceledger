@@ -80,7 +80,7 @@ function VendorsPage() {
       const { data: grns } = await supabase.from("vendor_grns").select("vendor_id, total_amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
       
       const vpayResult = await supabase.from("vendor_payments").select("vendor_id, amount, status").eq("business_id", activeBusinessId).eq("user_id", user.id);
-      let pays = vpayResult.data || [];
+      let pays: any[] = vpayResult.data || [];
       if (vpayResult.error && vpayResult.error.code === "42703") {
         const { data: fallback } = await supabase.from("vendor_payments").select("vendor_id, amount").eq("business_id", activeBusinessId).eq("user_id", user.id);
         pays = fallback || [];

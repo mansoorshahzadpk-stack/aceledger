@@ -96,7 +96,7 @@ function AssetsPage() {
         vendorPaysPromise,
       ]);
 
-      let vendorPaysResult = resVendor.data || [];
+      let vendorPaysResult: any[] = resVendor.data || [];
       if (resVendor.error && resVendor.error.code === "42703") {
         const { data: fallback } = await supabase.from("vendor_payments").select("amount, asset_id").eq("business_id", activeBusinessId).eq("user_id", user.id);
         vendorPaysResult = fallback || [];
@@ -145,7 +145,7 @@ function AssetsPage() {
         vendorPaysPromise,
       ]);
 
-      let vendorPaysResult = resVendor.data || [];
+      let vendorPaysResult: any[] = resVendor.data || [];
       if (resVendor.error && resVendor.error.code === "42703") {
         const { data: fallback } = await supabase
           .from("vendor_payments")

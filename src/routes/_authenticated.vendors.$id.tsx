@@ -6,7 +6,7 @@ import { useApp } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FormattedInput } from "@/components/ui/formatted-input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/vendors/$id")({
 
 type GRN = {
   id: string;
+  business_id: string;
   grn_number: string;
   grn_date: string;
   material: string;
@@ -109,19 +110,19 @@ function VendorDetail() {
         supabase.from("grn_amendments" as any).select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       ]);
 
-      let pays = vpayResult.data || [];
+      let pays: any[] = vpayResult.data || [];
       if (vpayResult.error && vpayResult.error.code === "42703") {
         const { data: fallback } = await supabase.from("vendor_payments").select("id, vendor_id, amount, payment_date, method, reference, notes, asset_id, assets(name)").eq("vendor_id", id).eq("business_id", activeBusinessId).eq("user_id", user.id).order("payment_date", { ascending: false });
-        pays = fallback || [];
+        pays = (fallback || []) as any[];
       }
 
       // Fetch vendor_payment_amendments safely (handling missing table error)
       const vpayAmendsResult = await supabase.from("vendor_payment_amendments" as any).select("*").eq("vendor_id", id).eq("user_id", user.id).order("created_at", { ascending: false });
-      const paymentAmends = vpayAmendsResult.data || [];
+      const paymentAmends = (vpayAmendsResult.data || []) as any[];
 
       const v = vRes.data;
       const grns = grnsRes.data || [];
-      const amends = amendsRes.data || [];
+      const amends = (amendsRes.data || []) as any[];
 
       const grnTotal = (grns ?? []).filter((g) => (g.status || "posted") === "posted").reduce((s, x) => s + Number(x.total_amount), 0);
       const paid = (pays ?? []).filter((p: any) => (p.status || "posted") === "posted").reduce((s, x) => s + Number(x.amount), 0);

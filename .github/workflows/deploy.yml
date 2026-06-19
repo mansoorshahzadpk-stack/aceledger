@@ -58,6 +58,19 @@ jobs:
               return rmdir($dirPath);
           }
 
+          // Helper to recursively set correct permissions (directories = 0755, files = 0644)
+          function fixPermissions($path) {
+              if (is_dir($path)) {
+                  @chmod($path, 0755);
+                  $files = array_diff(scandir($path), array('.', '..'));
+                  foreach ($files as $file) {
+                      fixPermissions($path . '/' . $file);
+                  }
+              } else {
+                  @chmod($path, 0644);
+              }
+          }
+
           // Clear old build assets to save disk space and prevent mixups
           deleteDir(__DIR__ . '/assets');
           deleteDir(__DIR__ . '/app-assets');
@@ -68,8 +81,6 @@ jobs:
                   @unlink($file);
               }
           }
-
-
 
           // Safely delete .htaccess and index.html right before extraction to prevent ownership overwrite issues
           @unlink(__DIR__ . '/.htaccess');
@@ -82,6 +93,8 @@ jobs:
                   $ok = $zip->extractTo(__DIR__);
                   $zip->close();
                   if ($ok) {
+                      // Fix file and directory permissions recursively to prevent 403 Forbidden issues on Hostinger
+                      fixPermissions(__DIR__);
                       unlink($zipFile);
                       @unlink(__FILE__);
                       echo 'Success';
@@ -105,7 +118,7 @@ jobs:
 
       - name: Upload Deployment Package to Hostinger
         run: |
-          sudo apt-get update && sudo apt-get install -y lftp
+          which lftp || sudo apt-get install -y lftp
           lftp -c "
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;

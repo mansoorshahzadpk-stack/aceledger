@@ -678,12 +678,13 @@ function VendorDetail() {
             <div className="flex items-center gap-2">
               {vendorAmends.length > 0 && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowGrnHistory(!showGrnHistory)}
+                  className="flex items-center gap-1.5"
                 >
-                  <History className="h-4 w-4 mr-1.5" />
-                  {showGrnHistory ? "Hide History" : "View History"}
+                  <History className="h-4 w-4" />
+                  {showGrnHistory ? "Hide Change History" : "View Change History"}
                 </Button>
               )}
               <Button
@@ -799,12 +800,13 @@ function VendorDetail() {
             <div className="flex items-center gap-2">
               {data.paymentAmends && data.paymentAmends.length > 0 && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+                  className="flex items-center gap-1.5"
                 >
-                  <History className="h-4 w-4 mr-1.5" />
-                  {showPaymentHistory ? "Hide History" : "View History"}
+                  <History className="h-4 w-4" />
+                  {showPaymentHistory ? "Hide Change History" : "View Change History"}
                 </Button>
               )}
               <Dialog open={payOpen} onOpenChange={setPayOpen}>

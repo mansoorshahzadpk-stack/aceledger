@@ -1,3 +1,7 @@
+# Prevent directory listing and enable symbolic links match for Hostinger Apache
+Options -Indexes
+Options +SymLinksIfOwnerMatch
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /

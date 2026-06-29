@@ -12,7 +12,7 @@
   RewriteRule ^ - [L]
 
   # Rewrite all other requests to index.html to enable client-side routing
-  RewriteRule ^ /index.html [L]
+  RewriteRule ^ index.html [L]
 </IfModule>
 
 # Disable caching for index.html (SPA entrypoint) to ensure updates are loaded instantly

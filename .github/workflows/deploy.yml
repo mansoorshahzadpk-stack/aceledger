@@ -23,7 +23,7 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Upload Build Directly via FTP Mirror
+      - name: Stage 1 - Upload Purge Script and Mirror Build Files
         run: |
           which lftp || sudo apt-get install -y lftp
           lftp -c "
@@ -34,9 +34,29 @@ jobs:
             set net:max-retries 10;
             set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            mirror -R --parallel=10 --ignore-time dist/client public_html;
+            quit;
+          " > lftp_output1.txt 2>&1 || { cat lftp_output1.txt && exit 1; }
+
+      - name: Stage 2 - Execute Remote Purge of Web Server Owned Files
+        run: |
+          echo "Triggering remote purge of legacy ownership files..."
+          RESPONSE=$(curl -s "https://aceledger.top/purge_nobody.php")
+          echo "Purge script response: $RESPONSE"
+
+      - name: Stage 3 - Final FTP Mirror and Cleanup
+        run: |
+          lftp -c "
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode on;
+            set net:timeout 15;
+            set net:max-retries 10;
+            set net:reconnect-interval-base 5;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             mirror -R --parallel=10 --delete --ignore-time dist/client public_html;
             quit;
-          " > lftp_output.txt 2>&1 || { cat lftp_output.txt && exit 1; }
+          " > lftp_output2.txt 2>&1 || { cat lftp_output2.txt && exit 1; }
 
       - name: Verify Site is Live
         run: |

@@ -1,9 +1,9 @@
 async function run() {
   const resRuns = await fetch('https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs?per_page=5');
   const jsonRuns = await resRuns.json();
-  const latestRun = jsonRuns.workflow_runs[0];
+  const latestRun = jsonRuns.workflow_runs.find(r => r.run_number === 174);
   if (!latestRun) {
-    console.log("No workflow runs found.");
+    console.log("Run #174 not found.");
     return;
   }
   const res = await fetch(`https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs/${latestRun.id}/jobs`);
@@ -13,6 +13,9 @@ async function run() {
   console.log(`Steps details:`);
   for (const step of job.steps) {
     console.log(`- [${step.conclusion || 'PENDING'}] ${step.name}`);
+    if (step.conclusion === 'failure') {
+      console.log(JSON.stringify(step, null, 2));
+    }
   }
 }
 run();

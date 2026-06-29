@@ -770,7 +770,7 @@ function AssetsPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>{editingAsset ? "Edit Asset" : "Add Asset Account"}</DialogTitle>
@@ -870,7 +870,7 @@ function AssetsPage() {
       </Dialog>
 
       <Dialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <form onSubmit={handleTransferSubmit}>
             <DialogHeader>
               <DialogTitle>Transfer Funds</DialogTitle>

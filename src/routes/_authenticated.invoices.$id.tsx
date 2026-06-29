@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +42,8 @@ import {
   formatOnFocus,
   formatOnBlur,
   getFormulaPart,
+  encodeFormula,
+  decodeFormula,
 } from "@/lib/math-parser";
 
 function formatMoneyFormula(val: string, currency: any) {
@@ -67,6 +70,7 @@ type Item = {
   unit?: string | null;
   grn_ref?: string | null;
   vehicle_ref?: string | null;
+  shipping?: string;
 };
 
 function InvoiceDetail() {
@@ -121,42 +125,56 @@ function InvoiceDetail() {
   useEffect(() => {
     if (data?.inv && !form) {
       const i = data.inv as any;
+      const tDec = decodeFormula(i.tax_formula);
+      const sDecMain = decodeFormula(i.shipping_formula);
+      const dDec = decodeFormula(i.discount_formula);
+
       setForm({
         invoice_number: i.invoice_number,
         issue_date: i.issue_date,
         due_date: i.due_date ?? "",
-        tax: i.tax_formula
-          ? i.tax_formula.endsWith("%")
-            ? i.tax_formula
-            : `${i.tax_formula} = ${i.tax}`
+        tax: tDec
+          ? tDec.endsWith("%")
+            ? tDec
+            : `${tDec} = ${i.tax}`
           : String(i.tax),
-        shipping: i.shipping_formula
-          ? i.shipping_formula.endsWith("%")
-            ? i.shipping_formula
-            : `${i.shipping_formula} = ${i.shipping}`
+        shipping: sDecMain
+          ? sDecMain.endsWith("%")
+            ? sDecMain
+            : `${sDecMain} = ${i.shipping}`
           : String(i.shipping ?? 0),
-        discount: i.discount_formula
-          ? i.discount_formula.endsWith("%")
-            ? i.discount_formula
-            : `${i.discount_formula} = ${i.discount}`
+        discount: dDec
+          ? dDec.endsWith("%")
+            ? dDec
+            : `${dDec} = ${i.discount}`
           : String(i.discount ?? 0),
         notes: i.notes ?? "",
         doc_template: i.doc_template,
       });
       setItems(
-        data.items.map((it: any) => ({
-          id: it.id,
-          description: it.description,
-          quantity: it.quantity_formula
-            ? `${it.quantity_formula} = ${it.quantity}`
-            : String(it.quantity),
-          unit_price: it.unit_price_formula
-            ? `${it.unit_price_formula} = ${it.unit_price}`
-            : String(it.unit_price),
-          unit: it.unit ?? null,
-          grn_ref: it.grn_ref ?? null,
-          vehicle_ref: it.vehicle_ref ?? null,
-        })),
+        data.items.map((it: any) => {
+          const qDec = decodeFormula(it.quantity_formula);
+          const pDec = decodeFormula(it.unit_price_formula);
+          const sDec = decodeFormula(it.shipping_formula);
+          return {
+            id: it.id,
+            description: it.description,
+            quantity: qDec
+              ? `${qDec} = ${it.quantity}`
+              : String(it.quantity),
+            unit_price: pDec
+              ? `${pDec} = ${it.unit_price}`
+              : String(it.unit_price),
+            unit: it.unit ?? null,
+            grn_ref: it.grn_ref ?? null,
+            vehicle_ref: it.vehicle_ref ?? null,
+            shipping: sDec
+              ? sDec.endsWith("%")
+                ? sDec
+                : `${sDec} = ${it.shipping}`
+              : String(it.shipping ?? 0),
+          };
+        }),
       );
     }
   }, [data, form]);
@@ -166,17 +184,20 @@ function InvoiceDetail() {
       items.reduce((s, i) => s + (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0), 0),
     [items],
   );
-  const taxNum = useMemo(
-    () => parsePercentageOrMath(form?.tax ?? "0", subtotal),
-    [form?.tax, subtotal],
-  );
-  const shipNum = useMemo(
-    () => parsePercentageOrMath(form?.shipping ?? "0", subtotal),
-    [form?.shipping, subtotal],
-  );
   const discountNum = useMemo(
     () => parsePercentageOrMath(form?.discount ?? "0", subtotal),
     [form?.discount, subtotal],
+  );
+  const taxNum = useMemo(
+    () => parsePercentageOrMath(form?.tax ?? "0", subtotal - discountNum),
+    [form?.tax, subtotal, discountNum],
+  );
+  const shipNum = useMemo(
+    () => items.reduce((s, i) => {
+      const rowSubtotal = (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0);
+      return s + (parsePercentageOrMath(i.shipping || "0", rowSubtotal) || 0);
+    }, 0),
+    [items],
   );
   const total = useMemo(
     () => subtotal + taxNum + shipNum - discountNum,
@@ -192,8 +213,50 @@ function InvoiceDetail() {
 
   const writeItems = async () => {
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
-    await supabase.from("invoice_items").insert(
-      items
+    const itemRows = items
+      .filter((it) => it.description)
+      .map((it, idx) => {
+        const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+        return {
+          invoice_id: id,
+          description: it.description,
+          quantity: parseMath(it.quantity) || 0,
+          unit_price: parseMath(it.unit_price) || 0,
+          line_total: rowSubtotal,
+          sort_order: idx,
+          grn_ref: it.grn_ref || null,
+          vehicle_ref: it.vehicle_ref || null,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          shipping_formula: encodeFormula(getFormulaPart(it.shipping || "")),
+        };
+      });
+    let { error: itemInsertError } = await supabase.from("invoice_items").insert(itemRows as any);
+    if (itemInsertError && (itemInsertError.message.includes("shipping_formula") || itemInsertError.message.includes("column"))) {
+      const fallbackItemRows = items
+        .filter((it) => it.description)
+        .map((it, idx) => {
+          const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+          return {
+            invoice_id: id,
+            description: it.description,
+            quantity: parseMath(it.quantity) || 0,
+            unit_price: parseMath(it.unit_price) || 0,
+            line_total: rowSubtotal,
+            sort_order: idx,
+            grn_ref: it.grn_ref || null,
+            vehicle_ref: it.vehicle_ref || null,
+            quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+            shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          };
+        });
+      let fallbackRes = await supabase.from("invoice_items").insert(fallbackItemRows as any);
+      itemInsertError = fallbackRes.error;
+    }
+    if (itemInsertError && (itemInsertError.message.includes("shipping") || itemInsertError.message.includes("column"))) {
+      const fallbackItemRows = items
         .filter((it) => it.description)
         .map((it, idx) => ({
           invoice_id: id,
@@ -204,10 +267,11 @@ function InvoiceDetail() {
           sort_order: idx,
           grn_ref: it.grn_ref || null,
           vehicle_ref: it.vehicle_ref || null,
-          quantity_formula: getFormulaPart(it.quantity),
-          unit_price_formula: getFormulaPart(it.unit_price),
-        })) as any,
-    );
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+        }));
+      await supabase.from("invoice_items").insert(fallbackItemRows as any);
+    }
   };
 
   const saveDraftEdit = async () => {
@@ -250,9 +314,9 @@ function InvoiceDetail() {
         total,
         notes: form.notes || null,
         doc_template: form.doc_template,
-        tax_formula: getFormulaPart(form.tax),
-        shipping_formula: getFormulaPart(form.shipping),
-        discount_formula: getFormulaPart(form.discount),
+        tax_formula: encodeFormula(getFormulaPart(form.tax)),
+        shipping_formula: null,
+        discount_formula: encodeFormula(getFormulaPart(form.discount)),
       } as any)
       .eq("id", id)
       .eq("user_id", user.id);
@@ -327,15 +391,31 @@ function InvoiceDetail() {
         notes: pendingTotal.meta.notes || null,
         doc_template: pendingTotal.meta.doc_template,
         current_version: inv.current_version + 1,
-        tax_formula: getFormulaPart(pendingTotal.meta.tax),
-        shipping_formula: getFormulaPart(pendingTotal.meta.shipping),
-        discount_formula: getFormulaPart(pendingTotal.meta.discount),
+        tax_formula: encodeFormula(getFormulaPart(pendingTotal.meta.tax)),
+        shipping_formula: null,
+        discount_formula: encodeFormula(getFormulaPart(pendingTotal.meta.discount)),
       } as any)
       .eq("id", id)
       .eq("user_id", user.id);
     await supabase.from("invoice_items").delete().eq("invoice_id", id);
-    await supabase.from("invoice_items").insert(
-      pendingTotal.items
+    const itemRows = pendingTotal.items
+      .filter((it) => it.description)
+      .map((it, idx) => ({
+        invoice_id: id,
+        description: it.description,
+        quantity: parseMath(it.quantity) || 0,
+        unit_price: parseMath(it.unit_price) || 0,
+        line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
+        sort_order: idx,
+        grn_ref: it.grn_ref || null,
+        vehicle_ref: it.vehicle_ref || null,
+        quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+        unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+        shipping: parseMath(it.shipping || "0") || 0,
+      }));
+    const { error: itemInsertError } = await supabase.from("invoice_items").insert(itemRows as any);
+    if (itemInsertError && (itemInsertError.message.includes("shipping") || itemInsertError.message.includes("column"))) {
+      const fallbackItemRows = pendingTotal.items
         .filter((it) => it.description)
         .map((it, idx) => ({
           invoice_id: id,
@@ -346,10 +426,11 @@ function InvoiceDetail() {
           sort_order: idx,
           grn_ref: it.grn_ref || null,
           vehicle_ref: it.vehicle_ref || null,
-          quantity_formula: getFormulaPart(it.quantity),
-          unit_price_formula: getFormulaPart(it.unit_price),
-        })) as any,
-    );
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+        }));
+      await supabase.from("invoice_items").insert(fallbackItemRows as any);
+    }
     toast.success("Amendment logged · client balance updated");
     setAmendOpen(false);
     setAmendReason("");
@@ -427,6 +508,7 @@ function InvoiceDetail() {
         unit: it.unit,
         grn_ref: it.grn_ref,
         vehicle_ref: it.vehicle_ref,
+        shipping: it.shipping || 0,
       })),
       subtotal,
       tax: taxNum,
@@ -564,15 +646,24 @@ function InvoiceDetail() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Description</TableHead>
-                    <TableHead className="w-28 text-right">Qty</TableHead>
-                    <TableHead className="w-32 text-right">Unit</TableHead>
+                    <TableHead className="w-24 text-right">Qty</TableHead>
+                    <TableHead className="w-32 text-right">Unit price</TableHead>
+                    <TableHead className="w-32 text-right">Shipping / Freight</TableHead>
                     <TableHead className="w-32 text-right">Amount</TableHead>
                     {editing && <TableHead className="w-10"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.map((it, idx) => (
-                    <TableRow key={idx}>
+                    <TableRow
+                      key={idx}
+                      className={cn(
+                        "transition-all duration-300",
+                        idx % 2 === 1
+                          ? "bg-muted/50 dark:bg-muted/20 border-border"
+                          : "bg-background border-border"
+                      )}
+                    >
                       <TableCell>
                         {editing ? (
                           <div className="space-y-1">
@@ -656,6 +747,32 @@ function InvoiceDetail() {
                           </span>
                         )}
                       </TableCell>
+                      <TableCell className="text-right">
+                        {editing ? (
+                          <Input
+                            type="text"
+                            value={it.shipping ?? "0"}
+                            onChange={(e) => updateLine(idx, { shipping: e.target.value })}
+                            onFocus={() =>
+                              updateLine(idx, { shipping: formatOnFocus(it.shipping ?? "0") })
+                            }
+                            onBlur={() =>
+                              updateLine(idx, { shipping: formatOnBlur(it.shipping ?? "0", (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) })
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                updateLine(idx, { shipping: formatOnBlur(it.shipping ?? "0", (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) });
+                                e.preventDefault();
+                              }
+                            }}
+                            className="text-right"
+                          />
+                        ) : (
+                          <span className="figure">
+                            {formatMoneyFormula(it.shipping ?? "0", settings.currency)}
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right figure">
                         {formatMoney(
                           (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
@@ -683,7 +800,7 @@ function InvoiceDetail() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setItems([...items, { description: "", quantity: "1", unit_price: "0" }])
+                  setItems([...items, { description: "", quantity: "1", unit_price: "0", shipping: "0" }])
                 }
               >
                 <Plus className="mr-1 h-4 w-4" />
@@ -712,14 +829,10 @@ function InvoiceDetail() {
                   value={form.tax}
                   onChange={(e) => setForm({ ...form, tax: e.target.value })}
                   onFocus={() => setForm({ ...form, tax: formatOnFocus(form.tax) })}
-                  onBlur={() => {
-                    if (!form.tax.trim().endsWith("%")) {
-                      setForm({ ...form, tax: formatOnBlur(form.tax) });
-                    }
-                  }}
+                  onBlur={() => setForm({ ...form, tax: formatOnBlur(form.tax, subtotal - discountNum) })}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.tax.trim().endsWith("%")) {
-                      setForm({ ...form, tax: formatOnBlur(form.tax) });
+                    if (e.key === "Enter") {
+                      setForm({ ...form, tax: formatOnBlur(form.tax, subtotal - discountNum) });
                       e.preventDefault();
                     }
                   }}
@@ -740,42 +853,14 @@ function InvoiceDetail() {
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground flex flex-col items-start">
                 <span>Shipping / Freight</span>
-                {form.shipping.trim().endsWith("%") && (
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    ({formatMoney(shipNum, settings.currency)})
-                  </span>
-                )}
               </span>
-              {editing ? (
-                <Input
-                  type="text"
-                  value={form.shipping}
-                  onChange={(e) => setForm({ ...form, shipping: e.target.value })}
-                  onFocus={() => setForm({ ...form, shipping: formatOnFocus(form.shipping) })}
-                  onBlur={() => {
-                    if (!form.shipping.trim().endsWith("%")) {
-                      setForm({ ...form, shipping: formatOnBlur(form.shipping) });
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.shipping.trim().endsWith("%")) {
-                      setForm({ ...form, shipping: formatOnBlur(form.shipping) });
-                      e.preventDefault();
-                    }
-                  }}
-                  className="h-8 w-28 text-right text-xs"
-                />
-              ) : (
-                <span className="figure">
-                  {form.shipping.trim().endsWith("%") ? (
-                    <>
-                      {form.shipping} = {formatMoney(shipNum, settings.currency)}
-                    </>
-                  ) : (
-                    formatMoneyFormula(form.shipping, settings.currency)
-                  )}
-                </span>
-              )}
+              <Input
+                type="text"
+                disabled
+                readOnly
+                value={formatMoney(shipNum, settings.currency)}
+                className="h-8 w-28 text-right text-xs bg-muted text-muted-foreground cursor-not-allowed"
+              />
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground flex flex-col items-start">
@@ -792,14 +877,10 @@ function InvoiceDetail() {
                   value={form.discount}
                   onChange={(e) => setForm({ ...form, discount: e.target.value })}
                   onFocus={() => setForm({ ...form, discount: formatOnFocus(form.discount) })}
-                  onBlur={() => {
-                    if (!form.discount.trim().endsWith("%")) {
-                      setForm({ ...form, discount: formatOnBlur(form.discount) });
-                    }
-                  }}
+                  onBlur={() => setForm({ ...form, discount: formatOnBlur(form.discount, subtotal) })}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.discount.trim().endsWith("%")) {
-                      setForm({ ...form, discount: formatOnBlur(form.discount) });
+                    if (e.key === "Enter") {
+                      setForm({ ...form, discount: formatOnBlur(form.discount, subtotal) });
                       e.preventDefault();
                     }
                   }}

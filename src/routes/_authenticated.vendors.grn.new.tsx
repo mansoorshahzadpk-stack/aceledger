@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -7,6 +7,7 @@ import {
   formatOnFocus,
   formatOnBlur,
   getFormulaPart,
+  encodeFormula,
 } from "@/lib/math-parser";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
@@ -32,9 +33,10 @@ import {
   CommandItem,
 } from "@/components/ui/command";
 import { formatMoney } from "@/lib/format";
-import { Package, ChevronDown } from "lucide-react";
+import { Package, ChevronDown, Trash2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { generateCodePrefix } from "@/lib/code-prefix";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/vendors/grn/new")({
   component: NewGrnPage,
@@ -78,25 +80,32 @@ async function calculateNextGrnNumber(
   return `GRN-${prefix}-${String(maxSeq + 1).padStart(4, "0")}`;
 }
 
+type GRNItem = {
+  material: string;
+  product_id: string;
+  quantity: string;
+  unit: string;
+  unit_price: string;
+  details: string;
+  shipping: string;
+};
+
 function NewGrnPage() {
   const { settings, user, activeBusinessId, isReadOnly } = useApp();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     vendor_id: "",
     grn_number: "",
-    material: "",
-    product_id: "" as string,
-    quantity: "0",
-    unit: "kg",
-    unit_price: "0",
+    grn_date: new Date().toISOString().slice(0, 10),
     discount: "0",
     tax: "0",
-    shipping: "0",
-    grn_date: new Date().toISOString().slice(0, 10),
-    doc_template: settings.default_doc_template,
     notes: "",
+    doc_template: settings.default_doc_template,
   });
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [items, setItems] = useState<GRNItem[]>([
+    { material: "", product_id: "", quantity: "1", unit: "kg", unit_price: "0", details: "", shipping: "0" },
+  ]);
+  const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
   const { data: vendors } = useQuery({
     queryKey: ["vendors-list", user?.id, activeBusinessId],
@@ -170,30 +179,38 @@ function NewGrnPage() {
     enabled: !!user,
   });
 
-  const pickMaterial = (m: Material) => {
-    setForm((f) => ({
-      ...f,
+  const setItem = (idx: number, patch: Partial<GRNItem>) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+  };
+
+  const pickMaterial = (idx: number, m: Material) => {
+    setItem(idx, {
       product_id: m.id,
       material: m.name,
-      unit: m.unit || f.unit,
-      unit_price: f.unit_price && f.unit_price !== "0" ? f.unit_price : String(m.default_price),
-    }));
-    setPickerOpen(false);
+      unit: m.unit || "kg",
+      unit_price: String(m.default_price),
+    });
+    setPickerOpen(null);
   };
 
   const subtotal = useMemo(() => {
-    return (parseMath(form.quantity) || 0) * (parseMath(form.unit_price) || 0);
-  }, [form.quantity, form.unit_price]);
+    return items.reduce((s, i) => s + (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0), 0);
+  }, [items]);
 
   const discountNum = useMemo(
     () => parsePercentageOrMath(form.discount, subtotal),
     [form.discount, subtotal],
   );
-  const taxNum = useMemo(() => parsePercentageOrMath(form.tax, subtotal), [form.tax, subtotal]);
-  const shipNum = useMemo(
-    () => parsePercentageOrMath(form.shipping, subtotal),
-    [form.shipping, subtotal],
-  );
+  const taxNum = useMemo(() => {
+    const postDiscountSubtotal = subtotal - discountNum;
+    return parsePercentageOrMath(form.tax, postDiscountSubtotal);
+  }, [form.tax, subtotal, discountNum]);
+  const shipNum = useMemo(() => {
+    return items.reduce((s, i) => {
+      const rowSubtotal = (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0);
+      return s + (parsePercentageOrMath(i.shipping || "0", rowSubtotal) || 0);
+    }, 0);
+  }, [items]);
 
   const total = useMemo(() => {
     return subtotal - discountNum + taxNum + shipNum;
@@ -204,8 +221,12 @@ function NewGrnPage() {
       toast.error("Choose a vendor");
       return;
     }
-    if (!form.material) {
-      toast.error("Choose or enter a material");
+    if (items.length === 0) {
+      toast.error("Add at least one line item");
+      return;
+    }
+    if (items.some((it) => !it.material)) {
+      toast.error("Choose or enter a material for all line items");
       return;
     }
 
@@ -231,40 +252,174 @@ function NewGrnPage() {
       return;
     }
 
-    const { error } = await supabase.from("vendor_grns").insert({
-      user_id: user.id,
-      business_id: activeBusinessId,
-      vendor_id: form.vendor_id,
-      grn_number: targetNum,
-      material: form.material,
-      product_id: form.product_id || null,
-      quantity: parseMath(form.quantity) || 0,
-      unit: form.unit,
-      unit_price: parseMath(form.unit_price) || 0,
-      discount: discountNum,
-      tax: taxNum,
-      shipping: shipNum,
-      total_amount: total,
-      grn_date: form.grn_date,
-      doc_template: form.doc_template,
-      notes: form.notes || null,
-      status,
-      posted_at: status === "posted" ? new Date().toISOString() : null,
-      quantity_formula: getFormulaPart(form.quantity),
-      unit_price_formula: getFormulaPart(form.unit_price),
-      discount_formula: getFormulaPart(form.discount),
-      tax_formula: getFormulaPart(form.tax),
-      shipping_formula: getFormulaPart(form.shipping),
-    } as any);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(status === "draft" ? "Draft saved" : "GRN posted");
-      navigate({ to: "/vendors/$id", params: { id: form.vendor_id } });
+    const firstItem = items[0];
+    const firstItemQty = parseMath(firstItem.quantity) || 0;
+    const firstItemPrice = parseMath(firstItem.unit_price) || 0;
+    const firstItemSubtotal = firstItemQty * firstItemPrice;
+    const firstItemShipping = parsePercentageOrMath(firstItem.shipping || "0", firstItemSubtotal) || 0;
+
+    let { data: newGrn, error } = await supabase
+      .from("vendor_grns")
+      .insert({
+        user_id: user.id,
+        business_id: activeBusinessId,
+        vendor_id: form.vendor_id,
+        grn_number: targetNum,
+        material: firstItem.material,
+        product_id: firstItem.product_id || null,
+        quantity: firstItemQty,
+        unit: firstItem.unit,
+        unit_price: firstItemPrice,
+        discount: discountNum,
+        tax: taxNum,
+        shipping: shipNum,
+        total_amount: total,
+        grn_date: form.grn_date,
+        doc_template: form.doc_template,
+        notes: form.notes || null,
+        status,
+        posted_at: status === "posted" ? new Date().toISOString() : null,
+        quantity_formula: encodeFormula(getFormulaPart(firstItem.quantity)),
+        unit_price_formula: encodeFormula(getFormulaPart(firstItem.unit_price)),
+        discount_formula: encodeFormula(getFormulaPart(form.discount)),
+        tax_formula: encodeFormula(getFormulaPart(form.tax)),
+        shipping_formula: encodeFormula(getFormulaPart(firstItem.shipping || "")),
+        details: firstItem.details || null,
+      } as any)
+      .select("id")
+      .single();
+
+    if (error && (error.message.includes("details") || error.message.includes("column"))) {
+      const fallbackResult = await supabase
+        .from("vendor_grns")
+        .insert({
+          user_id: user.id,
+          business_id: activeBusinessId,
+          vendor_id: form.vendor_id,
+          grn_number: targetNum,
+          material: firstItem.material,
+          product_id: firstItem.product_id || null,
+          quantity: firstItemQty,
+          unit: firstItem.unit,
+          unit_price: firstItemPrice,
+          discount: discountNum,
+          tax: taxNum,
+          shipping: shipNum,
+          total_amount: total,
+          grn_date: form.grn_date,
+          doc_template: form.doc_template,
+          notes: form.notes || null,
+          status,
+          posted_at: status === "posted" ? new Date().toISOString() : null,
+          quantity_formula: encodeFormula(getFormulaPart(firstItem.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(firstItem.unit_price)),
+          discount_formula: encodeFormula(getFormulaPart(form.discount)),
+          tax_formula: encodeFormula(getFormulaPart(form.tax)),
+          shipping_formula: encodeFormula(getFormulaPart(firstItem.shipping || "")),
+          vehicle_number: firstItem.details || null,
+        } as any)
+        .select("id")
+        .single();
+      newGrn = fallbackResult.data;
+      error = fallbackResult.error;
     }
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (newGrn) {
+      const insertItems = items.map((it: any) => {
+        const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+        return {
+          grn_id: newGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          line_details: it.details || null,
+          shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          shipping_formula: encodeFormula(getFormulaPart(it.shipping || "")),
+        };
+      });
+
+      let { error: itemError } = await supabase
+        .from("vendor_grn_items" as any)
+        .insert(insertItems);
+
+      if (itemError && (itemError.message.includes("shipping_formula") || itemError.message.includes("column"))) {
+        const fallbackInsertItems = items.map((it: any) => {
+          const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+          return {
+            grn_id: newGrn.id,
+            product_id: it.product_id || null,
+            material: it.material,
+            quantity: parseMath(it.quantity) || 0,
+            unit: it.unit,
+            unit_price: parseMath(it.unit_price) || 0,
+            quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+            line_details: it.details || null,
+            shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          };
+        });
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        itemError = fallbackRes.error;
+      }
+
+      if (itemError && (itemError.message.includes("shipping") || itemError.message.includes("column"))) {
+        const fallbackInsertItems = items.map((it: any) => ({
+          grn_id: newGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          line_details: it.details || null,
+        }));
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        itemError = fallbackRes.error;
+      }
+
+      if (itemError && (itemError.message.includes("line_details") || itemError.message.includes("column"))) {
+        const fallbackInsertItems = items.map((it: any) => ({
+          grn_id: newGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          vehicle_number: it.details || null,
+        }));
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        itemError = fallbackRes.error;
+      }
+
+      if (itemError) {
+        console.error("Failed to insert GRN items:", itemError);
+      }
+    }
+
+    toast.success(status === "draft" ? "Draft saved" : "GRN posted");
+    navigate({ to: "/vendors/$id", params: { id: form.vendor_id } });
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Log Goods Received</h1>
         <p className="text-sm text-muted-foreground">Record raw material received from a vendor</p>
@@ -274,14 +429,8 @@ function NewGrnPage() {
           <CardTitle>GRN details</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSave("posted");
-            }}
-            className="space-y-4"
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Field label="Vendor">
                 <Select
                   value={form.vendor_id}
@@ -315,200 +464,225 @@ function NewGrnPage() {
                   onChange={(e) => setForm({ ...form, grn_date: e.target.value })}
                 />
               </Field>
+            </div>
 
-              <Field label="Material">
-                <div className="flex gap-2">
-                  <Input
-                    value={form.material}
-                    onChange={(e) => setForm({ ...form, material: e.target.value, product_id: "" })}
-                    placeholder="Type or pick"
-                    className="flex-1"
-                  />
-                  <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" size="icon" title="Pick from catalog">
-                        <ChevronDown className="h-4 w-4" />
+            <div className="space-y-4">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">Line items</Label>
+              {items.map((it, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "space-y-3 rounded-md border p-4 transition-all duration-300",
+                    idx % 2 === 1
+                      ? "bg-muted/50 dark:bg-muted/20 border-border"
+                      : "bg-background border-border"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <Popover
+                      open={pickerOpen === idx}
+                      onOpenChange={(v) => setPickerOpen(v ? idx : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="sm">
+                          <Package className="mr-1 h-4 w-4" />
+                          {(materials?.length ?? 0) > 0 ? "Select from catalog" : "No materials yet"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search materials…" />
+                          <CommandList>
+                            <CommandEmpty>
+                              No materials found.{" "}
+                              <Link to="/materials" className="underline">
+                                Add one
+                              </Link>
+                              .
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {materials?.map((m) => (
+                                <CommandItem
+                                  key={m.id}
+                                  value={`${m.name} ${m.sku ?? ""}`}
+                                  onSelect={() => pickMaterial(idx, m)}
+                                >
+                                  <div className="flex w-full items-center justify-between">
+                                    <div>
+                                      <div className="font-medium">{m.name}</div>
+                                      {m.sku && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {m.sku} · {m.unit}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="figure text-sm">
+                                      {formatMoney(m.default_price, settings.currency)}
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0" align="end">
-                      <Command>
-                        <CommandInput placeholder="Search materials…" />
-                        <CommandList>
-                          <CommandEmpty>
-                            No materials found. Add some in{" "}
-                            <a className="underline" href="/materials">
-                              Materials
-                            </a>
-                            .
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {materials?.map((m) => (
-                              <CommandItem
-                                key={m.id}
-                                value={`${m.name} ${m.sku ?? ""}`}
-                                onSelect={() => pickMaterial(m)}
-                              >
-                                <Package className="mr-2 h-4 w-4 text-muted-foreground" />
-                                <div className="flex w-full items-center justify-between">
-                                  <div>
-                                    <div className="font-medium">{m.name}</div>
-                                    {m.sku && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {m.sku} · {m.unit}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="figure text-xs">
-                                    {formatMoney(m.default_price, settings.currency)}
-                                  </div>
-                                </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                    )}
+                  </div>
+                  <div className="grid gap-2 md:grid-cols-[1fr_100px_80px_120px_120px_120px] md:items-end">
+                    <Field label="Material">
+                      <Input
+                        value={it.material}
+                        onChange={(e) => setItem(idx, { material: e.target.value, product_id: "" })}
+                        placeholder="Material name"
+                      />
+                    </Field>
+                    <Field label="Qty" helper="supports math">
+                      <Input
+                        type="text"
+                        value={it.quantity}
+                        onChange={(e) => setItem(idx, { quantity: e.target.value })}
+                        onFocus={() => setItem(idx, { quantity: formatOnFocus(it.quantity) })}
+                        onBlur={() => setItem(idx, { quantity: formatOnBlur(it.quantity) })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setItem(idx, { quantity: formatOnBlur(it.quantity) });
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="e.g. 10"
+                      />
+                    </Field>
+                    <Field label="Unit">
+                      <Input
+                        value={it.unit}
+                        onChange={(e) => setItem(idx, { unit: e.target.value })}
+                        placeholder="kg"
+                      />
+                    </Field>
+                    <Field label="Unit price" helper="supports math">
+                      <Input
+                        type="text"
+                        value={it.unit_price}
+                        onChange={(e) => setItem(idx, { unit_price: e.target.value })}
+                        onFocus={() => setItem(idx, { unit_price: formatOnFocus(it.unit_price) })}
+                        onBlur={() => setItem(idx, { unit_price: formatOnBlur(it.unit_price) })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setItem(idx, { unit_price: formatOnBlur(it.unit_price) });
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="e.g. 100"
+                      />
+                    </Field>
+                    <Field label="Shipping / Freight">
+                      <Input
+                        type="text"
+                        value={it.shipping}
+                        onChange={(e) => setItem(idx, { shipping: e.target.value })}
+                        onFocus={() => setItem(idx, { shipping: formatOnFocus(it.shipping) })}
+                        onBlur={() => setItem(idx, { shipping: formatOnBlur(it.shipping, (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) })}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setItem(idx, { shipping: formatOnBlur(it.shipping, (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) });
+                            e.preventDefault();
+                          }
+                        }}
+                        placeholder="e.g. 100 or 1%"
+                      />
+                    </Field>
+                    <Field label="Amount">
+                      <div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">
+                        {formatMoney(
+                          (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
+                          settings.currency,
+                        )}
+                      </div>
+                    </Field>
+                  </div>
+                  <Field label="Details (optional)">
+                    <Input
+                      value={it.details}
+                      onChange={(e) => setItem(idx, { details: e.target.value })}
+                      placeholder="e.g., Vehicle No, Driver, or notes..."
+                    />
+                  </Field>
                 </div>
-              </Field>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setItems([...items, { material: "", product_id: "", quantity: "1", unit: "kg", unit_price: "0", details: "", shipping: "0" }])
+                }
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                Add Item
+              </Button>
+            </div>
 
-              <Field label="Quantity" helper="supports math, e.g. 50/2">
-                <Input
-                  type="text"
-                  required
-                  value={form.quantity}
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                  onFocus={() => setForm((f) => ({ ...f, quantity: formatOnFocus(f.quantity) }))}
-                  onBlur={() => setForm((f) => ({ ...f, quantity: formatOnBlur(f.quantity) }))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setForm((f) => ({ ...f, quantity: formatOnBlur(f.quantity) }));
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="e.g. 10 or 20*5"
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Notes">
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="Additional observations..."
+                  className="min-h-[120px]"
                 />
               </Field>
-              <Field label="Unit">
-                <Input
-                  required
-                  value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                />
-              </Field>
-              <Field label="Unit price" helper="supports math, e.g. 200/2">
-                <Input
-                  type="text"
-                  required
-                  value={form.unit_price}
-                  onChange={(e) => setForm({ ...form, unit_price: e.target.value })}
-                  onFocus={() =>
-                    setForm((f) => ({ ...f, unit_price: formatOnFocus(f.unit_price) }))
-                  }
-                  onBlur={() => setForm((f) => ({ ...f, unit_price: formatOnBlur(f.unit_price) }))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setForm((f) => ({ ...f, unit_price: formatOnBlur(f.unit_price) }));
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="e.g. 100 or 200/2"
-                />
-              </Field>
-              <Field
-                label="Discount"
-                helper={
-                  form.discount.trim().endsWith("%")
-                    ? `(${formatMoney(discountNum, settings.currency)})`
-                    : "flat or %, e.g., 2%"
-                }
-              >
-                <Input
-                  type="text"
-                  value={form.discount}
-                  onChange={(e) => setForm({ ...form, discount: e.target.value })}
-                  onFocus={() => setForm((f) => ({ ...f, discount: formatOnFocus(f.discount) }))}
-                  onBlur={() => {
-                    if (!form.discount.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, discount: formatOnBlur(f.discount) }));
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.discount.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, discount: formatOnBlur(f.discount) }));
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="e.g. 500 or 2%"
-                />
-              </Field>
-              <Field
-                label="Tax"
-                helper={
-                  form.tax.trim().endsWith("%")
-                    ? `(${formatMoney(taxNum, settings.currency)})`
-                    : "flat or %, e.g., 5%"
-                }
-              >
-                <Input
-                  type="text"
-                  value={form.tax}
-                  onChange={(e) => setForm({ ...form, tax: e.target.value })}
-                  onFocus={() => setForm((f) => ({ ...f, tax: formatOnFocus(f.tax) }))}
-                  onBlur={() => {
-                    if (!form.tax.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, tax: formatOnBlur(f.tax) }));
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.tax.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, tax: formatOnBlur(f.tax) }));
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="e.g. 500 or 5%"
-                />
-              </Field>
-              <Field
-                label="Shipping / Freight"
-                helper={
-                  form.shipping.trim().endsWith("%")
-                    ? `(${formatMoney(shipNum, settings.currency)})`
-                    : "flat or %, e.g., 1.5%"
-                }
-              >
-                <Input
-                  type="text"
-                  value={form.shipping}
-                  onChange={(e) => setForm({ ...form, shipping: e.target.value })}
-                  onFocus={() => setForm((f) => ({ ...f, shipping: formatOnFocus(f.shipping) }))}
-                  onBlur={() => {
-                    if (!form.shipping.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, shipping: formatOnBlur(f.shipping) }));
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !form.shipping.trim().endsWith("%")) {
-                      setForm((f) => ({ ...f, shipping: formatOnBlur(f.shipping) }));
-                      e.preventDefault();
-                    }
-                  }}
-                  placeholder="e.g. 1000 or 1.5%"
-                />
-              </Field>
+              <div className="space-y-3 rounded-md border p-4 bg-muted/10">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="figure">{formatMoney(subtotal, settings.currency)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Discount</span>
+                  <Input
+                    type="text"
+                    value={form.discount}
+                    onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                    onFocus={() => setForm((f) => ({ ...f, discount: formatOnFocus(f.discount) }))}
+                    onBlur={() => setForm((f) => ({ ...f, discount: formatOnBlur(f.discount, subtotal) }))}
+                    className="h-8 w-28 text-right text-xs"
+                    placeholder="Discount"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Tax</span>
+                  <Input
+                    type="text"
+                    value={form.tax}
+                    onChange={(e) => setForm({ ...form, tax: e.target.value })}
+                    onFocus={() => setForm((f) => ({ ...f, tax: formatOnFocus(f.tax) }))}
+                    onBlur={() => setForm((f) => ({ ...f, tax: formatOnBlur(f.tax, subtotal - discountNum) }))}
+                    className="h-8 w-28 text-right text-xs"
+                    placeholder="Tax"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Shipping / Freight (Total)</span>
+                  <span className="figure">{formatMoney(shipNum, settings.currency)}</span>
+                </div>
+                <hr className="border-border" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Total</span>
+                  <span className="figure text-lg font-bold text-primary">
+                    {formatMoney(total, settings.currency)}
+                  </span>
+                </div>
+              </div>
             </div>
-            <Field label="Notes">
-              <Textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              />
-            </Field>
-            <div className="flex items-center justify-between rounded-md border bg-muted/40 p-4">
-              <span className="text-sm text-muted-foreground">Total bill amount</span>
-              <span className="figure text-xl font-semibold">
-                {formatMoney(total, settings.currency)}
-              </span>
-            </div>
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => window.history.back()}>
                 Cancel
@@ -525,7 +699,7 @@ function NewGrnPage() {
                 Post GRN
               </Button>
             </div>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>

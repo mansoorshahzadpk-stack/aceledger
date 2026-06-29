@@ -330,7 +330,7 @@ function VendorsPage() {
                 New Vendor
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
               <DialogHeader>
                 <DialogTitle>Add Vendor</DialogTitle>
               </DialogHeader>
@@ -503,7 +503,7 @@ function VendorsPage() {
 
       {/* Amend Vendor Details Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>Amend Vendor Details</DialogTitle>
           </DialogHeader>

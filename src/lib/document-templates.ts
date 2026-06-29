@@ -1,5 +1,6 @@
 import type { CurrencyCode } from "@/lib/format";
 import { CURRENCY_SYMBOLS } from "@/lib/format";
+import { parseMath } from "@/lib/math-parser";
 
 export type DocTemplate = "acelog" | "classic" | "modern" | "compact";
 
@@ -11,6 +12,7 @@ interface DocItem {
   unit?: string | null;
   grn_ref?: string | null;
   vehicle_ref?: string | null;
+  shipping?: number | string | null;
 }
 
 interface DocInput {
@@ -20,6 +22,7 @@ interface DocInput {
   date: string;
   due_date?: string | null;
   currency: CurrencyCode;
+  vehicle_number?: string | null;
   business: {
     name?: string | null;
     address?: string | null;
@@ -106,10 +109,31 @@ function amtStr(it: DocItem) {
     maximumFractionDigits: 2,
   });
 }
-function itemMeta(it: DocItem) {
+/**
+ * Safely evaluate the line-item shipping/freight field.
+ * Strips all formula text (e.g. "20000+5000", "4% = 7200") and returns
+ * only the final computed numeric value so the printout never shows raw
+ * expressions.
+ */
+function safeFreight(it: DocItem): number {
+  if (it.shipping === null || it.shipping === undefined || it.shipping === "") return 0;
+  const raw = String(it.shipping).trim();
+  if (!raw) return 0;
+  // If the value contains "=" it is in the stored "expr = result" format;
+  // parseMath handles that and also evaluates bare expressions like "20000+5000".
+  const evaluated = parseMath(raw);
+  return Number.isFinite(evaluated) && evaluated > 0 ? evaluated : 0;
+}
+
+function itemMeta(it: DocItem, currency: string = "Rs") {
   const meta: string[] = [];
   if (it.grn_ref) meta.push(`GRN : ${escapeHtml(it.grn_ref)}`);
-  if (it.vehicle_ref) meta.push(`Veh : ${escapeHtml(it.vehicle_ref)}`);
+  if (it.vehicle_ref) meta.push(`${escapeHtml(it.vehicle_ref)}`);
+  const freightVal = safeFreight(it);
+  if (freightVal > 0) {
+    const formatted = freightVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    meta.push(`Freight : ${currency}&nbsp;${formatted}`);
+  }
   return meta;
 }
 
@@ -122,7 +146,7 @@ function acelogTemplate(d: DocInput): string {
   const discount = num(d.discount);
   const items = d.items
     .map((it, idx) => {
-      const meta = itemMeta(it);
+      const meta = itemMeta(it, d.currency);
       return `
       <tr>
         <td class="num">${idx + 1}</td>
@@ -188,6 +212,7 @@ function acelogTemplate(d: DocInput): string {
         <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
         <div>${escapeHtml(d.business.address || "").replace(/\n/g, "<br/>")}</div>
         <div>${escapeHtml(d.business.phone || "")}</div>
+        ${d.vehicle_number && d.title !== "Goods Received Note" ? `<div style="margin-top: 4px; font-weight: 500; font-size: 11px;">Vehicle No: ${escapeHtml(d.vehicle_number)}</div>` : ""}
       </div>
     </div>
     <div class="right">
@@ -232,7 +257,7 @@ function classicTemplate(d: DocInput): string {
   const discount = num(d.discount);
   const items = d.items
     .map((it, idx) => {
-      const meta = itemMeta(it);
+      const meta = itemMeta(it, d.currency);
       return `<tr>
       <td class="num">${idx + 1}.</td>
       <td><div class="iname">${escapeHtml(it.description)}</div>${meta.length ? `<div class="imeta">${meta.join(" &nbsp;·&nbsp; ")}</div>` : ""}</td>
@@ -285,6 +310,7 @@ function classicTemplate(d: DocInput): string {
     ${logo}
     <div class="biz"><div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
       <div class="sub">${escapeHtml(d.business.address || "").replace(/\n/g, " &nbsp;·&nbsp; ")}${d.business.phone ? ` &nbsp;·&nbsp; ${escapeHtml(d.business.phone)}` : ""}</div>
+      ${d.vehicle_number && d.title !== "Goods Received Note" ? `<div class="sub" style="margin-top: 4px; font-weight: 600;">Vehicle No: ${escapeHtml(d.vehicle_number)}</div>` : ""}
     </div>
   </div>
   <div class="title-row">
@@ -330,7 +356,7 @@ function modernTemplate(d: DocInput): string {
   const discount = num(d.discount);
   const items = d.items
     .map((it) => {
-      const meta = itemMeta(it);
+      const meta = itemMeta(it, d.currency);
       return `<tr>
       <td class="desc">
         <div class="iname">${escapeHtml(it.description)}</div>
@@ -409,6 +435,7 @@ function modernTemplate(d: DocInput): string {
           <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
           <div>${escapeHtml(d.business.address || "").replace(/\n/g, "<br/>")}</div>
           ${d.business.phone ? `<div>Phone: ${escapeHtml(d.business.phone)}</div>` : ""}
+          ${d.vehicle_number && d.title !== "Goods Received Note" ? `<div style="margin-top: 4px; font-weight: 500; font-size: 11px;">Vehicle No: ${escapeHtml(d.vehicle_number)}</div>` : ""}
         </div>
       </div>
     </div>
@@ -489,7 +516,7 @@ function compactTemplate(d: DocInput): string {
   const discount = num(d.discount);
   const items = d.items
     .map((it, idx) => {
-      const meta = itemMeta(it);
+      const meta = itemMeta(it, d.currency);
       return `<tr>
       <td class="desc">
         <span class="num">${idx + 1}.</span> <span class="iname">${escapeHtml(it.description)}</span>
@@ -555,6 +582,7 @@ function compactTemplate(d: DocInput): string {
         <div class="name">${escapeHtml(d.business.name || "Your Business")}</div>
         <div>${escapeHtml(d.business.address || "").replace(/\n/g, "<br/>")}</div>
         ${d.business.phone ? `<div>Phone: ${escapeHtml(d.business.phone)}</div>` : ""}
+        ${d.vehicle_number && d.title !== "Goods Received Note" ? `<div style="margin-top: 4px; font-weight: 500; font-size: 11px;">Vehicle No: ${escapeHtml(d.vehicle_number)}</div>` : ""}
       </div>
     </div>
     <div class="right">

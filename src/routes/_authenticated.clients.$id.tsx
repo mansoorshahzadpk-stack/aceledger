@@ -906,7 +906,7 @@ function ClientDetail() {
 
       {/* New payment dialog */}
       <Dialog open={payOpen} onOpenChange={setPayOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>Log Payment Received</DialogTitle>
           </DialogHeader>
@@ -1001,7 +1001,7 @@ function ClientDetail() {
 
       {/* Amend payment dialog */}
       <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>
               {(editPay?.status || "posted") === "posted"

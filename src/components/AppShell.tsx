@@ -1087,7 +1087,7 @@ export function AppShell() {
 
         {/* Add Business Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent>
+          <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
             <DialogHeader>
               <DialogTitle>Create New Business</DialogTitle>
             </DialogHeader>
@@ -1147,7 +1147,7 @@ export function AppShell() {
 
         {/* Log Payment Received Dialog */}
         <Dialog open={clientPayOpen} onOpenChange={setClientPayOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
             <form onSubmit={(e) => e.preventDefault()}>
               <DialogHeader>
                 <DialogTitle>Log Payment Received</DialogTitle>
@@ -1260,7 +1260,7 @@ export function AppShell() {
 
         {/* Log Vendor Payment Dialog */}
         <Dialog open={vendorPayOpen} onOpenChange={setVendorPayOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
             <form onSubmit={(e) => e.preventDefault()}>
               <DialogHeader>
                 <DialogTitle>Log Vendor Payment</DialogTitle>
@@ -1381,7 +1381,7 @@ export function AppShell() {
 
         {/* Log Ledger Transaction Dialog */}
         <Dialog open={ledgerTxOpen} onOpenChange={setLedgerTxOpen}>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
             <form onSubmit={handleLedgerSubmit}>
               <DialogHeader>
                 <DialogTitle>Log Ledger Transaction</DialogTitle>

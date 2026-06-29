@@ -19,6 +19,22 @@ function createSupabaseClient() {
     throw new Error(message);
   }
 
+  // Safe JWT format audit
+  const parts = SUPABASE_PUBLISHABLE_KEY.split('.');
+  if (parts.length !== 3) {
+    console.warn("[Supabase Client Security] WARNING: Key is not a valid 3-part JWT token structure");
+  } else {
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        console.error("[Supabase Client Security] CRITICAL: JWT token has expired!");
+      }
+    } catch (e) {
+      console.warn("[Supabase Client Security] Could not parse JWT payload:", e);
+    }
+  }
+
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       storage: typeof window !== "undefined" ? localStorage : undefined,

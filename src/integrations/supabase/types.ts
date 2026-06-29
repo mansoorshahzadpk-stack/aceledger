@@ -395,6 +395,8 @@ export type Database = {
           vehicle_ref: string | null;
           quantity_formula: string | null;
           unit_price_formula: string | null;
+          shipping: number;
+          shipping_formula: string | null;
         };
         Insert: {
           description: string;
@@ -409,6 +411,8 @@ export type Database = {
           vehicle_ref?: string | null;
           quantity_formula?: string | null;
           unit_price_formula?: string | null;
+          shipping?: number;
+          shipping_formula?: string | null;
         };
         Update: {
           description?: string;
@@ -423,6 +427,8 @@ export type Database = {
           vehicle_ref?: string | null;
           quantity_formula?: string | null;
           unit_price_formula?: string | null;
+          shipping?: number;
+          shipping_formula?: string | null;
         };
         Relationships: [
           {
@@ -782,6 +788,7 @@ export type Database = {
           discount_formula: string | null;
           tax_formula: string | null;
           shipping_formula: string | null;
+          details: string | null;
         };
         Insert: {
           business_id: string;
@@ -809,6 +816,7 @@ export type Database = {
           discount_formula?: string | null;
           tax_formula?: string | null;
           shipping_formula?: string | null;
+          details?: string | null;
         };
         Update: {
           business_id?: string;
@@ -836,6 +844,7 @@ export type Database = {
           discount_formula?: string | null;
           tax_formula?: string | null;
           shipping_formula?: string | null;
+          details?: string | null;
         };
         Relationships: [
           {
@@ -843,6 +852,69 @@ export type Database = {
             columns: ["vendor_id"];
             isOneToOne: false;
             referencedRelation: "vendors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vendor_grn_items: {
+        Row: {
+          id: string;
+          grn_id: string;
+          product_id: string | null;
+          material: string;
+          quantity: number;
+          unit: string;
+          unit_price: number;
+          quantity_formula: string | null;
+          unit_price_formula: string | null;
+          line_details: string | null;
+          created_at: string;
+          shipping: number;
+          shipping_formula: string | null;
+        };
+        Insert: {
+          id?: string;
+          grn_id: string;
+          product_id?: string | null;
+          material: string;
+          quantity?: number;
+          unit?: string;
+          unit_price?: number;
+          quantity_formula?: string | null;
+          unit_price_formula?: string | null;
+          line_details?: string | null;
+          created_at?: string;
+          shipping?: number;
+          shipping_formula?: string | null;
+        };
+        Update: {
+          id?: string;
+          grn_id?: string;
+          product_id?: string | null;
+          material?: string;
+          quantity?: number;
+          unit?: string;
+          unit_price?: number;
+          quantity_formula?: string | null;
+          unit_price_formula?: string | null;
+          line_details?: string | null;
+          created_at?: string;
+          shipping?: number;
+          shipping_formula?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vendor_grn_items_grn_id_fkey";
+            columns: ["grn_id"];
+            isOneToOne: false;
+            referencedRelation: "vendor_grns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vendor_grn_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
             referencedColumns: ["id"];
           },
         ];

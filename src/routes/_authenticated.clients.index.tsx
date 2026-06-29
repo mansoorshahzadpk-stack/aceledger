@@ -390,7 +390,7 @@ function ClientsPage() {
                 New Client
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
               <DialogHeader>
                 <DialogTitle>Add Client</DialogTitle>
               </DialogHeader>
@@ -575,7 +575,7 @@ function ClientsPage() {
 
       {/* Amend Client Details Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>Amend Client Details</DialogTitle>
           </DialogHeader>
@@ -648,7 +648,7 @@ function ClientsPage() {
       </Dialog>
 
       <Dialog open={!!payOpen} onOpenChange={(v) => !v && setPayOpen(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>Log Payment Received</DialogTitle>
           </DialogHeader>

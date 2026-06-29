@@ -9,10 +9,30 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { useEffect } from "react";
 import { AppProvider } from "@/lib/app-context";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const trace = {
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      path: window.location.pathname,
+      hash: window.location.hash,
+      referrer: document.referrer,
+      userAgent: navigator.userAgent,
+      screenResolution: `${window.screen.width}x${window.screen.height}`,
+      routerState: {
+        currentLocation: router.state.location,
+        resolvedLocation: router.state.resolvedLocation,
+      }
+    };
+    console.error("Structured Client-Side 404 Routing Trace:", JSON.stringify(trace, null, 2));
+  }, [router]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">

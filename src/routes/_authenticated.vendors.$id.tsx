@@ -36,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send, Maximize2, Minimize2, ChevronDown, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { renderDocument } from "@/lib/document-templates";
 import {
@@ -45,7 +45,19 @@ import {
   formatOnFocus,
   formatOnBlur,
   getFormulaPart,
+  encodeFormula,
+  decodeFormula,
 } from "@/lib/math-parser";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
+
 
 export const Route = createFileRoute("/_authenticated/vendors/$id")({
   component: VendorDetail,
@@ -63,6 +75,7 @@ type GRN = {
   total_amount: number;
   doc_template: string;
   notes: string | null;
+  product_id?: string | null;
   status?: "draft" | "posted";
   posted_at?: string | null;
   tax?: number;
@@ -73,6 +86,7 @@ type GRN = {
   discount_formula?: string | null;
   tax_formula?: string | null;
   shipping_formula?: string | null;
+  details?: string | null;
 };
 
 function VendorDetail() {
@@ -137,11 +151,100 @@ function VendorDetail() {
   }, [bankCashAssets, pay.asset_id]);
 
   const [editGrn, setEditGrn] = useState<GRN | null>(null);
+  const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
+
+  const { data: materials } = useQuery({
+    queryKey: ["materials-active", user?.id, activeBusinessId],
+    queryFn: async () => {
+      if (!activeBusinessId || !user) return [];
+      const { data } = await supabase
+        .from("products" as any)
+        .select("id, name, sku, unit, default_price")
+        .eq("active", true)
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id)
+        .order("name");
+      return (data ?? []) as any[];
+    },
+    enabled: !!user,
+  });
   const [editForm, setEditForm] = useState<any>(null);
   const [editReason, setEditReason] = useState("");
 
   const [deleteGrn, setDeleteGrn] = useState<GRN | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
+
+  const isDraft = editGrn && (editGrn.status || "posted") === "draft";
+
+  const editSubtotal = useMemo(() => {
+    if (!editForm) return 0;
+    if (isDraft) {
+      if (!editForm.items) return 0;
+      return editForm.items.reduce((sum: number, it: any) => {
+        const q = parseMath(it.quantity) || 0;
+        const p = parseMath(it.unit_price) || 0;
+        return sum + (q * p);
+      }, 0);
+    } else {
+      const q = parseMath(editForm.quantity) || 0;
+      const p = parseMath(editForm.unit_price) || 0;
+      return q * p;
+    }
+  }, [editForm, isDraft]);
+
+  const editDiscountNum = useMemo(() => {
+    if (!editForm) return 0;
+    return parsePercentageOrMath(editForm.discount, editSubtotal);
+  }, [editForm?.discount, editSubtotal]);
+
+  const editTaxNum = useMemo(() => {
+    if (!editForm) return 0;
+    const postDiscountSubtotal = editSubtotal - editDiscountNum;
+    return parsePercentageOrMath(editForm.tax, postDiscountSubtotal);
+  }, [editForm?.tax, editSubtotal, editDiscountNum]);
+
+  const editShipNum = useMemo(() => {
+    if (!editForm) return 0;
+    return editForm.items.reduce((s: number, it: any) => {
+      const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+      return s + (parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0);
+    }, 0);
+  }, [editForm?.items]);
+
+  const editTotal = useMemo(() => {
+    return editSubtotal - editDiscountNum + editTaxNum + editShipNum;
+  }, [editSubtotal, editDiscountNum, editTaxNum, editShipNum]);
+
+  const setEditItem = (idx: number, patch: any) => {
+    if (!editForm) return;
+    const newItems = [...editForm.items];
+    newItems[idx] = { ...newItems[idx], ...patch };
+    setEditForm({ ...editForm, items: newItems });
+  };
+
+  const addEditItem = () => {
+    if (!editForm) return;
+    setEditForm({
+      ...editForm,
+      items: [
+        ...editForm.items,
+        {
+          material: "",
+          quantity: "0",
+          unit: "kg",
+          unit_price: "0",
+          product_id: null,
+          line_details: "",
+        },
+      ],
+    });
+  };
+
+  const removeEditItem = (idx: number) => {
+    if (!editForm || editForm.items.length <= 1) return;
+    const newItems = editForm.items.filter((_: any, i: number) => i !== idx);
+    setEditForm({ ...editForm, items: newItems });
+  };
 
   const { data } = useQuery({
     queryKey: ["vendor", user?.id, id, activeBusinessId],
@@ -498,33 +601,82 @@ function VendorDetail() {
     }
   };
 
-  const openEdit = (g: GRN) => {
+  const openEdit = async (g: GRN) => {
     setEditGrn(g);
+    
+    // Fetch items
+    const { data: itemsData } = await supabase
+      .from("vendor_grn_items" as any)
+      .select("*")
+      .eq("grn_id", g.id);
+
+    const items = itemsData || [];
+    if (items.length === 0) {
+      const qDec = decodeFormula(g.quantity_formula);
+      const pDec = decodeFormula(g.unit_price_formula);
+      const sDec = decodeFormula(g.shipping_formula);
+      items.push({
+        material: g.material,
+        quantity: qDec ? `${qDec} = ${g.quantity}` : String(g.quantity),
+        unit: g.unit,
+        unit_price: pDec ? `${pDec} = ${g.unit_price}` : String(g.unit_price),
+        product_id: g.product_id || null,
+        line_details: (g as any).details || (g as any).vehicle_number || "",
+        shipping: sDec
+          ? sDec.endsWith("%")
+            ? sDec
+            : `${sDec} = ${g.shipping}`
+          : String(g.shipping ?? 0),
+      } as any);
+    } else {
+      items.forEach((it: any) => {
+        const qDec = decodeFormula(it.quantity_formula);
+        const pDec = decodeFormula(it.unit_price_formula);
+        const sDec = decodeFormula(it.shipping_formula);
+        it.quantity = qDec ? `${qDec} = ${it.quantity}` : String(it.quantity);
+        it.unit_price = pDec ? `${pDec} = ${it.unit_price}` : String(it.unit_price);
+        it.line_details = it.line_details || it.vehicle_number || "";
+        it.shipping = sDec
+          ? sDec.endsWith("%")
+            ? sDec
+            : `${sDec} = ${it.shipping}`
+          : String(it.shipping ?? 0);
+      });
+    }
+
+    const dDec = decodeFormula(g.discount_formula);
+    const tDec = decodeFormula(g.tax_formula);
+    const sDecMain = decodeFormula(g.shipping_formula);
+    const qDecMain = decodeFormula(g.quantity_formula);
+    const pDecMain = decodeFormula(g.unit_price_formula);
+
     setEditForm({
       grn_number: g.grn_number,
       grn_date: g.grn_date,
-      material: g.material,
-      quantity: g.quantity_formula ? `${g.quantity_formula} = ${g.quantity}` : String(g.quantity),
-      unit: g.unit,
-      unit_price: g.unit_price_formula
-        ? `${g.unit_price_formula} = ${g.unit_price}`
-        : String(g.unit_price),
-      discount: g.discount_formula
-        ? g.discount_formula.endsWith("%")
-          ? g.discount_formula
-          : `${g.discount_formula} = ${g.discount}`
-        : String(g.discount ?? 0),
-      tax: g.tax_formula
-        ? g.tax_formula.endsWith("%")
-          ? g.tax_formula
-          : `${g.tax_formula} = ${g.tax}`
-        : String(g.tax ?? 0),
-      shipping: g.shipping_formula
-        ? g.shipping_formula.endsWith("%")
-          ? g.shipping_formula
-          : `${g.shipping_formula} = ${g.shipping}`
-        : String(g.shipping ?? 0),
+      details: (g as any).details || (g as any).vehicle_number || "",
       notes: g.notes ?? "",
+      discount: dDec
+        ? dDec.endsWith("%")
+          ? dDec
+          : `${dDec} = ${g.discount}`
+        : String(g.discount ?? 0),
+      tax: tDec
+        ? tDec.endsWith("%")
+          ? tDec
+          : `${tDec} = ${g.tax}`
+        : String(g.tax ?? 0),
+      shipping: sDecMain
+        ? sDecMain.endsWith("%")
+          ? sDecMain
+          : `${sDecMain} = ${g.shipping}`
+        : String(g.shipping ?? 0),
+      items: items,
+      material: g.material,
+      quantity: qDecMain ? `${qDecMain} = ${g.quantity}` : String(g.quantity),
+      unit: g.unit,
+      unit_price: pDecMain
+        ? `${pDecMain} = ${g.unit_price}`
+        : String(g.unit_price),
     });
     setEditReason("");
   };
@@ -554,19 +706,181 @@ function VendorDetail() {
       return;
     }
 
-    const qty = parseMath(editForm.quantity) || 0;
-    const price = parseMath(editForm.unit_price) || 0;
-    const subtotal = qty * price;
-    const discount = parsePercentageOrMath(editForm.discount, subtotal);
-    const tax = parsePercentageOrMath(editForm.tax, subtotal);
-    const shipping = parsePercentageOrMath(editForm.shipping, subtotal);
-    const newTotal = subtotal - discount + tax + shipping;
     const isPosted = (editGrn.status || "posted") === "posted";
-    if (isPosted) {
+
+    if (isDraft) {
+      // 1. Delete and insert items
+      const { error: delError } = await supabase
+        .from("vendor_grn_items" as any)
+        .delete()
+        .eq("grn_id", editGrn.id);
+
+      if (delError) {
+        toast.error("Failed to delete old GRN items: " + delError.message);
+        return;
+      }
+
+      const insertItems = editForm.items.map((it: any) => {
+        const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+        return {
+          grn_id: editGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          line_details: it.line_details || null,
+          shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          shipping_formula: encodeFormula(getFormulaPart(it.shipping)),
+        };
+      });
+
+      let { error: insError } = await supabase
+        .from("vendor_grn_items" as any)
+        .insert(insertItems);
+
+      if (insError && (insError.message.includes("shipping_formula") || insError.message.includes("column"))) {
+        const fallbackInsertItems = editForm.items.map((it: any) => {
+          const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+          return {
+            grn_id: editGrn.id,
+            product_id: it.product_id || null,
+            material: it.material,
+            quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+            line_details: it.line_details || null,
+            shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          };
+        });
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        insError = fallbackRes.error;
+      }
+
+      if (insError && (insError.message.includes("shipping") || insError.message.includes("column"))) {
+        const fallbackInsertItems = editForm.items.map((it: any) => ({
+          grn_id: editGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          line_details: it.line_details || null,
+        }));
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        insError = fallbackRes.error;
+      }
+
+      if (insError && (insError.message.includes("line_details") || insError.message.includes("column"))) {
+        const fallbackInsertItems = editForm.items.map((it: any) => ({
+          grn_id: editGrn.id,
+          product_id: it.product_id || null,
+          material: it.material,
+          quantity: parseMath(it.quantity) || 0,
+          unit: it.unit,
+          unit_price: parseMath(it.unit_price) || 0,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          vehicle_number: it.line_details || null,
+        }));
+        let fallbackRes = await supabase
+          .from("vendor_grn_items" as any)
+          .insert(fallbackInsertItems);
+        insError = fallbackRes.error;
+      }
+
+      if (insError) {
+        toast.error("Failed to insert GRN items: " + insError.message);
+        return;
+      }
+
+      // 2. Update parent header
+      const firstItem = editForm.items[0];
+      const qtySum = editForm.items.reduce((s: number, it: any) => s + (parseMath(it.quantity) || 0), 0);
+      const materialsJoined = editForm.items.map((it: any) => it.material).join(", ");
+      const detailsJoined = editForm.items
+        .map((it: any) => it.line_details?.trim())
+        .filter((v: string) => !!v)
+        .filter((v: string, idx: number, arr: string[]) => arr.indexOf(v) === idx)
+        .join(", ");
+
+      let { error: updateError } = await supabase
+        .from("vendor_grns")
+        .update({
+          grn_number: targetNum,
+          grn_date: editForm.grn_date,
+          material: materialsJoined,
+          quantity: qtySum,
+          unit: firstItem?.unit || "kg",
+          unit_price: parseMath(firstItem?.unit_price) || 0,
+          discount: editDiscountNum,
+          tax: editTaxNum,
+          shipping: editShipNum,
+          total_amount: editTotal,
+          notes: editForm.notes || null,
+          quantity_formula: encodeFormula(getFormulaPart(firstItem?.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(firstItem?.unit_price)),
+          discount_formula: encodeFormula(getFormulaPart(editForm.discount)),
+          tax_formula: encodeFormula(getFormulaPart(editForm.tax)),
+          shipping_formula: encodeFormula(getFormulaPart(editForm.shipping)),
+          details: detailsJoined || null,
+        } as any)
+        .eq("id", editGrn.id)
+        .eq("user_id", user.id);
+
+      if (updateError && (updateError.message.includes("details") || updateError.message.includes("column"))) {
+        const fallbackRes = await supabase
+          .from("vendor_grns")
+          .update({
+            grn_number: targetNum,
+            grn_date: editForm.grn_date,
+            material: materialsJoined,
+            quantity: qtySum,
+            unit: firstItem?.unit || "kg",
+            unit_price: parseMath(firstItem?.unit_price) || 0,
+            discount: editDiscountNum,
+            tax: editTaxNum,
+            shipping: editShipNum,
+            total_amount: editTotal,
+            notes: editForm.notes || null,
+            quantity_formula: encodeFormula(getFormulaPart(firstItem?.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(firstItem?.unit_price)),
+            discount_formula: encodeFormula(getFormulaPart(editForm.discount)),
+            tax_formula: encodeFormula(getFormulaPart(editForm.tax)),
+            shipping_formula: encodeFormula(getFormulaPart(editForm.shipping)),
+            vehicle_number: detailsJoined || null,
+          } as any)
+          .eq("id", editGrn.id)
+          .eq("user_id", user.id);
+        updateError = fallbackRes.error;
+      }
+
+      if (updateError) {
+        toast.error("Failed to update GRN header: " + updateError.message);
+        return;
+      }
+    } else {
+      // Posted GRN path
+      const qty = parseMath(editForm.quantity) || 0;
+      const price = parseMath(editForm.unit_price) || 0;
+      const subtotal = qty * price;
+      const discount = parsePercentageOrMath(editForm.discount, subtotal);
+      const tax = parsePercentageOrMath(editForm.tax, subtotal);
+      const shipping = parsePercentageOrMath(editForm.shipping, subtotal);
+      const newTotal = subtotal - discount + tax + shipping;
+
       if (editReason.trim().length < 5) {
         toast.error("Reason must be at least 5 characters");
         return;
       }
+
       await supabase.from("grn_amendments" as any).insert({
         user_id: user.id,
         grn_id: editGrn.id,
@@ -575,29 +889,64 @@ function VendorDetail() {
         new_total: newTotal,
         action: "edit",
       });
+
+      let { error: updateError } = await supabase
+        .from("vendor_grns")
+        .update({
+          grn_number: targetNum,
+          grn_date: editForm.grn_date,
+          material: editForm.material,
+          quantity: qty,
+          unit: editForm.unit,
+          unit_price: price,
+          discount: discount,
+          tax: tax,
+          shipping: shipping,
+          total_amount: newTotal,
+          notes: editForm.notes || null,
+          quantity_formula: encodeFormula(getFormulaPart(editForm.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(editForm.unit_price)),
+          discount_formula: encodeFormula(getFormulaPart(editForm.discount)),
+          tax_formula: encodeFormula(getFormulaPart(editForm.tax)),
+          shipping_formula: encodeFormula(getFormulaPart(editForm.shipping)),
+          details: editForm.details || null,
+        } as any)
+        .eq("id", editGrn.id)
+        .eq("user_id", user.id);
+
+      if (updateError && (updateError.message.includes("details") || updateError.message.includes("column"))) {
+        const fallbackRes = await supabase
+          .from("vendor_grns")
+          .update({
+            grn_number: targetNum,
+            grn_date: editForm.grn_date,
+            material: editForm.material,
+            quantity: qty,
+            unit: editForm.unit,
+            unit_price: price,
+            discount: discount,
+            tax: tax,
+            shipping: shipping,
+            total_amount: newTotal,
+            notes: editForm.notes || null,
+            quantity_formula: encodeFormula(getFormulaPart(editForm.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(editForm.unit_price)),
+            discount_formula: encodeFormula(getFormulaPart(editForm.discount)),
+            tax_formula: encodeFormula(getFormulaPart(editForm.tax)),
+            shipping_formula: encodeFormula(getFormulaPart(editForm.shipping)),
+            vehicle_number: editForm.details || null,
+          } as any)
+          .eq("id", editGrn.id)
+          .eq("user_id", user.id);
+        updateError = fallbackRes.error;
+      }
+
+      if (updateError) {
+        toast.error("Failed to update GRN: " + updateError.message);
+        return;
+      }
     }
-    await supabase
-      .from("vendor_grns")
-      .update({
-        grn_number: targetNum,
-        grn_date: editForm.grn_date,
-        material: editForm.material,
-        quantity: qty,
-        unit: editForm.unit,
-        unit_price: price,
-        discount: discount,
-        tax: tax,
-        shipping: shipping,
-        total_amount: newTotal,
-        notes: editForm.notes || null,
-        quantity_formula: getFormulaPart(editForm.quantity),
-        unit_price_formula: getFormulaPart(editForm.unit_price),
-        discount_formula: getFormulaPart(editForm.discount),
-        tax_formula: getFormulaPart(editForm.tax),
-        shipping_formula: getFormulaPart(editForm.shipping),
-      } as any)
-      .eq("id", editGrn.id)
-      .eq("user_id", user.id);
+
     toast.success(isPosted ? "GRN amended" : "GRN updated");
     setEditGrn(null);
     setEditReason("");
@@ -648,13 +997,31 @@ function VendorDetail() {
     }
   };
 
-  const printGrn = (grn: GRN) => {
-    const displayQty = grn.quantity_formula
-      ? `${grn.quantity_formula} = ${grn.quantity}`
-      : grn.quantity;
-    const displayUnitPrice = grn.unit_price_formula
-      ? `${grn.unit_price_formula} = ${grn.unit_price}`
-      : grn.unit_price;
+  const printGrn = async (grn: GRN) => {
+    // Fetch items
+    const { data: itemsData } = await supabase
+      .from("vendor_grn_items" as any)
+      .select("*")
+      .eq("grn_id", grn.id);
+
+    const items = itemsData || [];
+    const docItems = items.length > 0 ? items.map((it: any) => ({
+      description: it.material,
+      quantity: it.quantity_formula ? `${it.quantity_formula} = ${it.quantity}` : it.quantity,
+      unit_price: it.unit_price_formula ? `${it.unit_price_formula} = ${it.unit_price}` : it.unit_price,
+      line_total: it.quantity * it.unit_price,
+      unit: it.unit,
+      vehicle_ref: it.line_details || it.vehicle_number || (grn as any).details || (grn as any).vehicle_number,
+    })) : [
+      {
+        description: grn.material,
+        quantity: grn.quantity_formula ? `${grn.quantity_formula} = ${grn.quantity}` : grn.quantity,
+        unit_price: grn.unit_price_formula ? `${grn.unit_price_formula} = ${grn.unit_price}` : grn.unit_price,
+        line_total: grn.quantity * grn.unit_price,
+        unit: grn.unit,
+        vehicle_ref: (grn as any).details || (grn as any).vehicle_number,
+      }
+    ];
 
     renderDocument({
       template: settings.default_doc_template as any,
@@ -662,6 +1029,7 @@ function VendorDetail() {
       number: grn.grn_number,
       date: grn.grn_date,
       currency: settings.currency,
+      vehicle_number: (grn as any).details || (grn as any).vehicle_number,
       business: {
         name: settings.business_name,
         address: settings.business_address,
@@ -674,16 +1042,8 @@ function VendorDetail() {
         address: data?.v?.address,
         phone: data?.v?.phone,
       },
-      items: [
-        {
-          description: grn.material,
-          quantity: displayQty,
-          unit_price: displayUnitPrice,
-          line_total: grn.quantity * grn.unit_price,
-          unit: grn.unit,
-        },
-      ],
-      subtotal: grn.quantity * grn.unit_price,
+      items: docItems,
+      subtotal: items.length > 0 ? items.reduce((sum: number, it: any) => sum + (it.quantity * it.unit_price), 0) : (grn.quantity * grn.unit_price),
       tax: grn.tax || 0,
       shipping: grn.shipping || 0,
       discount: grn.discount,
@@ -901,7 +1261,7 @@ function VendorDetail() {
                     Log Payment
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
                   <DialogHeader>
                     <DialogTitle>Log Payment to {data.v.name}</DialogTitle>
                   </DialogHeader>
@@ -1103,7 +1463,7 @@ function VendorDetail() {
 
       {/* Edit GRN dialog */}
       <Dialog open={!!editGrn} onOpenChange={(o) => !o && setEditGrn(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>Edit GRN {editGrn?.grn_number}</DialogTitle>
           </DialogHeader>
@@ -1124,57 +1484,227 @@ function VendorDetail() {
                   />
                 </Field>
               </div>
-              <Field label="Material">
-                <Input
-                  value={editForm.material}
-                  onChange={(e) => setEditForm({ ...editForm, material: e.target.value })}
-                />
-              </Field>
-              <div className="grid grid-cols-4 gap-3">
-                <Field label="Qty">
-                  <Input
-                    type="text"
-                    value={editForm.quantity}
-                    onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                    onFocus={() =>
-                      setEditForm({ ...editForm, quantity: formatOnFocus(editForm.quantity) })
-                    }
-                    onBlur={() =>
-                      setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) });
-                        e.preventDefault();
-                      }
-                    }}
-                  />
-                </Field>
-                <Field label="Unit">
-                  <Input
-                    value={editForm.unit}
-                    onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
-                  />
-                </Field>
-                <Field label="Unit price">
-                  <Input
-                    type="text"
-                    value={editForm.unit_price}
-                    onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })}
-                    onFocus={() =>
-                      setEditForm({ ...editForm, unit_price: formatOnFocus(editForm.unit_price) })
-                    }
-                    onBlur={() =>
-                      setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) });
-                        e.preventDefault();
-                      }
-                    }}
-                  />
-                </Field>
+
+              {isDraft ? (
+                // Multi-item editing workspace
+                <div className="space-y-3 border p-3 rounded-md bg-muted/5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">Items</Label>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs px-2" onClick={addEditItem}>
+                      + Add Item
+                    </Button>
+                  </div>
+                  <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+                    {editForm.items.map((it: any, idx: number) => (
+                      <div
+                        key={idx}
+                        className={cn(
+                          "flex gap-2 items-start border p-2.5 rounded-md relative group transition-all duration-300",
+                          idx % 2 === 1
+                            ? "bg-muted/50 dark:bg-muted/20 border-border"
+                            : "bg-background border-border"
+                        )}
+                      >
+                        <div className="flex-1 grid grid-cols-12 gap-2">
+                          <div className="col-span-8">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Material</Label>
+                            <div className="flex gap-1.5">
+                              <Input
+                                value={it.material}
+                                onChange={(e) => setEditItem(idx, { material: e.target.value, product_id: null })}
+                                placeholder="Material name"
+                                className="h-8 text-xs flex-1"
+                              />
+                              <Popover open={openPickerIndex === idx} onOpenChange={(open) => setOpenPickerIndex(open ? idx : null)}>
+                                <PopoverTrigger asChild>
+                                  <Button type="button" variant="outline" size="icon" className="h-8 w-8 px-0 shrink-0" title="Pick from catalog">
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-0" align="end">
+                                  <Command>
+                                    <CommandInput placeholder="Search materials…" />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        No materials found. Add some in{" "}
+                                        <a className="underline" href="/materials">
+                                          Materials
+                                        </a>
+                                        .
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {materials?.map((m) => (
+                                          <CommandItem
+                                            key={m.id}
+                                            value={`${m.name} ${m.sku ?? ""}`}
+                                            onSelect={() => {
+                                              setEditItem(idx, {
+                                                material: m.name,
+                                                product_id: m.id,
+                                                unit: m.unit,
+                                                unit_price: m.default_price ? String(m.default_price) : "0",
+                                              });
+                                              setOpenPickerIndex(null);
+                                            }}
+                                          >
+                                            <Package className="mr-2 h-4 w-4 text-muted-foreground" />
+                                            <div className="flex w-full items-center justify-between">
+                                              <div>
+                                                <div className="font-medium text-xs">{m.name}</div>
+                                                {m.sku && (
+                                                  <div className="text-[10px] text-muted-foreground">
+                                                    {m.sku} · {m.unit}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              <div className="figure text-xs font-mono">
+                                                {formatMoney(m.default_price, settings.currency)}
+                                              </div>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </div>
+                          <div className="col-span-4">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Details</Label>
+                            <Input
+                              value={it.line_details ?? ""}
+                              onChange={(e) => setEditItem(idx, { line_details: e.target.value })}
+                              placeholder="e.g., Vehicle No, Driver, or notes..."
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Qty</Label>
+                            <Input
+                              value={it.quantity}
+                              onChange={(e) => setEditItem(idx, { quantity: e.target.value })}
+                              onFocus={() => setEditItem(idx, { quantity: formatOnFocus(it.quantity) })}
+                              onBlur={() => setEditItem(idx, { quantity: formatOnBlur(it.quantity) })}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unit</Label>
+                            <Input
+                              value={it.unit}
+                              onChange={(e) => setEditItem(idx, { unit: e.target.value })}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="col-span-4">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Unit Price</Label>
+                            <Input
+                              value={it.unit_price}
+                              onChange={(e) => setEditItem(idx, { unit_price: e.target.value })}
+                              onFocus={() => setEditItem(idx, { unit_price: formatOnFocus(it.unit_price) })}
+                              onBlur={() => setEditItem(idx, { unit_price: formatOnBlur(it.unit_price) })}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <Label className="text-[10px] uppercase font-bold text-muted-foreground">Shipping / Freight</Label>
+                            <Input
+                              value={it.shipping ?? "0"}
+                              onChange={(e) => setEditItem(idx, { shipping: e.target.value })}
+                              onFocus={() => setEditItem(idx, { shipping: formatOnFocus(it.shipping ?? "0") })}
+                              onBlur={() => setEditItem(idx, { shipping: formatOnBlur(it.shipping ?? "0", (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) })}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                        </div>
+                        {editForm.items.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10 h-8 w-8 self-end mt-4"
+                            onClick={() => removeEditItem(idx)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                // Single item editing for legacy/posted GRNs
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <Field label="Material">
+                        <Input
+                          value={editForm.material}
+                          onChange={(e) => setEditForm({ ...editForm, material: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+                    <div className="col-span-1">
+                      <Field label="Details">
+                        <Input
+                          value={editForm.details}
+                          onChange={(e) => setEditForm({ ...editForm, details: e.target.value })}
+                          placeholder="e.g., Vehicle No, Driver, or notes..."
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Qty">
+                      <Input
+                        type="text"
+                        value={editForm.quantity}
+                        onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                        onFocus={() =>
+                          setEditForm({ ...editForm, quantity: formatOnFocus(editForm.quantity) })
+                        }
+                        onBlur={() =>
+                          setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setEditForm({ ...editForm, quantity: formatOnBlur(editForm.quantity) });
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                    </Field>
+                    <Field label="Unit">
+                      <Input
+                        value={editForm.unit}
+                        onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                      />
+                    </Field>
+                    <Field label="Unit price">
+                      <Input
+                        type="text"
+                        value={editForm.unit_price}
+                        onChange={(e) => setEditForm({ ...editForm, unit_price: e.target.value })}
+                        onFocus={() =>
+                          setEditForm({ ...editForm, unit_price: formatOnFocus(editForm.unit_price) })
+                        }
+                        onBlur={() =>
+                          setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            setEditForm({ ...editForm, unit_price: formatOnBlur(editForm.unit_price) });
+                            e.preventDefault();
+                          }
+                        }}
+                      />
+                    </Field>
+                  </div>
+                </>
+              )}
+
+              <div className="grid grid-cols-3 gap-3">
                 <Field label="Discount">
                   <Input
                     type="text"
@@ -1183,59 +1713,43 @@ function VendorDetail() {
                     onFocus={() =>
                       setEditForm({ ...editForm, discount: formatOnFocus(editForm.discount) })
                     }
-                    onBlur={() => {
-                      if (!editForm.discount.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount) });
-                      }
-                    }}
+                    onBlur={() =>
+                      setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount, editSubtotal) })
+                    }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !editForm.discount.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount) });
+                      if (e.key === "Enter") {
+                        setEditForm({ ...editForm, discount: formatOnBlur(editForm.discount, editSubtotal) });
                         e.preventDefault();
                       }
                     }}
+                    className="text-right font-mono"
                   />
                 </Field>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <Field label="Tax">
                   <Input
                     type="text"
                     value={editForm.tax}
                     onChange={(e) => setEditForm({ ...editForm, tax: e.target.value })}
                     onFocus={() => setEditForm({ ...editForm, tax: formatOnFocus(editForm.tax) })}
-                    onBlur={() => {
-                      if (!editForm.tax.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax) });
-                      }
-                    }}
+                    onBlur={() =>
+                      setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax, editSubtotal - editDiscountNum) })
+                    }
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && !editForm.tax.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax) });
+                      if (e.key === "Enter") {
+                        setEditForm({ ...editForm, tax: formatOnBlur(editForm.tax, editSubtotal - editDiscountNum) });
                         e.preventDefault();
                       }
                     }}
+                    className="text-right font-mono"
                   />
                 </Field>
                 <Field label="Shipping / Freight">
                   <Input
                     type="text"
-                    value={editForm.shipping}
-                    onChange={(e) => setEditForm({ ...editForm, shipping: e.target.value })}
-                    onFocus={() =>
-                      setEditForm({ ...editForm, shipping: formatOnFocus(editForm.shipping) })
-                    }
-                    onBlur={() => {
-                      if (!editForm.shipping.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, shipping: formatOnBlur(editForm.shipping) });
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !editForm.shipping.trim().endsWith("%")) {
-                        setEditForm({ ...editForm, shipping: formatOnBlur(editForm.shipping) });
-                        e.preventDefault();
-                      }
-                    }}
+                    disabled
+                    readOnly
+                    value={formatMoney(editShipNum, settings.currency)}
+                    className="bg-muted text-muted-foreground cursor-not-allowed text-right font-mono"
                   />
                 </Field>
               </div>
@@ -1245,7 +1759,15 @@ function VendorDetail() {
                   onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                 />
               </Field>
-              {(editGrn?.status || "posted") === "posted" && (
+
+              <div className="flex justify-between items-center text-sm font-semibold border-t pt-2 mt-2">
+                <span>Grand Total:</span>
+                <span className="figure text-base text-primary">
+                  {formatMoney(editTotal, settings.currency)}
+                </span>
+              </div>
+
+              {!isDraft && (
                 <div className="rounded-md border bg-muted/30 p-3 space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
                     Reason for change (required)
@@ -1265,7 +1787,7 @@ function VendorDetail() {
               Cancel
             </Button>
             <Button onClick={saveEdit} disabled={isReadOnly}>
-              Save amendment
+              {isDraft ? "Save Draft" : "Save Amendment"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1308,7 +1830,7 @@ function VendorDetail() {
 
       {/* Amend payment dialog */}
       <Dialog open={!!editPay} onOpenChange={(v) => !v && setEditPay(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-4xl lg:max-w-5xl w-[90vw]">
           <DialogHeader>
             <DialogTitle>
               {(editPay?.status || "posted") === "posted"

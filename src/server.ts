@@ -70,8 +70,27 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
-      const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      let response = await handler.fetch(request, env, ctx);
+      response = await normalizeCatastrophicSsrResponse(response);
+
+      if (response.status === 403 || response.status === 404 || response.status >= 500) {
+        const trace = {
+          timestamp: new Date().toISOString(),
+          status: response.status,
+          method: request.method,
+          url: request.url,
+          headers: Object.fromEntries(request.headers.entries()),
+          securityRulesContext: "CORS / WAF Inspect Block Simulation Mode",
+          clientEnv: {
+            host: request.headers.get("host"),
+            origin: request.headers.get("origin"),
+            referer: request.headers.get("referer"),
+          }
+        };
+        console.warn(`[Server HTTP ${response.status}] structured trace:`, JSON.stringify(trace, null, 2));
+      }
+
+      return response;
     } catch (error) {
       console.error(error);
       return brandedErrorResponse();

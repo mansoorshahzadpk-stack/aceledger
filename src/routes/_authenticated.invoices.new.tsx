@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,8 @@ import {
   formatOnFocus,
   formatOnBlur,
   getFormulaPart,
+  encodeFormula,
+  decodeFormula,
 } from "@/lib/math-parser";
 import { generateCodePrefix } from "@/lib/code-prefix";
 
@@ -52,6 +55,7 @@ type Item = {
   unit?: string;
   grn_ref?: string;
   vehicle_ref?: string;
+  shipping?: string;
 };
 type Material = {
   id: string;
@@ -101,10 +105,9 @@ function NewInvoice() {
   const [due, setDue] = useState("");
 
   const [tax, setTax] = useState("0");
-  const [shipping, setShipping] = useState("0");
   const [discount, setDiscount] = useState("0");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0" }]);
+  const [items, setItems] = useState<Item[]>([{ description: "", quantity: "1", unit_price: "0", shipping: "0" }]);
   const [pickerOpen, setPickerOpen] = useState<number | null>(null);
 
   const { data: clients } = useQuery({
@@ -179,11 +182,20 @@ function NewInvoice() {
       items.reduce((s, i) => s + (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0), 0),
     [items],
   );
-  const taxNum = useMemo(() => parsePercentageOrMath(tax, subtotal), [tax, subtotal]);
-  const shipNum = useMemo(() => parsePercentageOrMath(shipping, subtotal), [shipping, subtotal]);
   const discountNum = useMemo(
     () => parsePercentageOrMath(discount, subtotal),
     [discount, subtotal],
+  );
+  const taxNum = useMemo(
+    () => parsePercentageOrMath(tax, subtotal - discountNum),
+    [tax, subtotal, discountNum],
+  );
+  const shipNum = useMemo(
+    () => items.reduce((s, i) => {
+      const rowSubtotal = (parseMath(i.quantity) || 0) * (parseMath(i.unit_price) || 0);
+      return s + (parsePercentageOrMath(i.shipping || "0", rowSubtotal) || 0);
+    }, 0),
+    [items],
   );
   const total = useMemo(
     () => subtotal + taxNum + shipNum - discountNum,
@@ -263,9 +275,9 @@ function NewInvoice() {
         doc_template: settings.default_doc_template,
         notes: notes || null,
         posted_at: status === "posted" ? new Date().toISOString() : null,
-        discount_formula: getFormulaPart(discount),
-        tax_formula: getFormulaPart(tax),
-        shipping_formula: getFormulaPart(shipping),
+        discount_formula: encodeFormula(getFormulaPart(discount)),
+        tax_formula: encodeFormula(getFormulaPart(tax)),
+        shipping_formula: null,
       } as any)
       .select()
       .single();
@@ -275,20 +287,66 @@ function NewInvoice() {
     }
     const itemRows = items
       .filter((it) => it.description)
-      .map((it, idx) => ({
-        invoice_id: inv.id,
-        description: it.description,
-        quantity: parseMath(it.quantity) || 0,
-        unit_price: parseMath(it.unit_price) || 0,
-        line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
-        sort_order: idx,
-        product_id: it.product_id || null,
-        grn_ref: it.grn_ref || null,
-        vehicle_ref: it.vehicle_ref || null,
-        quantity_formula: getFormulaPart(it.quantity),
-        unit_price_formula: getFormulaPart(it.unit_price),
-      }));
-    await supabase.from("invoice_items").insert(itemRows as any);
+      .map((it, idx) => {
+        const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+        return {
+          invoice_id: inv.id,
+          description: it.description,
+          quantity: parseMath(it.quantity) || 0,
+          unit_price: parseMath(it.unit_price) || 0,
+          line_total: rowSubtotal,
+          sort_order: idx,
+          product_id: it.product_id || null,
+          grn_ref: it.grn_ref || null,
+          vehicle_ref: it.vehicle_ref || null,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+          shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          shipping_formula: encodeFormula(getFormulaPart(it.shipping || "")),
+        };
+      });
+    let { error: itemInsertError } = await supabase.from("invoice_items").insert(itemRows as any);
+    if (itemInsertError && (itemInsertError.message.includes("shipping_formula") || itemInsertError.message.includes("column"))) {
+      const fallbackItemRows = items
+        .filter((it) => it.description)
+        .map((it, idx) => {
+          const rowSubtotal = (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0);
+          return {
+            invoice_id: inv.id,
+            description: it.description,
+            quantity: parseMath(it.quantity) || 0,
+            unit_price: parseMath(it.unit_price) || 0,
+            line_total: rowSubtotal,
+            sort_order: idx,
+            product_id: it.product_id || null,
+            grn_ref: it.grn_ref || null,
+            vehicle_ref: it.vehicle_ref || null,
+            quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+            unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+            shipping: parsePercentageOrMath(it.shipping || "0", rowSubtotal) || 0,
+          };
+        });
+      let fallbackRes = await supabase.from("invoice_items").insert(fallbackItemRows as any);
+      itemInsertError = fallbackRes.error;
+    }
+    if (itemInsertError && (itemInsertError.message.includes("shipping") || itemInsertError.message.includes("column"))) {
+      const fallbackItemRows = items
+        .filter((it) => it.description)
+        .map((it, idx) => ({
+          invoice_id: inv.id,
+          description: it.description,
+          quantity: parseMath(it.quantity) || 0,
+          unit_price: parseMath(it.unit_price) || 0,
+          line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
+          sort_order: idx,
+          product_id: it.product_id || null,
+          grn_ref: it.grn_ref || null,
+          vehicle_ref: it.vehicle_ref || null,
+          quantity_formula: encodeFormula(getFormulaPart(it.quantity)),
+          unit_price_formula: encodeFormula(getFormulaPart(it.unit_price)),
+        }));
+      await supabase.from("invoice_items").insert(fallbackItemRows as any);
+    }
     toast.success(status === "draft" ? "Draft saved" : "Invoice posted");
     navigate({ to: "/invoices/$id", params: { id: inv.id } });
   };
@@ -351,7 +409,15 @@ function NewInvoice() {
         </CardHeader>
         <CardContent className="space-y-3">
           {items.map((it, idx) => (
-            <div key={idx} className="space-y-2 rounded-md border p-3">
+            <div
+              key={idx}
+              className={cn(
+                "space-y-2 rounded-md border p-3 transition-all duration-300",
+                idx % 2 === 1
+                  ? "bg-muted/50 dark:bg-muted/20 border-border"
+                  : "bg-background border-border"
+              )}
+            >
               <div className="flex items-center justify-between gap-2">
                 <Popover
                   open={pickerOpen === idx}
@@ -410,7 +476,7 @@ function NewInvoice() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className="grid gap-2 md:grid-cols-[1fr_100px_140px_140px] md:items-end">
+              <div className="grid gap-2 md:grid-cols-[1fr_100px_120px_120px_120px] md:items-end">
                 <Field label="Description">
                   <Input
                     value={it.description}
@@ -450,6 +516,22 @@ function NewInvoice() {
                     placeholder="e.g. 100 or 200/2"
                   />
                 </Field>
+                <Field label="Shipping / Freight">
+                  <Input
+                    type="text"
+                    value={it.shipping ?? "0"}
+                    onChange={(e) => setItem(idx, { shipping: e.target.value })}
+                    onFocus={() => setItem(idx, { shipping: formatOnFocus(it.shipping ?? "0") })}
+                    onBlur={() => setItem(idx, { shipping: formatOnBlur(it.shipping ?? "0", (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        setItem(idx, { shipping: formatOnBlur(it.shipping ?? "0", (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0)) });
+                        e.preventDefault();
+                      }
+                    }}
+                    placeholder="Freight"
+                  />
+                </Field>
                 <Field label="Amount">
                   <div className="figure h-9 rounded-md border bg-muted/40 px-3 py-2 text-right text-sm">
                     {formatMoney(
@@ -481,7 +563,7 @@ function NewInvoice() {
             type="button"
             variant="outline"
             onClick={() =>
-              setItems([...items, { description: "", quantity: "1", unit_price: "0" }])
+              setItems([...items, { description: "", quantity: "1", unit_price: "0", shipping: "0" }])
             }
           >
             <Plus className="mr-1 h-4 w-4" />
@@ -514,12 +596,10 @@ function NewInvoice() {
                 value={tax}
                 onChange={(e) => setTax(e.target.value)}
                 onFocus={() => setTax(formatOnFocus(tax))}
-                onBlur={() => {
-                  if (!tax.trim().endsWith("%")) setTax(formatOnBlur(tax));
-                }}
+                onBlur={() => setTax(formatOnBlur(tax, subtotal - discountNum))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !tax.trim().endsWith("%")) {
-                    setTax(formatOnBlur(tax));
+                  if (e.key === "Enter") {
+                    setTax(formatOnBlur(tax, subtotal - discountNum));
                     e.preventDefault();
                   }
                 }}
@@ -530,28 +610,13 @@ function NewInvoice() {
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground flex flex-col items-start">
                 <span>Shipping / Freight</span>
-                {shipping.trim().endsWith("%") && (
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    ({formatMoney(shipNum, settings.currency)})
-                  </span>
-                )}
               </span>
               <Input
                 type="text"
-                value={shipping}
-                onChange={(e) => setShipping(e.target.value)}
-                onFocus={() => setShipping(formatOnFocus(shipping))}
-                onBlur={() => {
-                  if (!shipping.trim().endsWith("%")) setShipping(formatOnBlur(shipping));
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !shipping.trim().endsWith("%")) {
-                    setShipping(formatOnBlur(shipping));
-                    e.preventDefault();
-                  }
-                }}
-                placeholder="e.g. 1000 or 1.5%"
-                className="h-8 w-36 text-right text-xs"
+                disabled
+                readOnly
+                value={formatMoney(shipNum, settings.currency)}
+                className="h-8 w-36 text-right text-xs bg-muted text-muted-foreground cursor-not-allowed"
               />
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -568,12 +633,10 @@ function NewInvoice() {
                 value={discount}
                 onChange={(e) => setDiscount(e.target.value)}
                 onFocus={() => setDiscount(formatOnFocus(discount))}
-                onBlur={() => {
-                  if (!discount.trim().endsWith("%")) setDiscount(formatOnBlur(discount));
-                }}
+                onBlur={() => setDiscount(formatOnBlur(discount, subtotal))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !discount.trim().endsWith("%")) {
-                    setDiscount(formatOnBlur(discount));
+                  if (e.key === "Enter") {
+                    setDiscount(formatOnBlur(discount, subtotal));
                     e.preventDefault();
                   }
                 }}

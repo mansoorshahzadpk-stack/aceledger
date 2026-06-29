@@ -46,6 +46,7 @@ type GRN = {
   unit_price: number;
   total_amount: number;
   status?: string;
+  details?: string | null;
 };
 type InvItem = {
   id: string;

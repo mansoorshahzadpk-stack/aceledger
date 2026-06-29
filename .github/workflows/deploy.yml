@@ -36,7 +36,7 @@ jobs:
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             mirror -R --parallel=10 --delete --ignore-time dist/client public_html;
             quit;
-          "
+          " > lftp_output.txt 2>&1 || { cat lftp_output.txt && exit 1; }
 
       - name: Verify Site is Live
         run: |

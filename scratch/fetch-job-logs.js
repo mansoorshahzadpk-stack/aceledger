@@ -1,9 +1,9 @@
 async function run() {
   const resRuns = await fetch('https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs?per_page=5');
   const jsonRuns = await resRuns.json();
-  const latestRun = jsonRuns.workflow_runs.find(r => r.name === "Auto Deploy to Hostinger");
+  const latestRun = jsonRuns.workflow_runs[0];
   if (!latestRun) {
-    console.log("No Auto Deploy to Hostinger runs found.");
+    console.log("No workflow runs found.");
     return;
   }
   

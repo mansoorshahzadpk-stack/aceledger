@@ -23,100 +23,7 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Prepare Deployment Package
-        run: |
-          # 1. Zip the client build outputs
-          cd dist/client
-          zip -r ../../dist.zip .
-          cd ../..
-
-          # 2. Dynamically generate the secure unzip script
-          cat << 'EOF' > unzip_${{ github.run_id }}.php
-          <?php
-          // Prevent unauthorized execution
-          if (!isset($_GET['key']) || $_GET['key'] !== 'GITHUB_RUN_ID') {
-              header('HTTP/1.0 403 Forbidden');
-              echo 'Forbidden';
-              exit;
-          }
-
-          $zipFile = 'dist.zip';
-          if (!file_exists($zipFile)) {
-              header('HTTP/1.0 404 Not Found');
-              echo 'Zip file not found';
-              exit;
-          }
-
-          // Helper to recursively delete directories (to clean old build assets)
-          function deleteDir($dirPath) {
-              if (!is_dir($dirPath)) return;
-              $files = array_diff(scandir($dirPath), array('.', '..'));
-              foreach ($files as $file) {
-                  $path = $dirPath . '/' . $file;
-                  is_dir($path) ? deleteDir($path) : unlink($path);
-              }
-              return rmdir($dirPath);
-          }
-
-          // Helper to recursively set correct permissions (directories = 0755, files = 0644)
-          function fixPermissions($path) {
-              if (is_dir($path)) {
-                  @chmod($path, 0755);
-                  $files = array_diff(scandir($path), array('.', '..'));
-                  foreach ($files as $file) {
-                      fixPermissions($path . '/' . $file);
-                  }
-              } else {
-                  @chmod($path, 0644);
-              }
-          }
-
-          // Clear old build assets to save disk space and prevent mixups
-          deleteDir(__DIR__ . '/assets');
-          deleteDir(__DIR__ . '/app-assets');
-
-          // Clean up any other old unzip scripts to prevent clutter
-          foreach (glob(__DIR__ . '/unzip_*.php') as $file) {
-              if (basename($file) !== basename(__FILE__)) {
-                  @unlink($file);
-              }
-          }
-
-          // Safely delete .htaccess and index.html right before extraction to prevent ownership overwrite issues
-          @unlink(__DIR__ . '/.htaccess');
-          @unlink(__DIR__ . '/index.html');
-
-          // Extract the new deployment bundle
-          try {
-              $zip = new ZipArchive;
-              if ($zip->open($zipFile) === TRUE) {
-                  $ok = $zip->extractTo(__DIR__);
-                  $zip->close();
-                  if ($ok) {
-                      // Fix file and directory permissions recursively to prevent 403 Forbidden issues on Hostinger
-                      fixPermissions(__DIR__);
-                      unlink($zipFile);
-                      @unlink(__FILE__);
-                      echo 'Success';
-                  } else {
-                      header('HTTP/1.0 500 Internal Server Error');
-                      echo 'Failed to extract zip file to ' . __DIR__;
-                  }
-              } else {
-                  header('HTTP/1.0 500 Internal Server Error');
-                  echo 'Failed to open zip';
-              }
-          } catch (Exception $e) {
-              header('HTTP/1.0 500 Internal Server Error');
-              echo 'Error: ' . $e->getMessage();
-          }
-          ?>
-          EOF
-
-          # 3. Insert the actual github run ID as the security token
-          sed -i "s/GITHUB_RUN_ID/${{ github.run_id }}/g" unzip_${{ github.run_id }}.php
-
-      - name: Upload Deployment Package to Hostinger
+      - name: Upload Build Directly via FTP Mirror
         run: |
           which lftp || sudo apt-get install -y lftp
           lftp -c "
@@ -127,28 +34,9 @@ jobs:
             set net:max-retries 10;
             set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            cd public_html;
-            put dist.zip;
-            put unzip_${{ github.run_id }}.php;
+            mirror -R --parallel=10 --delete --ignore-time dist/client public_html;
             quit;
           "
-
-      - name: Trigger Remote Unzip and Verify
-        run: |
-          echo "Triggering remote unzip..."
-          RESPONSE=$(curl -s -w "%{http_code}" -H "Cache-Control: no-cache" -H "Pragma: no-cache" -L "https://aceledger.top/unzip_${{ github.run_id }}.php?key=${{ github.run_id }}")
-          HTTP_CODE="${RESPONSE:${#RESPONSE}-3}"
-          BODY="${RESPONSE:0:${#RESPONSE}-3}"
-
-          echo "HTTP Response Code: $HTTP_CODE"
-          echo "Response Body: $BODY"
-
-          if [ "$HTTP_CODE" -ne 200 ] || [ "$BODY" != "Success" ]; then
-            echo "Deployment extraction failed!"
-            echo "NOTE: If HTTP_CODE is 403/404, the FTP upload may have gone to the wrong directory."
-            exit 1
-          fi
-          echo "Deployment succeeded!"
 
       - name: Verify Site is Live
         run: |
@@ -159,5 +47,6 @@ jobs:
           if [ "$HTTP_STATUS" -eq 200 ] || [ "$HTTP_STATUS" -eq 301 ] || [ "$HTTP_STATUS" -eq 302 ]; then
             echo "✅ Site is live!"
           else
-            echo "⚠️ Site returned $HTTP_STATUS — check Hostinger FTP directory configuration"
+            echo "⚠️ Site returned $HTTP_STATUS"
+            exit 1
           fi

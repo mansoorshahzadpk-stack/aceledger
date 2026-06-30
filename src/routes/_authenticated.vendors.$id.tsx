@@ -1008,7 +1008,7 @@ function VendorDetail() {
     const docItems = items.length > 0 ? items.map((it: any) => ({
       description: it.material,
       quantity: it.quantity_formula ? `${it.quantity_formula} = ${it.quantity}` : it.quantity,
-      unit_price: it.unit_price_formula ? `${it.unit_price_formula} = ${it.unit_price}` : it.unit_price,
+      unit_price: it.unit_price,
       line_total: it.quantity * it.unit_price,
       unit: it.unit,
       vehicle_ref: it.line_details || it.vehicle_number || (grn as any).details || (grn as any).vehicle_number,
@@ -1018,7 +1018,7 @@ function VendorDetail() {
       {
         description: grn.material,
         quantity: grn.quantity_formula ? `${grn.quantity_formula} = ${grn.quantity}` : grn.quantity,
-        unit_price: grn.unit_price_formula ? `${grn.unit_price_formula} = ${grn.unit_price}` : grn.unit_price,
+        unit_price: grn.unit_price,
         line_total: grn.quantity * grn.unit_price,
         unit: grn.unit,
         vehicle_ref: (grn as any).details || (grn as any).vehicle_number,

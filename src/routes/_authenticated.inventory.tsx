@@ -313,7 +313,7 @@ function InventoryPage() {
 
     // Client-side fallback aggregation (if RPC function is not yet fully propagated)
     const postedInv = new Set(data.invs.filter((i) => i.status === "posted").map((i) => i.id));
-    const postedGrns = new Set(data.grnHeaders.filter((g) => (g.status || "posted") === "posted").map((g) => g.id));
+    const postedGrns = new Set(data.grnHeaders.filter((g) => g.status === "posted").map((g) => g.id));
 
     type Agg = {
       id: string;

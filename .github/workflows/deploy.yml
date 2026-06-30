@@ -55,32 +55,28 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
+            set ftp:list-options -a;
             set net:timeout 10;
             set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             cd public_html/client;
             lcd dist/client;
-            set ftp:list-options -a;
             mirror -R --parallel=10 --ignore-time . .;
             quit;
           "
 
-      - name: Stage 4 - Explicitly Re-Upload .htaccess and index.html
+      - name: Stage 4 - Upload .htaccess via curl FTP (Guaranteed)
         run: |
-          lftp -c "
-            set ssl:verify-certificate no;
-            set ftp:ssl-allow no;
-            set ftp:passive-mode on;
-            set ftp:list-options -a;
-            set net:timeout 15;
-            set net:max-retries 3;
-            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            cd public_html/client;
-            lcd dist/client;
-            put -O . .htaccess;
-            put -O . index.html;
-            quit;
-          "
+          echo "Uploading .htaccess via curl FTP..."
+          curl -v --ftp-pasv --insecure \
+            -T dist/client/.htaccess \
+            "ftp://${{ secrets.FTP_SERVER }}/public_html/client/.htaccess" \
+            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+          echo "Uploading index.html via curl FTP..."
+          curl -v --ftp-pasv --insecure \
+            -T dist/client/index.html \
+            "ftp://${{ secrets.FTP_SERVER }}/public_html/client/index.html" \
+            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
 
       - name: Verify Site is Live
         run: |

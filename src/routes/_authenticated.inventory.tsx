@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useApp } from "@/lib/app-context";
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/format";
 import { Package, AlertTriangle, Download, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { decodeFormula, parseMath, parsePercentageOrMath } from "@/lib/math-parser";
 
 export const Route = createFileRoute("/_authenticated/inventory")({
   component: InventoryPage,
@@ -46,6 +47,13 @@ type GRNHeader = {
   grn_date: string | null;
   vendor_id: string | null;
   created_at: string | null;
+  quantity?: number;
+  unit_price?: number;
+  quantity_formula?: string | null;
+  unit_price_formula?: string | null;
+  shipping?: number;
+  shipping_formula?: string | null;
+  unit?: string;
 };
 type GRNItem = {
   id: string;
@@ -81,6 +89,7 @@ function InventoryPage() {
   const { settings, user, activeBusinessId } = useApp();
   const c = settings.currency;
   const [exporting, setExporting] = useState(false);
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["inventory", user?.id, activeBusinessId],
@@ -98,7 +107,7 @@ function InventoryPage() {
 
       const { data: grnHeaders } = await supabase
         .from("vendor_grns")
-        .select("id, status, grn_number, grn_date, vendor_id, created_at")
+        .select("id, status, grn_number, grn_date, vendor_id, created_at, quantity, unit_price, quantity_formula, unit_price_formula, shipping, shipping_formula, unit")
         .eq("business_id", activeBusinessId)
         .eq("user_id", user.id);
       const grnIds = grnHeaders?.map((g) => g.id) || [];
@@ -151,6 +160,119 @@ function InventoryPage() {
       };
     },
     enabled: !!user,
+  });
+
+  // Self-healing database correction for historical formula-based fields
+  useQuery({
+    queryKey: ["inventory-self-healing", user?.id, activeBusinessId, data],
+    queryFn: async () => {
+      if (!data || !user || !activeBusinessId) return null;
+
+      const itemsToUpdate: Array<{ id: string; table: 'vendor_grn_items' | 'vendor_grns'; updates: any }> = [];
+
+      // 1. Scan vendor_grn_items
+      data.grnItems.forEach((it) => {
+        const updates: any = {};
+
+        // Quantity
+        const qDec = decodeFormula(it.quantity_formula);
+        if (qDec) {
+          const qVal = parseMath(qDec);
+          if (Math.abs(Number(it.quantity || 0) - qVal) > 0.001) {
+            updates.quantity = qVal;
+          }
+        }
+
+        // Unit Price
+        const pDec = decodeFormula(it.unit_price_formula);
+        if (pDec) {
+          const pVal = parseMath(pDec);
+          if (Math.abs(Number(it.unit_price || 0) - pVal) > 0.001) {
+            updates.unit_price = pVal;
+          }
+        }
+
+        // Shipping
+        const sDec = decodeFormula(it.shipping_formula);
+        if (sDec) {
+          const targetQty = updates.quantity !== undefined ? updates.quantity : Number(it.quantity || 0);
+          const targetPrice = updates.unit_price !== undefined ? updates.unit_price : Number(it.unit_price || 0);
+          const subtotal = targetQty * targetPrice;
+          const sVal = parsePercentageOrMath(sDec, subtotal);
+          if (Math.abs(Number(it.shipping || 0) - sVal) > 0.001) {
+            updates.shipping = sVal;
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          itemsToUpdate.push({ id: it.id, table: 'vendor_grn_items', updates });
+        }
+      });
+
+      // 2. Scan vendor_grns (parent table)
+      data.grnHeaders.forEach((g) => {
+        const updates: any = {};
+
+        // Quantity
+        const qDec = decodeFormula(g.quantity_formula);
+        if (qDec) {
+          const qVal = parseMath(qDec);
+          if (Math.abs(Number(g.quantity || 0) - qVal) > 0.001) {
+            updates.quantity = qVal;
+          }
+        }
+
+        // Unit Price
+        const pDec = decodeFormula(g.unit_price_formula);
+        if (pDec) {
+          const pVal = parseMath(pDec);
+          if (Math.abs(Number(g.unit_price || 0) - pVal) > 0.001) {
+            updates.unit_price = pVal;
+          }
+        }
+
+        // Shipping
+        const sDec = decodeFormula(g.shipping_formula);
+        if (sDec) {
+          const targetQty = updates.quantity !== undefined ? updates.quantity : Number(g.quantity || 0);
+          const targetPrice = updates.unit_price !== undefined ? updates.unit_price : Number(g.unit_price || 0);
+          const subtotal = targetQty * targetPrice;
+          const sVal = parsePercentageOrMath(sDec, subtotal);
+          if (Math.abs(Number(g.shipping || 0) - sVal) > 0.001) {
+            updates.shipping = sVal;
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          itemsToUpdate.push({ id: g.id, table: 'vendor_grns', updates });
+        }
+      });
+
+      if (itemsToUpdate.length === 0) return null;
+
+      console.log(`Self-healing migration: updating ${itemsToUpdate.length} rows...`, itemsToUpdate);
+
+      // Perform updates sequentially
+      for (const task of itemsToUpdate) {
+        if (task.table === 'vendor_grn_items') {
+          await supabase
+            .from('vendor_grn_items' as any)
+            .update(task.updates)
+            .eq('id', task.id);
+        } else {
+          await supabase
+            .from('vendor_grns')
+            .update(task.updates)
+            .eq('id', task.id);
+        }
+      }
+
+      // Invalidate queries to refresh the page view with updated values
+      qc.invalidateQueries({ queryKey: ["inventory"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      return itemsToUpdate.length;
+    },
+    enabled: !!data && !!user,
   });
 
   const rows = useMemo(() => {

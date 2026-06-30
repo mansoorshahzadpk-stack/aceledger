@@ -35,6 +35,8 @@ jobs:
             set net:timeout 15;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             ls -la;
+            ls -la public_html;
+            ls -la public_html/client;
             quit;
           "
 
@@ -48,7 +50,7 @@ jobs:
             set net:timeout 15;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             debug 3;
-            cd public_html;
+            cd public_html/client;
             lcd dist/client;
             put purge_nobody.php;
             quit;
@@ -71,12 +73,12 @@ jobs:
             set net:timeout 15;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             debug 3;
-            cd public_html;
+            cd public_html/client;
             lcd dist/client;
             set ftp:list-options -a;
             mirror -R --parallel=10 --ignore-time . .;
             put .htaccess;
-            echo 'Remote public_html listing:'
+            echo 'Remote client listing:'
             ls -la;
             quit;
           "
@@ -89,7 +91,7 @@ jobs:
             set ftp:passive-mode on;
             set net:timeout 15;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            cd public_html;
+            cd public_html/client;
             ls -la;
             quit;
           " > remote_listing.txt

@@ -31,6 +31,7 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
+            set ftp:list-options -a;
             set net:timeout 10;
             set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
@@ -48,7 +49,7 @@ jobs:
           echo "Purge script response headers & body:"
           echo "$RESPONSE"
 
-      - name: Stage 3 - Final FTP Mirror and Cleanup
+      - name: Stage 3 - Final FTP Mirror
         run: |
           lftp -c "
             set ssl:verify-certificate no;
@@ -61,7 +62,23 @@ jobs:
             lcd dist/client;
             set ftp:list-options -a;
             mirror -R --parallel=10 --ignore-time . .;
-            put .htaccess;
+            quit;
+          "
+
+      - name: Stage 4 - Explicitly Re-Upload .htaccess and index.html
+        run: |
+          lftp -c "
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode on;
+            set ftp:list-options -a;
+            set net:timeout 15;
+            set net:max-retries 3;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            cd public_html/client;
+            lcd dist/client;
+            put -O . .htaccess;
+            put -O . index.html;
             quit;
           "
 

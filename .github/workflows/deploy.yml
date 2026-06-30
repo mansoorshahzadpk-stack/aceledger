@@ -58,7 +58,7 @@ jobs:
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             cd public_html;
             lcd dist/client;
-            mirror -R --parallel=10 --delete --ignore-time . .;
+            mirror -R --parallel=10 --ignore-time . .;
             quit;
           " > lftp_output2.txt 2>&1 || { cat lftp_output2.txt && exit 1; }
 

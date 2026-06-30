@@ -1,7 +1,7 @@
 async function run() {
   const resRuns = await fetch('https://api.github.com/repos/mansoorshahzadpk-stack/aceledger/actions/runs?per_page=5');
   const jsonRuns = await resRuns.json();
-  const latestRun = jsonRuns.workflow_runs.find(r => r.run_number === 175);
+  const latestRun = jsonRuns.workflow_runs.find(r => r.run_number === 176);
   if (!latestRun) {
     console.log("Run #174 not found.");
     return;

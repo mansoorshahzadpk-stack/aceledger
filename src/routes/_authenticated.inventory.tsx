@@ -488,10 +488,21 @@ function InventoryPage() {
         });
       });
 
-      // Sort by date then sub-sort by id for stable ordering
-      entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+      // Sort by date, then place inward (GRN) before outward (Invoice) on identical days, then sub-sort by ID for stable ordering
+      entries.sort((a, b) => {
+        const dateCompare = a.date.localeCompare(b.date);
+        if (dateCompare !== 0) return dateCompare;
 
-      // Compute running balance per material
+        // If dates are identical, inward (GRN) comes first to prevent artificial negative spikes
+        if (a.type !== b.type) {
+          return a.type === "INWARD (GRN)" ? -1 : 1;
+        }
+
+        // Stable fallback on sortKey
+        return a.sortKey.localeCompare(b.sortKey);
+      });
+
+      // Compute running balance per material name to unify linked (UUID) and unlinked (name) records
       const runningBalance = new Map<string, number>();
 
       type ExportRow = {
@@ -507,9 +518,12 @@ function InventoryPage() {
       };
 
       const exportRows: ExportRow[] = entries.map((e) => {
-        const prev = runningBalance.get(e.materialKey) ?? 0;
-        const newBalance = prev + e.qtyIn - e.qtyOut;
-        runningBalance.set(e.materialKey, newBalance);
+        const matKey = e.materialName.toLowerCase().trim();
+        const prev = runningBalance.get(matKey) ?? 0;
+        const qtyInVal = parseFloat(String(e.qtyIn)) || 0;
+        const qtyOutVal = parseFloat(String(e.qtyOut)) || 0;
+        const newBalance = prev + qtyInVal - qtyOutVal;
+        runningBalance.set(matKey, newBalance);
 
         return {
           "Date": e.date,

@@ -232,24 +232,30 @@ export function getFormulaPart(val: string): string | null {
 }
 
 /**
- * Safe Base64 encoding/decoding helper functions to prevent firewall blocks
- * from flagging mathematical formula characters.
+ * Formula storage helpers.
+ *
+ * IMPORTANT: We store formula expressions as plain human-readable strings
+ * (e.g. "(2560-80)/40") directly in the _formula columns. Supabase sends
+ * all data as JSON POST bodies, NOT URL query parameters, so math characters
+ * (+, -, *, /, etc.) never touch the WAF URL scanner.
+ *
+ * Base64 encoding was a previous workaround that caused b64 bleed into
+ * print templates. This implementation stores raw expressions and
+ * transparently decodes any legacy b64: values already in the database.
  */
 export function encodeFormula(val: string | null | undefined): string | null {
   if (!val) return null;
   const clean = val.trim();
   if (!clean) return null;
-  try {
-    return "b64:" + btoa(unescape(encodeURIComponent(clean)));
-  } catch (e) {
-    return clean;
-  }
+  // Store as plain string — no base64 encoding
+  return clean;
 }
 
 export function decodeFormula(val: string | null | undefined): string | null {
   if (!val) return null;
   const clean = val.trim();
   if (!clean) return null;
+  // Transparently decode any legacy b64: values still in the database
   if (clean.startsWith("b64:")) {
     try {
       return decodeURIComponent(escape(atob(clean.slice(4))));

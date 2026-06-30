@@ -76,7 +76,17 @@ function escapeHtml(s?: string | null) {
   );
 }
 function formatPrintMath(val: number | string): string {
-  const sVal = String(val).trim();
+  let sVal = String(val).trim();
+
+  // Safety guard: decode any legacy b64:-encoded formula that leaked through
+  if (sVal.startsWith("b64:")) {
+    try {
+      sVal = decodeURIComponent(escape(atob(sVal.slice(4))));
+    } catch (_) {
+      sVal = sVal.slice(4);
+    }
+  }
+
   if (sVal.includes("=")) {
     const parts = sVal.split("=");
     const expr = parts[0].trim();

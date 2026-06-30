@@ -23,7 +23,7 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Stage 1 - Upload Legitimate Purge Script Only
+      - name: Stage 0 - Print Remote Directory Structure
         run: |
           which lftp || sudo apt-get install -y lftp
           lftp -c "
@@ -31,8 +31,19 @@ jobs:
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
             set net:timeout 15;
-            set net:max-retries 10;
-            set net:reconnect-interval-base 5;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            ls -la;
+            quit;
+          "
+
+      - name: Stage 1 - Upload Legitimate Purge Script Only
+        continue-on-error: true
+        run: |
+          lftp -c "
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode on;
+            set net:timeout 15;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             debug 3;
             cd public_html;
@@ -42,6 +53,7 @@ jobs:
           "
 
       - name: Stage 2 - Execute Remote Purge of Web Server Owned Files
+        continue-on-error: true
         run: |
           echo "Triggering remote purge of legacy ownership files..."
           RESPONSE=$(curl -is "https://aceledger.top/purge_nobody.php")
@@ -55,15 +67,13 @@ jobs:
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
             set net:timeout 15;
-            set net:max-retries 10;
-            set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
             debug 3;
             cd public_html;
             lcd dist/client;
             mirror -R --parallel=10 --ignore-time . .;
             echo 'Remote public_html listing:'
-            ls -la
+            ls -la;
             quit;
           "
 

@@ -504,7 +504,7 @@ function InvoiceDetail() {
         description: it.description,
         quantity: it.quantity,
         unit_price: it.unit_price,
-        line_total: (parseFloat(it.quantity) || 0) * (parseFloat(it.unit_price) || 0),
+        line_total: (parseMath(it.quantity) || 0) * (parseMath(it.unit_price) || 0),
         unit: it.unit,
         grn_ref: it.grn_ref,
         vehicle_ref: it.vehicle_ref,

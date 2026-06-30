@@ -47,8 +47,15 @@ interface DocInput {
 }
 
 function num(n: number | string | null | undefined) {
-  const v = typeof n === "string" ? parseFloat(n) : (n ?? 0);
-  return Number.isFinite(v as number) ? (v as number) : 0;
+  if (n === null || n === undefined) return 0;
+  if (typeof n === "number") return n;
+  let s = String(n).trim();
+  if (s.includes("=")) {
+    const parts = s.split("=");
+    s = parts[parts.length - 1].trim();
+  }
+  const v = parseFloat(s);
+  return Number.isFinite(v) ? v : 0;
 }
 function money(n: number | string | null | undefined, c: CurrencyCode) {
   const v = num(n);

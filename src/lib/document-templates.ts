@@ -122,7 +122,7 @@ function safeFreight(it: DocItem): number {
   // If the value contains "=" it is in the stored "expr = result" format;
   // parseMath handles that and also evaluates bare expressions like "20000+5000".
   const evaluated = parseMath(raw);
-  return Number.isFinite(evaluated) && evaluated > 0 ? evaluated : 0;
+  return Number.isFinite(evaluated) && evaluated !== 0 ? evaluated : 0;
 }
 
 function getCurrencySymbol(c: string): string {
@@ -135,10 +135,11 @@ function itemMeta(it: DocItem, currency: string = "Rs") {
   if (it.grn_ref) meta.push(`GRN : ${escapeHtml(it.grn_ref)}`);
   if (it.vehicle_ref) meta.push(`${escapeHtml(it.vehicle_ref)}`);
   const freightVal = safeFreight(it);
-  if (freightVal > 0) {
-    const formatted = freightVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (freightVal !== 0) {
     const sym = getCurrencySymbol(currency);
-    meta.push(`Freight : ${sym}&nbsp;${formatted}`);
+    const sign = freightVal < 0 ? "-" : "";
+    const abs = Math.abs(freightVal).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    meta.push(`Freight : ${sym}&nbsp;${sign}${abs}`);
   }
   return meta;
 }

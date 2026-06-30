@@ -549,11 +549,11 @@ function NewInvoice() {
                     placeholder="e.g. 03345"
                   />
                 </Field>
-                <Field label="Vehicle (optional)">
+                <Field label="Details (optional)">
                   <Input
                     value={it.vehicle_ref ?? ""}
                     onChange={(e) => setItem(idx, { vehicle_ref: e.target.value })}
-                    placeholder="e.g. XA 319"
+                    placeholder="e.g. Grade A, Batch 04, Special Notes"
                   />
                 </Field>
               </div>

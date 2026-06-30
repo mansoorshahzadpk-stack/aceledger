@@ -681,7 +681,7 @@ function InvoiceDetail() {
                               <Input
                                 className="h-7 text-xs"
                                 value={it.vehicle_ref ?? ""}
-                                placeholder="Vehicle"
+                                placeholder="Details"
                                 onChange={(e) => updateLine(idx, { vehicle_ref: e.target.value })}
                               />
                             </div>
@@ -693,7 +693,7 @@ function InvoiceDetail() {
                               <div className="text-xs text-muted-foreground">
                                 {it.grn_ref && <>GRN: {it.grn_ref}</>}
                                 {it.grn_ref && it.vehicle_ref && " · "}
-                                {it.vehicle_ref && <>Veh: {it.vehicle_ref}</>}
+                                {it.vehicle_ref && <>Details: {it.vehicle_ref}</>}
                               </div>
                             )}
                           </div>

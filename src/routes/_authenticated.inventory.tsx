@@ -64,7 +64,7 @@ function InventoryPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["inventory", user?.id, activeBusinessId],
     queryFn: async () => {
-      if (!activeBusinessId || !user) return { materials: [], grns: [], items: [], invs: [] };
+      if (!activeBusinessId || !user) return { materials: [], grnItems: [], grnHeaders: [], items: [], invs: [] };
       const { data: invs } = await supabase
         .from("invoices")
         .select("id, status")
@@ -72,18 +72,26 @@ function InventoryPage() {
         .eq("user_id", user.id);
       const invoiceIds = invs?.map((i) => i.id) || [];
 
-      const [{ data: materials }, { data: grns }, { data: items }] = await Promise.all([
+      const { data: grnHeaders } = await supabase
+        .from("vendor_grns")
+        .select("id, status")
+        .eq("business_id", activeBusinessId)
+        .eq("user_id", user.id);
+      const grnIds = grnHeaders?.map((g) => g.id) || [];
+
+      const [{ data: materials }, { data: grnItems }, { data: items }] = await Promise.all([
         supabase
           .from("products" as any)
           .select("id, name, sku, unit")
           .eq("business_id", activeBusinessId)
           .eq("user_id", user.id)
           .order("name"),
-        supabase
-          .from("vendor_grns")
-          .select("id, product_id, material, quantity, unit, unit_price, total_amount, status")
-          .eq("business_id", activeBusinessId)
-          .eq("user_id", user.id),
+        grnIds.length > 0
+          ? supabase
+              .from("vendor_grn_items" as any)
+              .select("id, grn_id, product_id, material, quantity, unit, unit_price, shipping")
+              .in("grn_id", grnIds)
+          : Promise.resolve({ data: [] }),
         invoiceIds.length > 0
           ? supabase
               .from("invoice_items")
@@ -93,7 +101,8 @@ function InventoryPage() {
       ]);
       return {
         materials: (materials ?? []) as unknown as Material[],
-        grns: (grns ?? []) as unknown as GRN[],
+        grnItems: (grnItems ?? []) as any[],
+        grnHeaders: (grnHeaders ?? []) as any[],
         items: (items ?? []) as unknown as InvItem[],
         invs: (invs ?? []) as unknown as Inv[],
       };
@@ -104,6 +113,7 @@ function InventoryPage() {
   const rows = useMemo(() => {
     if (!data) return [];
     const postedInv = new Set(data.invs.filter((i) => i.status === "posted").map((i) => i.id));
+    const postedGrns = new Set(data.grnHeaders.filter((g) => (g.status || "posted") === "posted").map((g) => g.id));
 
     type Agg = {
       id: string;
@@ -128,24 +138,27 @@ function InventoryPage() {
       });
     });
 
-    data.grns.forEach((g) => {
-      if ((g.status || "posted") !== "posted") return;
-      const key = g.product_id ?? `_name:${(g.material || "").toLowerCase().trim()}`;
+    data.grnItems.forEach((gi) => {
+      if (!postedGrns.has(gi.grn_id)) return;
+      const nameClean = (gi.material || "").toLowerCase().trim().split(" (")[0];
+      const key = gi.product_id ?? `_name:${nameClean}`;
       let row = map.get(key);
       if (!row) {
         row = {
           id: key,
-          name: g.material || "(unlinked)",
+          name: gi.material || "(unlinked)",
           sku: null,
-          unit: g.unit,
+          unit: gi.unit,
           received: 0,
           delivered: 0,
           receivedValue: 0,
         };
         map.set(key, row);
       }
-      row.received += Number(g.quantity);
-      row.receivedValue += Number(g.total_amount);
+      row.received += Number(gi.quantity || 0);
+      const itemSubtotal = Number(gi.quantity || 0) * Number(gi.unit_price || 0);
+      const itemShipping = Number(gi.shipping ?? 0);
+      row.receivedValue += (itemSubtotal + itemShipping);
     });
 
     data.items.forEach((it) => {
@@ -153,7 +166,7 @@ function InventoryPage() {
       const key =
         it.product_id ?? `_name:${(it.description || "").toLowerCase().trim().split(" (")[0]}`;
       const row = map.get(key);
-      if (row) row.delivered += Number(it.quantity);
+      if (row) row.delivered += Number(it.quantity || 0);
     });
 
     return Array.from(map.values())

@@ -3,7 +3,7 @@ name: Auto Deploy to Hostinger (Cache-Busted)
 on:
   push:
     branches:
-      - main # Triggers whenever Lovable pushes updates to your main branch
+      - main
 
 jobs:
   build-and-deploy:
@@ -23,7 +23,7 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Stage 1 - Upload Purge Script and Mirror Build Files
+      - name: Stage 1 - Upload Legitimate Purge Script Only
         run: |
           which lftp || sudo apt-get install -y lftp
           lftp -c "
@@ -34,12 +34,12 @@ jobs:
             set net:max-retries 10;
             set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            debug 3;
             cd public_html;
             lcd dist/client;
-            mirror -R --parallel=10 --ignore-time . .;
+            put purge_nobody.php;
             quit;
-          " > lftp_output1.txt 2>&1 || { cat lftp_output1.txt && exit 1; }
-          cat lftp_output1.txt
+          "
 
       - name: Stage 2 - Execute Remote Purge of Web Server Owned Files
         run: |
@@ -58,14 +58,14 @@ jobs:
             set net:max-retries 10;
             set net:reconnect-interval-base 5;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            debug 3;
             cd public_html;
             lcd dist/client;
             mirror -R --parallel=10 --ignore-time . .;
             echo 'Remote public_html listing:'
             ls -la
             quit;
-          " > lftp_output2.txt 2>&1 || { cat lftp_output2.txt && exit 1; }
-          cat lftp_output2.txt
+          "
 
       - name: Verify Site is Live
         run: |

@@ -95,7 +95,7 @@ function InventoryPage() {
     queryKey: ["inventory", user?.id, activeBusinessId],
     queryFn: async () => {
       if (!activeBusinessId || !user) return {
-        materials: [], grnItems: [], grnHeaders: [], items: [], invs: [], vendors: [], clients: [],
+        balances: [], materials: [], grnItems: [], grnHeaders: [], items: [], invs: [], vendors: [], clients: [],
       };
 
       const { data: invs } = await supabase
@@ -113,12 +113,15 @@ function InventoryPage() {
       const grnIds = grnHeaders?.map((g) => g.id) || [];
 
       const [
+        { data: balances, error: rpcErr },
         { data: materials },
         { data: grnItems },
         { data: items },
         { data: vendors },
         { data: clients },
       ] = await Promise.all([
+        supabase
+          .rpc("get_inventory_balances" as any, { p_business_id: activeBusinessId }),
         supabase
           .from("products" as any)
           .select("id, name, sku, unit")
@@ -149,7 +152,12 @@ function InventoryPage() {
           .eq("user_id", user.id),
       ]);
 
+      if (rpcErr) {
+        console.error("RPC get_inventory_balances failed, using fallback:", rpcErr);
+      }
+
       return {
+        balances: (balances ?? []) as any[],
         materials: (materials ?? []) as unknown as Material[],
         grnItems: (grnItems ?? []) as unknown as GRNItem[],
         grnHeaders: (grnHeaders ?? []) as unknown as GRNHeader[],
@@ -277,6 +285,33 @@ function InventoryPage() {
 
   const rows = useMemo(() => {
     if (!data) return [];
+
+    // Prioritize clean, pre-aggregated database balances from RPC (grouped by subqueries to prevent JOIN duplication)
+    if (data.balances && data.balances.length > 0) {
+      return data.balances
+        .map((b) => {
+          const received = Number(b.received || 0);
+          const delivered = Number(b.delivered || 0);
+          const receivedValue = Number(b.received_value || 0);
+          const onHand = received - delivered;
+          const avgCost = received > 0 ? receivedValue / received : 0;
+          return {
+            id: b.material_id,
+            name: b.name,
+            sku: b.sku,
+            unit: b.unit,
+            received,
+            delivered,
+            receivedValue,
+            onHand,
+            avgCost,
+            value: onHand * avgCost,
+          };
+        })
+        .sort((a, b) => b.onHand - a.onHand);
+    }
+
+    // Client-side fallback aggregation (if RPC function is not yet fully propagated)
     const postedInv = new Set(data.invs.filter((i) => i.status === "posted").map((i) => i.id));
     const postedGrns = new Set(data.grnHeaders.filter((g) => (g.status || "posted") === "posted").map((g) => g.id));
 

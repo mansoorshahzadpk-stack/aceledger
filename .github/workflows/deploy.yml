@@ -67,16 +67,21 @@ jobs:
 
       - name: Stage 4 - Upload .htaccess via curl FTP (Guaranteed)
         run: |
-          echo "Uploading .htaccess via curl FTP..."
-          curl -v --ftp-pasv --insecure \
-            -T dist/client/.htaccess \
-            "ftp://${{ secrets.FTP_SERVER }}/public_html/client/.htaccess" \
-            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
-          echo "Uploading index.html via curl FTP..."
-          curl -v --ftp-pasv --insecure \
-            -T dist/client/index.html \
-            "ftp://${{ secrets.FTP_SERVER }}/public_html/client/index.html" \
-            --user "${{ secrets.FTP_USERNAME }}:${{ secrets.FTP_PASSWORD }}"
+          which lftp || sudo apt-get install -y lftp
+          lftp -c "
+            set ssl:verify-certificate no;
+            set ftp:ssl-allow no;
+            set ftp:passive-mode on;
+            set ftp:list-options -a;
+            set net:timeout 15;
+            set net:max-retries 3;
+            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
+            lcd dist/client;
+            cd public_html/client;
+            put .htaccess;
+            put index.html;
+            quit;
+          "
 
       - name: Verify Site is Live
         run: |

@@ -8,8 +8,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -25,31 +23,17 @@ jobs:
       - name: Build Lovable Production Files
         run: npm run build
 
-      - name: Stage 0 - Print Remote Directory Structure
+      - name: Stage 1 - Upload Legitimate Purge Script Only
+        continue-on-error: true
         run: |
           which lftp || sudo apt-get install -y lftp
           lftp -c "
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
-            set net:timeout 15;
+            set net:timeout 10;
+            set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            ls -la;
-            ls -la public_html;
-            ls -la public_html/client;
-            quit;
-          "
-
-      - name: Stage 1 - Upload Legitimate Purge Script Only
-        continue-on-error: true
-        run: |
-          lftp -c "
-            set ssl:verify-certificate no;
-            set ftp:ssl-allow no;
-            set ftp:passive-mode on;
-            set net:timeout 15;
-            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            debug 3;
             cd public_html/client;
             lcd dist/client;
             put purge_nobody.php;
@@ -70,37 +54,16 @@ jobs:
             set ssl:verify-certificate no;
             set ftp:ssl-allow no;
             set ftp:passive-mode on;
-            set net:timeout 15;
+            set net:timeout 10;
+            set net:max-retries 2;
             open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            debug 3;
             cd public_html/client;
             lcd dist/client;
             set ftp:list-options -a;
             mirror -R --parallel=10 --ignore-time . .;
             put .htaccess;
-            echo 'Remote client listing:'
-            ls -la;
             quit;
           "
-
-      - name: Debug - Commit Remote Directory Listing
-        run: |
-          lftp -c "
-            set ssl:verify-certificate no;
-            set ftp:ssl-allow no;
-            set ftp:passive-mode on;
-            set net:timeout 15;
-            open -u '${{ secrets.FTP_USERNAME }}','${{ secrets.FTP_PASSWORD }}' '${{ secrets.FTP_SERVER }}';
-            cd public_html/client;
-            ls -la;
-            quit;
-          " > remote_listing.txt
-          
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add remote_listing.txt
-          git commit -m "debug: add remote directory listing [skip ci]" || exit 0
-          git push origin main
 
       - name: Verify Site is Live
         run: |

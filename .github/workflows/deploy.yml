@@ -71,7 +71,9 @@ jobs:
             debug 3;
             cd public_html;
             lcd dist/client;
+            set ftp:list-options -a;
             mirror -R --parallel=10 --ignore-time . .;
+            put .htaccess;
             echo 'Remote public_html listing:'
             ls -la;
             quit;

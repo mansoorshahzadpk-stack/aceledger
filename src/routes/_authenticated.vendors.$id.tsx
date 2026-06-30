@@ -1012,6 +1012,8 @@ function VendorDetail() {
       line_total: it.quantity * it.unit_price,
       unit: it.unit,
       vehicle_ref: it.line_details || it.vehicle_number || (grn as any).details || (grn as any).vehicle_number,
+      shipping: it.shipping,
+      shipping_formula: it.shipping_formula,
     })) : [
       {
         description: grn.material,
@@ -1020,6 +1022,8 @@ function VendorDetail() {
         line_total: grn.quantity * grn.unit_price,
         unit: grn.unit,
         vehicle_ref: (grn as any).details || (grn as any).vehicle_number,
+        shipping: grn.shipping,
+        shipping_formula: grn.shipping_formula,
       }
     ];
 

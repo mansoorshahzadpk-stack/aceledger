@@ -125,6 +125,11 @@ function safeFreight(it: DocItem): number {
   return Number.isFinite(evaluated) && evaluated > 0 ? evaluated : 0;
 }
 
+function getCurrencySymbol(c: string): string {
+  const code = String(c || "PKR").toUpperCase();
+  return (CURRENCY_SYMBOLS as any)[code] || c;
+}
+
 function itemMeta(it: DocItem, currency: string = "Rs") {
   const meta: string[] = [];
   if (it.grn_ref) meta.push(`GRN : ${escapeHtml(it.grn_ref)}`);
@@ -132,7 +137,8 @@ function itemMeta(it: DocItem, currency: string = "Rs") {
   const freightVal = safeFreight(it);
   if (freightVal > 0) {
     const formatted = freightVal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    meta.push(`Freight : ${currency}&nbsp;${formatted}`);
+    const sym = getCurrencySymbol(currency);
+    meta.push(`Freight : ${sym}&nbsp;${formatted}`);
   }
   return meta;
 }
@@ -338,7 +344,7 @@ function classicTemplate(d: DocInput): string {
   <div class="totals">
     <div class="row"><span>Subtotal</span><span>${money(d.subtotal, d.currency)}</span></div>
     ${tax !== 0 ? `<div class="row"><span>Tax</span><span>${money(tax, d.currency)}</span></div>` : ""}
-    ${ship !== 0 ? `<div class="row"><span>Shipping</span><span>${money(ship, d.currency)}</span></div>` : ""}
+    ${ship !== 0 ? `<div class="row"><span>Shipping / Freight</span><span>${money(ship, d.currency)}</span></div>` : ""}
     ${discount !== 0 ? `<div class="row"><span>Discount</span><span>${money(-discount, d.currency)}</span></div>` : ""}
     <div class="row grand"><span>Total</span><span>${money(d.total, d.currency)}</span></div>
   </div>
@@ -477,7 +483,7 @@ function modernTemplate(d: DocInput): string {
         <table class="totals-table">
           <tr><td class="lbl">Subtotal</td><td class="val">${money(d.subtotal, d.currency)}</td></tr>
           ${tax !== 0 ? `<tr><td class="lbl">Tax</td><td class="val">${money(tax, d.currency)}</td></tr>` : ""}
-          ${ship !== 0 ? `<tr><td class="lbl">Shipping</td><td class="val">${money(ship, d.currency)}</td></tr>` : ""}
+          ${ship !== 0 ? `<tr><td class="lbl">Shipping / Freight</td><td class="val">${money(ship, d.currency)}</td></tr>` : ""}
           ${discount !== 0 ? `<tr><td class="lbl">Discount</td><td class="val">${money(-discount, d.currency)}</td></tr>` : ""}
           <tr class="grand-row">
             <td colspan="2">

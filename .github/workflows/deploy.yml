@@ -39,12 +39,14 @@ jobs:
             mirror -R --parallel=10 --ignore-time . .;
             quit;
           " > lftp_output1.txt 2>&1 || { cat lftp_output1.txt && exit 1; }
+          cat lftp_output1.txt
 
       - name: Stage 2 - Execute Remote Purge of Web Server Owned Files
         run: |
           echo "Triggering remote purge of legacy ownership files..."
-          RESPONSE=$(curl -s "https://aceledger.top/purge_nobody.php")
-          echo "Purge script response: $RESPONSE"
+          RESPONSE=$(curl -is "https://aceledger.top/purge_nobody.php")
+          echo "Purge script response headers & body:"
+          echo "$RESPONSE"
 
       - name: Stage 3 - Final FTP Mirror and Cleanup
         run: |
@@ -59,8 +61,11 @@ jobs:
             cd public_html;
             lcd dist/client;
             mirror -R --parallel=10 --ignore-time . .;
+            echo 'Remote public_html listing:'
+            ls -la
             quit;
           " > lftp_output2.txt 2>&1 || { cat lftp_output2.txt && exit 1; }
+          cat lftp_output2.txt
 
       - name: Verify Site is Live
         run: |

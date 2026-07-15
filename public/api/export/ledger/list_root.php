@@ -9,19 +9,28 @@ if ($rootPath === false) {
     exit;
 }
 
-echo "=== FILE LIST OF public_html/ ===\n";
-$files = scandir($rootPath);
-foreach ($files as $file) {
-    $fullPath = $rootPath . '/' . $file;
-    $isDir = is_dir($fullPath) ? '[DIR]' : '     ';
-    $size = is_file($fullPath) ? filesize($fullPath) . ' bytes' : '';
-    echo "$isDir $file $size\n";
+echo "=== FILE LIST OF public_html/app-assets/ ===\n";
+$appAssetsPath = $rootPath . '/app-assets';
+if (is_dir($appAssetsPath)) {
+    $files = scandir($appAssetsPath);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $size = filesize($appAssetsPath . '/' . $file);
+        echo "$file ($size bytes)\n";
+    }
+} else {
+    echo "No public_html/app-assets/ folder found.\n";
 }
 
-$htaccessPath = $rootPath . '/.htaccess';
-if (file_exists($htaccessPath)) {
-    echo "\n=== CONTENT OF public_html/.htaccess ===\n";
-    echo file_get_contents($htaccessPath);
+echo "\n=== FILE LIST OF public_html/client/app-assets/ ===\n";
+$clientAppAssetsPath = $rootPath . '/client/app-assets';
+if (is_dir($clientAppAssetsPath)) {
+    $files = scandir($clientAppAssetsPath);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $size = filesize($clientAppAssetsPath . '/' . $file);
+        echo "$file ($size bytes)\n";
+    }
 } else {
-    echo "\nNo .htaccess found in public_html/\n";
+    echo "No public_html/client/app-assets/ folder found.\n";
 }

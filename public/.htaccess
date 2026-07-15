@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /
+  RewriteBase /client/
 
   # Pass the Authorization Header to PHP under CGI/FPM environments
   RewriteCond %{HTTP:Authorization} ^(.*)

@@ -110,7 +110,7 @@ if ($type === 'client') {
     }
     
     // Fetch posted Client Payments Received
-    $url = $supabaseUrl . '/rest/v1/client_payments?client_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,ref,payment_date,amount,method';
+    $url = $supabaseUrl . '/rest/v1/client_payments?client_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,reference,payment_date,amount,method';
     list($status, $payments) = supabase_get($url, $jwtToken, $supabaseAnonKey);
     if (!is_array($payments) || isset($payments['message']) || isset($payments['code'])) {
         $payments = [];
@@ -135,7 +135,7 @@ if ($type === 'client') {
     foreach ($payments as $pay) {
         if (isset($seenPays[$pay['id']])) continue;
         $seenPays[$pay['id']] = true;
-        $ref = !empty($pay['ref']) ? " - Ref: " . $pay['ref'] : "";
+        $ref = !empty($pay['reference']) ? " - Ref: " . $pay['reference'] : "";
         $entries[] = [
             'date' => $pay['payment_date'],
             'reference' => 'PAY-' . substr($pay['id'], 0, 8),

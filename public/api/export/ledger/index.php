@@ -96,10 +96,11 @@ $entries = [];
 $title = "Financial Ledger";
 
 if ($type === 'client') {
-    // Fetch Client Name
-    $url = $supabaseUrl . '/rest/v1/clients?id=eq.' . urlencode($id) . '&select=name';
+    // Fetch Client Name and Opening Balance
+    $url = $supabaseUrl . '/rest/v1/clients?id=eq.' . urlencode($id) . '&select=name,opening_balance';
     list($status, $clients) = supabase_get($url, $jwtToken, $supabaseAnonKey);
     $clientName = ($status === 200 && is_array($clients) && !empty($clients)) ? $clients[0]['name'] : 'Client';
+    $openingBalance = ($status === 200 && is_array($clients) && !empty($clients)) ? (float)($clients[0]['opening_balance'] ?? 0.0) : 0.0;
     $title = "Financial Ledger - " . $clientName;
 
     // Fetch posted Invoices
@@ -146,10 +147,11 @@ if ($type === 'client') {
     }
 
 } elseif ($type === 'vendor') {
-    // Fetch Vendor Name
-    $url = $supabaseUrl . '/rest/v1/vendors?id=eq.' . urlencode($id) . '&select=name';
+    // Fetch Vendor Name and Opening Balance
+    $url = $supabaseUrl . '/rest/v1/vendors?id=eq.' . urlencode($id) . '&select=name,opening_balance';
     list($status, $vendors) = supabase_get($url, $jwtToken, $supabaseAnonKey);
     $vendorName = ($status === 200 && is_array($vendors) && !empty($vendors)) ? $vendors[0]['name'] : 'Vendor';
+    $openingBalance = ($status === 200 && is_array($vendors) && !empty($vendors)) ? (float)($vendors[0]['opening_balance'] ?? 0.0) : 0.0;
     $title = "Financial Ledger - " . $vendorName;
 
     // Fetch posted GRNs
@@ -197,6 +199,7 @@ if ($type === 'client') {
 
 } elseif ($type === 'general') {
     $title = "General Ledger Statement";
+    $openingBalance = 0.0;
 
     // Fetch Ledger Transactions
     $url = $supabaseUrl . '/rest/v1/ledger_transactions?business_id=eq.' . urlencode($business_id) . '&select=id,transaction_date,category,description,type,amount';
@@ -233,7 +236,7 @@ usort($entries, function($a, $b) {
 });
 
 // 6. Running Balance computation (Running Balance = Previous + Debit - Credit)
-$balance = 0.0;
+$balance = $openingBalance;
 $totalDebit = 0.0;
 $totalCredit = 0.0;
 foreach ($entries as &$e) {
@@ -242,6 +245,7 @@ foreach ($entries as &$e) {
     $balance += ($e['debit'] - $e['credit']);
     $e['balance'] = $balance;
 }
+unset($e);
 
 // 7. Format output downloads
 if ($format === 'csv') {
@@ -249,6 +253,9 @@ if ($format === 'csv') {
     header('Content-Disposition: attachment; filename="financial_ledger_' . $type . '.csv"');
     $output = fopen('php://output', 'w');
     fputcsv($output, ['Date', 'Reference #', 'Description / Party', 'Debit (+)', 'Credit (-)', 'Running Balance']);
+    if ($openingBalance != 0.0) {
+        fputcsv($output, ['—', 'OPENING', 'Opening Balance', '—', '—', number_format($openingBalance, 2, '.', '')]);
+    }
     foreach ($entries as $e) {
         fputcsv($output, [
             $e['date'],
@@ -278,13 +285,18 @@ if ($format === 'xlsx' || $format === 'xls') {
     echo '<table><thead><tr>';
     echo '<th>Date</th><th>Reference #</th><th>Description / Party</th><th>Debit (+)</th><th>Credit (-)</th><th>Running Balance</th>';
     echo '</tr></thead><tbody>';
+    if ($openingBalance != 0.0) {
+        echo '<tr>';
+        echo '<td>—</td><td><code>OPENING</code></td><td>Opening Balance</td><td class="number">—</td><td class="number">—</td><td class="number">' . number_format($openingBalance, 2) . '</td>';
+        echo '</tr>';
+    }
     foreach ($entries as $e) {
         echo '<tr>';
         echo '<td>' . htmlspecialchars($e['date']) . '</td>';
         echo '<td>' . htmlspecialchars($e['reference']) . '</td>';
         echo '<td>' . htmlspecialchars($e['description']) . '</td>';
-        echo '<td class="number">' . number_format($e['debit'], 2) . '</td>';
-        echo '<td class="number">' . number_format($e['credit'], 2) . '</td>';
+        echo '<td class="number">' . ($e['debit'] > 0 ? number_format($e['debit'], 2) : '—') . '</td>';
+        echo '<td class="number">' . ($e['credit'] > 0 ? number_format($e['credit'], 2) : '—') . '</td>';
         echo '<td class="number">' . number_format($e['balance'], 2) . '</td>';
         echo '</tr>';
     }
@@ -351,11 +363,21 @@ if ($format === 'pdf') {
                 </tr>
             </thead>
             <tbody>
-                <?php if (empty($entries)): ?>
+                <?php if (empty($entries) && $openingBalance == 0.0): ?>
                     <tr>
                         <td colspan="6" style="text-align: center; color: #9ca3af; padding: 30px;">No transaction records found.</td>
                     </tr>
                 <?php else: ?>
+                    <?php if ($openingBalance != 0.0): ?>
+                        <tr>
+                            <td>—</td>
+                            <td><code style="font-family: monospace; font-size: 12px;">OPENING</code></td>
+                            <td>Opening Balance</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right">—</td>
+                            <td class="text-right" style="font-weight: 500;"><?php echo number_format($openingBalance, 2); ?></td>
+                        </tr>
+                    <?php endif; ?>
                     <?php foreach ($entries as $e): ?>
                         <tr>
                             <td><?php echo htmlspecialchars($e['date']); ?></td>

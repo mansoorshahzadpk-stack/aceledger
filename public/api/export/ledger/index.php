@@ -93,16 +93,22 @@ if ($type === 'client') {
     // Fetch Client Name
     $url = $supabaseUrl . '/rest/v1/clients?id=eq.' . urlencode($id) . '&select=name';
     list($status, $clients) = supabase_get($url, $jwtToken, $supabaseAnonKey);
-    $clientName = ($status === 200 && !empty($clients)) ? $clients[0]['name'] : 'Client';
+    $clientName = ($status === 200 && is_array($clients) && !empty($clients)) ? $clients[0]['name'] : 'Client';
     $title = "Financial Ledger - " . $clientName;
 
     // Fetch posted Invoices
     $url = $supabaseUrl . '/rest/v1/invoices?client_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,invoice_number,issue_date,total';
     list($status, $invoices) = supabase_get($url, $jwtToken, $supabaseAnonKey);
+    if (!is_array($invoices) || isset($invoices['message']) || isset($invoices['code'])) {
+        $invoices = [];
+    }
     
     // Fetch posted Client Payments Received
     $url = $supabaseUrl . '/rest/v1/client_payments?client_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,ref,payment_date,amount,method';
     list($status, $payments) = supabase_get($url, $jwtToken, $supabaseAnonKey);
+    if (!is_array($payments) || isset($payments['message']) || isset($payments['code'])) {
+        $payments = [];
+    }
 
     // Map Invoices (Debit)
     foreach ($invoices as $inv) {
@@ -131,16 +137,22 @@ if ($type === 'client') {
     // Fetch Vendor Name
     $url = $supabaseUrl . '/rest/v1/vendors?id=eq.' . urlencode($id) . '&select=name';
     list($status, $vendors) = supabase_get($url, $jwtToken, $supabaseAnonKey);
-    $vendorName = ($status === 200 && !empty($vendors)) ? $vendors[0]['name'] : 'Vendor';
+    $vendorName = ($status === 200 && is_array($vendors) && !empty($vendors)) ? $vendors[0]['name'] : 'Vendor';
     $title = "Financial Ledger - " . $vendorName;
 
     // Fetch posted GRNs
     $url = $supabaseUrl . '/rest/v1/vendor_grns?vendor_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,grn_number,grn_date,total_amount';
     list($status, $grns) = supabase_get($url, $jwtToken, $supabaseAnonKey);
+    if (!is_array($grns) || isset($grns['message']) || isset($grns['code'])) {
+        $grns = [];
+    }
 
     // Fetch posted Vendor Payments
     $url = $supabaseUrl . '/rest/v1/vendor_payments?vendor_id=eq.' . urlencode($id) . '&business_id=eq.' . urlencode($business_id) . '&status=eq.posted&select=id,reference,payment_date,amount,method';
     list($status, $payments) = supabase_get($url, $jwtToken, $supabaseAnonKey);
+    if (!is_array($payments) || isset($payments['message']) || isset($payments['code'])) {
+        $payments = [];
+    }
 
     // Map GRNs (Credit)
     foreach ($grns as $grn) {
@@ -171,6 +183,9 @@ if ($type === 'client') {
     // Fetch Ledger Transactions
     $url = $supabaseUrl . '/rest/v1/ledger_transactions?business_id=eq.' . urlencode($business_id) . '&select=id,transaction_date,category,description,type,amount';
     list($status, $txs) = supabase_get($url, $jwtToken, $supabaseAnonKey);
+    if (!is_array($txs) || isset($txs['message']) || isset($txs['code'])) {
+        $txs = [];
+    }
 
     foreach ($txs as $tx) {
         $isDebit = strtolower($tx['type']) === 'debit';

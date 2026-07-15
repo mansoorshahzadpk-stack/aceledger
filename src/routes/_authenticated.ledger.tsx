@@ -90,7 +90,7 @@ function LedgerPage() {
         business_id: activeBusinessId || ""
       });
 
-      const url = `/api/export/ledger/?${params.toString()}`;
+      const url = `/api/export/ledger/index.php?${params.toString()}`;
 
       if (format === "pdf") {
         const newWindow = window.open();

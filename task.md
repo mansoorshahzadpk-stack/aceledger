@@ -3,3 +3,5 @@
 - [x] Add the Opening Balance row rendering to CSV, Excel, and PDF format blocks
 - [x] Compile and push changes to trigger auto-deployment
 - [x] Verify live site functionality
+
+# Redeploy trigger after transient FTP mirror throttle

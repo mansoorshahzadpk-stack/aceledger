@@ -110,8 +110,11 @@ if ($type === 'client') {
         $payments = [];
     }
 
-    // Map Invoices (Debit)
+    // Map Invoices (Debit) with ID deduplication
+    $seenInvs = [];
     foreach ($invoices as $inv) {
+        if (isset($seenInvs[$inv['id']])) continue;
+        $seenInvs[$inv['id']] = true;
         $entries[] = [
             'date' => $inv['issue_date'],
             'reference' => $inv['invoice_number'],
@@ -121,8 +124,11 @@ if ($type === 'client') {
         ];
     }
 
-    // Map Payments Received (Credit)
+    // Map Payments Received (Credit) with ID deduplication
+    $seenPays = [];
     foreach ($payments as $pay) {
+        if (isset($seenPays[$pay['id']])) continue;
+        $seenPays[$pay['id']] = true;
         $ref = !empty($pay['ref']) ? " - Ref: " . $pay['ref'] : "";
         $entries[] = [
             'date' => $pay['payment_date'],
@@ -154,8 +160,11 @@ if ($type === 'client') {
         $payments = [];
     }
 
-    // Map GRNs (Credit)
+    // Map GRNs (Credit) with ID deduplication
+    $seenGrns = [];
     foreach ($grns as $grn) {
+        if (isset($seenGrns[$grn['id']])) continue;
+        $seenGrns[$grn['id']] = true;
         $entries[] = [
             'date' => $grn['grn_date'],
             'reference' => $grn['grn_number'],
@@ -165,8 +174,11 @@ if ($type === 'client') {
         ];
     }
 
-    // Map Payments to Vendor (Debit)
+    // Map Payments to Vendor (Debit) with ID deduplication
+    $seenVendorPays = [];
     foreach ($payments as $pay) {
+        if (isset($seenVendorPays[$pay['id']])) continue;
+        $seenVendorPays[$pay['id']] = true;
         $ref = !empty($pay['reference']) ? " - Ref: " . $pay['reference'] : "";
         $entries[] = [
             'date' => $pay['payment_date'],
@@ -187,7 +199,11 @@ if ($type === 'client') {
         $txs = [];
     }
 
+    // Map transactions with ID deduplication
+    $seenTxs = [];
     foreach ($txs as $tx) {
+        if (isset($seenTxs[$tx['id']])) continue;
+        $seenTxs[$tx['id']] = true;
         $isDebit = strtolower($tx['type']) === 'debit';
         $entries[] = [
             'date' => $tx['transaction_date'],
@@ -210,20 +226,14 @@ usort($entries, function($a, $b) {
     return strcmp($a['reference'], $b['reference']);
 });
 
-// 6. Running Balance computation
+// 6. Running Balance computation (Running Balance = Previous + Debit - Credit)
 $balance = 0.0;
 $totalDebit = 0.0;
 $totalCredit = 0.0;
 foreach ($entries as &$e) {
     $totalDebit += $e['debit'];
     $totalCredit += $e['credit'];
-    if ($type === 'vendor') {
-        // Vendor accounts increase balance with Credit (Payable) and decrease with Debit (Payment)
-        $balance += ($e['credit'] - $e['debit']);
-    } else {
-        // Client / General accounts increase balance with Debit and decrease with Credit
-        $balance += ($e['debit'] - $e['credit']);
-    }
+    $balance += ($e['debit'] - $e['credit']);
     $e['balance'] = $balance;
 }
 

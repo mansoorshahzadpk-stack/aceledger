@@ -90,23 +90,17 @@ function LedgerPage() {
         business_id: activeBusinessId || ""
       });
 
-      const url = `/api/export/ledger/index.php?${params.toString()}`;
+      const baseUrl = `/client/api/export/ledger/index.php`;
 
       if (format === "pdf") {
-        const newWindow = window.open();
-        if (newWindow) {
-          const response = await fetch(url, {
-            headers: {
-              "Authorization": `Bearer ${token}`
-            }
-          });
-          const html = await response.text();
-          newWindow.document.write(html);
-          newWindow.document.close();
-        } else {
+        params.append("token", token);
+        const url = `${baseUrl}?${params.toString()}`;
+        const newWindow = window.open(url, "_blank");
+        if (!newWindow) {
           toast.error("Popup blocked! Please allow popups for this site.");
         }
       } else {
+        const url = `${baseUrl}?${params.toString()}`;
         const response = await fetch(url, {
           headers: {
             "Authorization": `Bearer ${token}`

@@ -7,27 +7,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// 1. Authenticate using Bearer JWT Token
-$authHeader = '';
-if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
-} elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
-    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
-} else {
-    $headers = function_exists('getallheaders') ? getallheaders() : [];
-    if (isset($headers['Authorization'])) {
-        $authHeader = $headers['Authorization'];
-    } elseif (isset($headers['authorization'])) {
-        $authHeader = $headers['authorization'];
+// 1. Authenticate using Bearer JWT Token or Query Parameter
+$jwtToken = $_GET['token'] ?? '';
+if (empty($jwtToken)) {
+    $authHeader = '';
+    if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+    } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+    } else {
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
+        if (isset($headers['Authorization'])) {
+            $authHeader = $headers['Authorization'];
+        } elseif (isset($headers['authorization'])) {
+            $authHeader = $headers['authorization'];
+        }
+    }
+
+    if (!empty($authHeader) && preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {
+        $jwtToken = $matches[1];
     }
 }
 
-if (empty($authHeader) || !preg_match('/Bearer\s(\S+)/i', $authHeader, $matches)) {
+if (empty($jwtToken)) {
     http_response_code(401);
     echo json_encode(['error' => 'Missing or invalid token']);
     exit;
 }
-$jwtToken = $matches[1];
 
 // 2. Load Supabase credentials
 $configPath = __DIR__ . '/../../settings/config.json';

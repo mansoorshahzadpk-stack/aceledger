@@ -14,6 +14,7 @@ export default defineConfig({
     },
   },
   vite: {
+    base: "/client/",
     build: {
       assetsDir: "app-assets",
     },

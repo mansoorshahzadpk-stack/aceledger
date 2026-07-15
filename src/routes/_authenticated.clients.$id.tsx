@@ -46,6 +46,8 @@ import {
   Minimize2,
   ChevronUp,
   ChevronDown,
+  Download,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -79,6 +81,66 @@ function ClientDetail() {
 
   const [maximizedCard, setMaximizedCard] = useState<"invoices" | "payments" | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  const handleExportLedger = async (format: "csv" | "xlsx" | "pdf") => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to export ledger");
+        return;
+      }
+      
+      const token = session.access_token;
+      const params = new URLSearchParams({
+        type: "client",
+        id: id,
+        format: format,
+        business_id: activeBusinessId || ""
+      });
+
+      const url = `/api/export/ledger/?${params.toString()}`;
+
+      if (format === "pdf") {
+        const newWindow = window.open();
+        if (newWindow) {
+          const response = await fetch(url, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          const html = await response.text();
+          newWindow.document.write(html);
+          newWindow.document.close();
+        } else {
+          toast.error("Popup blocked! Please allow popups for this site.");
+        }
+      } else {
+        const response = await fetch(url, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error("Export failed");
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `client_ledger_${id}.${format === 'xlsx' ? 'xls' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+        toast.success("Ledger exported successfully");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed. Please try again.");
+    }
+  };
 
   const [invoiceSortField, setInvoiceSortField] = useState<
     "issue_date" | "status" | "total" | null
@@ -559,6 +621,32 @@ function ClientDetail() {
           >
             <Banknote className="mr-1 h-4 w-4" />
             Log Payment Received
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("xlsx")}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Excel Ledger
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("csv")}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            CSV Ledger
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("pdf")}
+          >
+            <Printer className="mr-1 h-3.5 w-3.5" />
+            PDF Ledger
           </Button>
         </div>
         {data.amends.length > 0 && (

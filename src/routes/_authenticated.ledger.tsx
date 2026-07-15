@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Search, Trash2, Edit, PlusCircle, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Plus, Search, Trash2, Edit, PlusCircle, ArrowUpRight, ArrowDownLeft, Download, Printer } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/ledger")({
   component: LedgerPage,
@@ -74,6 +74,65 @@ function LedgerPage() {
   const { settings, activeBusinessId, user, isReadOnly } = useApp();
   const c = settings.currency;
   const qc = useQueryClient();
+
+  const handleExportLedger = async (format: "csv" | "xlsx" | "pdf") => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to export ledger");
+        return;
+      }
+      
+      const token = session.access_token;
+      const params = new URLSearchParams({
+        type: "general",
+        format: format,
+        business_id: activeBusinessId || ""
+      });
+
+      const url = `/api/export/ledger/?${params.toString()}`;
+
+      if (format === "pdf") {
+        const newWindow = window.open();
+        if (newWindow) {
+          const response = await fetch(url, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          const html = await response.text();
+          newWindow.document.write(html);
+          newWindow.document.close();
+        } else {
+          toast.error("Popup blocked! Please allow popups for this site.");
+        }
+      } else {
+        const response = await fetch(url, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error("Export failed");
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `general_ledger_${activeBusinessId}.${format === 'xlsx' ? 'xls' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+        toast.success("Ledger exported successfully");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed. Please try again.");
+    }
+  };
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -250,24 +309,50 @@ function LedgerPage() {
             other minor revenues.
           </p>
         </div>
-        <Button
-          disabled={isReadOnly}
-          onClick={() => {
-            setEditingTx(null);
-            setForm({
-              transaction_date: new Date().toISOString().slice(0, 10),
-              category: CATEGORIES[0],
-              description: "",
-              type: "credit",
-              amount: "",
-              asset_id: "none",
-            });
-            setOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Log Transaction
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("xlsx")}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Excel Ledger
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("csv")}
+          >
+            <Download className="mr-1 h-3.5 w-3.5" />
+            CSV Ledger
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportLedger("pdf")}
+          >
+            <Printer className="mr-1 h-3.5 w-3.5" />
+            PDF Ledger
+          </Button>
+          <Button
+            disabled={isReadOnly}
+            onClick={() => {
+              setEditingTx(null);
+              setForm({
+                transaction_date: new Date().toISOString().slice(0, 10),
+                category: CATEGORIES[0],
+                description: "",
+                type: "credit",
+                amount: "",
+                asset_id: "none",
+              });
+              setOpen(true);
+            }}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Log Transaction
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

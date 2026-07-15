@@ -36,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send, Maximize2, Minimize2, ChevronDown, Package } from "lucide-react";
+import { ArrowLeft, Plus, Printer, Pencil, Trash2, History, Send, Maximize2, Minimize2, ChevronDown, Package, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { renderDocument } from "@/lib/document-templates";
 import {
@@ -102,6 +102,66 @@ function VendorDetail() {
     notes: "",
     asset_id: "",
   });
+
+  const handleExportLedger = async (format: "csv" | "xlsx" | "pdf") => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("You must be logged in to export ledger");
+        return;
+      }
+      
+      const token = session.access_token;
+      const params = new URLSearchParams({
+        type: "vendor",
+        id: id,
+        format: format,
+        business_id: activeBusinessId || ""
+      });
+
+      const url = `/api/export/ledger/?${params.toString()}`;
+
+      if (format === "pdf") {
+        const newWindow = window.open();
+        if (newWindow) {
+          const response = await fetch(url, {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
+          });
+          const html = await response.text();
+          newWindow.document.write(html);
+          newWindow.document.close();
+        } else {
+          toast.error("Popup blocked! Please allow popups for this site.");
+        }
+      } else {
+        const response = await fetch(url, {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error("Export failed");
+        }
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = downloadUrl;
+        a.download = `vendor_ledger_${id}.${format === 'xlsx' ? 'xls' : format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(downloadUrl);
+        toast.success("Ledger exported successfully");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Export failed. Please try again.");
+    }
+  };
 
   const [editPay, setEditPay] = useState<any | null>(null);
   const [editPayReason, setEditPayReason] = useState("");
@@ -1106,6 +1166,32 @@ function VendorDetail() {
             )}
           </div>
         </div>
+      </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleExportLedger("xlsx")}
+        >
+          <Download className="mr-1 h-3.5 w-3.5" />
+          Excel Ledger
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleExportLedger("csv")}
+        >
+          <Download className="mr-1 h-3.5 w-3.5" />
+          CSV Ledger
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleExportLedger("pdf")}
+        >
+          <Printer className="mr-1 h-3.5 w-3.5" />
+          PDF Ledger
+        </Button>
       </div>
 
       {maximizedCard && (

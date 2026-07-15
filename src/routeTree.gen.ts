@@ -27,6 +27,7 @@ import { Route as AuthenticatedInvoicesIndexRouteImport } from './routes/_authen
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated.clients.index'
 import { Route as ApiSettingsMasterPasswordRouteImport } from './routes/api.settings.master-password'
 import { Route as ApiSettingsForgotMasterPasswordRouteImport } from './routes/api.settings.forgot-master-password'
+import { Route as ApiExportLedgerRouteImport } from './routes/api.export.ledger'
 import { Route as ApiAuditLogDeleteRouteImport } from './routes/api.audit-log.delete'
 import { Route as AuthenticatedVendorsIdRouteImport } from './routes/_authenticated.vendors.$id'
 import { Route as AuthenticatedInvoicesNewRouteImport } from './routes/_authenticated.invoices.new'
@@ -129,6 +130,11 @@ const ApiSettingsForgotMasterPasswordRoute =
     path: '/api/settings/forgot-master-password',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiExportLedgerRoute = ApiExportLedgerRouteImport.update({
+  id: '/api/export/ledger',
+  path: '/api/export/ledger',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuditLogDeleteRoute = ApiAuditLogDeleteRouteImport.update({
   id: '/api/audit-log/delete',
   path: '/api/audit-log/delete',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/export/ledger': typeof ApiExportLedgerRoute
   '/api/settings/forgot-master-password': typeof ApiSettingsForgotMasterPasswordRoute
   '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByTo {
   '/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/export/ledger': typeof ApiExportLedgerRoute
   '/api/settings/forgot-master-password': typeof ApiSettingsForgotMasterPasswordRoute
   '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/_authenticated/invoices/new': typeof AuthenticatedInvoicesNewRoute
   '/_authenticated/vendors/$id': typeof AuthenticatedVendorsIdRoute
   '/api/audit-log/delete': typeof ApiAuditLogDeleteRoute
+  '/api/export/ledger': typeof ApiExportLedgerRoute
   '/api/settings/forgot-master-password': typeof ApiSettingsForgotMasterPasswordRoute
   '/api/settings/master-password': typeof ApiSettingsMasterPasswordRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
     | '/invoices/new'
     | '/vendors/$id'
     | '/api/audit-log/delete'
+    | '/api/export/ledger'
     | '/api/settings/forgot-master-password'
     | '/api/settings/master-password'
     | '/clients/'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/invoices/new'
     | '/vendors/$id'
     | '/api/audit-log/delete'
+    | '/api/export/ledger'
     | '/api/settings/forgot-master-password'
     | '/api/settings/master-password'
     | '/clients'
@@ -309,6 +320,7 @@ export interface FileRouteTypes {
     | '/_authenticated/invoices/new'
     | '/_authenticated/vendors/$id'
     | '/api/audit-log/delete'
+    | '/api/export/ledger'
     | '/api/settings/forgot-master-password'
     | '/api/settings/master-password'
     | '/_authenticated/clients/'
@@ -324,6 +336,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   ApiAuditLogDeleteRoute: typeof ApiAuditLogDeleteRoute
+  ApiExportLedgerRoute: typeof ApiExportLedgerRoute
   ApiSettingsForgotMasterPasswordRoute: typeof ApiSettingsForgotMasterPasswordRoute
   ApiSettingsMasterPasswordRoute: typeof ApiSettingsMasterPasswordRoute
 }
@@ -456,6 +469,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSettingsForgotMasterPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/export/ledger': {
+      id: '/api/export/ledger'
+      path: '/api/export/ledger'
+      fullPath: '/api/export/ledger'
+      preLoaderRoute: typeof ApiExportLedgerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/audit-log/delete': {
       id: '/api/audit-log/delete'
       path: '/api/audit-log/delete'
@@ -551,6 +571,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   ApiAuditLogDeleteRoute: ApiAuditLogDeleteRoute,
+  ApiExportLedgerRoute: ApiExportLedgerRoute,
   ApiSettingsForgotMasterPasswordRoute: ApiSettingsForgotMasterPasswordRoute,
   ApiSettingsMasterPasswordRoute: ApiSettingsMasterPasswordRoute,
 }
